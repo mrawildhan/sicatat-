@@ -11,6 +11,13 @@ import { renderBreakerInput } from './screens/breakerInput.js';
 import { renderCrewNames } from './screens/crewNames.js';
 import { renderSummary } from './screens/summary.js';
 import { renderIncompleteList } from './screens/incompleteList.js';
+import { renderAdmin } from './screens/admin.js';
+import { renderAdminEquipment } from './screens/adminEquipment.js';
+import { renderAdminThreshold } from './screens/adminThreshold.js';
+import { renderAdminShift } from './screens/adminShift.js';
+import { renderAdminTeam } from './screens/adminTeam.js';
+import { renderAdminRoster } from './screens/adminRoster.js';
+import { renderAdminCrew } from './screens/adminCrew.js';
 
 async function bootstrap() {
   await initDb();
@@ -24,9 +31,13 @@ async function bootstrap() {
   register('/crew-names', renderCrewNames);
   register('/summary', renderSummary);
   register('/incomplete-list', renderIncompleteList);
-
-  // Layar Admin (kelola master data) ADA di PRD & wireframe tapi BELUM
-  // ditulis kodenya — lihat README.md bagian "Yang belum dikerjakan".
+  register('/admin', renderAdmin);
+  register('/admin-equipment', renderAdminEquipment);
+  register('/admin-threshold', renderAdminThreshold);
+  register('/admin-shift', renderAdminShift);
+  register('/admin-team', renderAdminTeam);
+  register('/admin-roster', renderAdminRoster);
+  register('/admin-crew', renderAdminCrew);
 
   // Cek dulu apakah ada sesi login tersimpan SEBELUM router pertama kali
   // menggambar layar — supaya tidak sempat kelihatan kedip ke layar Login
