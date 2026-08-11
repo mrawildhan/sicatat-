@@ -4,7 +4,9 @@ import { navigate } from '../lib/router.js';
 
 // SEMENTARA: Gearbox Breaker + Sizer, Ronde 1 & 2 tetap. Idealnya dibaca dari
 // struktur form_template, bukan di-hardcode seperti sekarang.
-const EXPECTED_SIDES = [
+// Diekspor supaya screens/incompleteList.js tahu berapa total sisi yang
+// diharapkan (8) tanpa duplikasi daftar ini.
+export const EXPECTED_SIDES = [
   { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 1 · BARAT' },
   { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Breaker — Ronde 1 · TIMUR' },
   { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 2 · BARAT' },

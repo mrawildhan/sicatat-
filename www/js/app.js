@@ -10,6 +10,7 @@ import { renderEquipmentInput } from './screens/equipmentInput.js';
 import { renderBreakerInput } from './screens/breakerInput.js';
 import { renderCrewNames } from './screens/crewNames.js';
 import { renderSummary } from './screens/summary.js';
+import { renderIncompleteList } from './screens/incompleteList.js';
 
 async function bootstrap() {
   await initDb();
@@ -22,9 +23,9 @@ async function bootstrap() {
   register('/breaker-input', renderBreakerInput);
   register('/crew-names', renderCrewNames);
   register('/summary', renderSummary);
+  register('/incomplete-list', renderIncompleteList);
 
-  // Layar berikut ADA di PRD & wireframe (sizer input, nama crew, ringkasan,
-  // jalur override supervisor, monitoring belum lengkap, admin) tapi BELUM
+  // Layar Admin (kelola master data) ADA di PRD & wireframe tapi BELUM
   // ditulis kodenya — lihat README.md bagian "Yang belum dikerjakan".
 
   // Cek dulu apakah ada sesi login tersimpan SEBELUM router pertama kali
