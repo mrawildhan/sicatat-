@@ -11,6 +11,14 @@ const EQUIPMENT_FIELDS = {
   hydraulic_pump_1: ['motor_de', 'motor_nde', 'chain_head', 'chain_tail', 'oil_level', 'remark'],
   hydraulic_pump_2: ['motor_de', 'motor_nde', 'chain_head', 'chain_tail', 'oil_level', 'remark'],
   heat_exchanger: ['motor_de', 'motor_nde', 'oil_level', 'remark'],
+  sizer_motor: ['motor_de', 'motor_nde', 'oil_level', 'remark'],
+  sizer_bearing: ['motor_de', 'motor_nde', 'oil_level', 'remark'],
+  sizer_timing: ['motor_de', 'motor_nde', 'oil_level', 'remark'],
+};
+
+const SECTION_LABELS = {
+  gearbox_breaker: 'Gearbox Breaker',
+  gearbox_sizer: 'Gearbox Sizer',
 };
 
 const FIELD_LABELS = {
@@ -24,9 +32,9 @@ const FIELD_LABELS = {
   remark: 'Remark',
 };
 
-async function fetchEquipmentWithPoints() {
+async function fetchEquipmentWithPoints(section) {
   const { data: equipmentRows, error: eqError } = await supabase
-    .from('equipment').select('id, code, name, sort_order').order('sort_order');
+    .from('equipment').select('id, code, name, sort_order').eq('section', section).order('sort_order');
   if (eqError) throw new Error(`Gagal ambil equipment: ${eqError.message}`);
 
   const { data: pointRows, error: ptError } = await supabase
@@ -46,14 +54,15 @@ async function fetchEquipmentWithPoints() {
 export async function renderEquipmentInput(root, params) {
   const sheetId = params.get('sheetId');
   const roundNumber = Number(params.get('round') || 1);
+  const section = params.get('section') || 'gearbox_breaker';
   const user = getCurrentUser();
 
   root.innerHTML = `<div class="screen-body"><p class="empty-text">Memuat...</p></div>`;
 
   let roundId, equipmentRows, pointsByEquipment, savedReadings;
   try {
-    roundId = await getOrCreateRound(sheetId, 'gearbox_breaker', roundNumber);
-    ({ equipmentRows, pointsByEquipment } = await fetchEquipmentWithPoints());
+    roundId = await getOrCreateRound(sheetId, section, roundNumber);
+    ({ equipmentRows, pointsByEquipment } = await fetchEquipmentWithPoints(section));
     savedReadings = await getReadingsForUnit(roundId, null); // null = readings equipment, bukan sisi BARAT/TIMUR
   } catch (err) {
     root.innerHTML = `<div class="screen-body"><div class="warn-box">Gagal memuat: ${err.message}</div></div>`;
@@ -94,7 +103,7 @@ export async function renderEquipmentInput(root, params) {
     <div class="topbar">
       <button class="btn-back" id="btn-back">← Daftar Lembar</div>
       <div class="topbar-label">Ronde ${roundNumber}</div>
-      <div class="topbar-title">Gearbox Breaker</div>
+      <div class="topbar-title">${SECTION_LABELS[section]}</div>
     </div>
     <div class="screen-body">
       ${equipmentRows
@@ -133,7 +142,7 @@ export async function renderEquipmentInput(root, params) {
   back.addEventListener('click', goBack);
 
   const nextBtn = root.querySelector('#btn-next');
-  const goNext = () => navigate(`/breaker-input?sheetId=${sheetId}&round=${roundNumber}`);
+  const goNext = () => navigate(`/breaker-input?sheetId=${sheetId}&round=${roundNumber}&section=${section}`);
   nextBtn.addEventListener('click', goNext);
 
   const numInputs = root.querySelectorAll('input[data-point-num]');

@@ -17,6 +17,15 @@ const STATUS_OPTIONS = [
   { value: 'tidak_dapat_diakses', label: 'Tidak dapat diakses' },
 ];
 
+const SECTION_LABELS = {
+  gearbox_breaker: 'Temperature Gearbox Breaker',
+  gearbox_sizer: 'Temperature Gearbox Sizer',
+};
+
+// SEMENTARA: tetap 2 ronde per section (breaker & sizer masing-masing),
+// dikonfirmasi manual — belum dibaca dari form_template.
+const TOTAL_ROUNDS = 2;
+
 // PENTING: sebelumnya kode di sini memakai `code` teks (mis. "gb_low_speed")
 // LANGSUNG sebagai measurement_point_id — itu salah, dan baru ketahuan saat
 // sinkron ke server ("invalid input syntax for type uuid"). SQLite lokal
@@ -39,11 +48,31 @@ async function resolvePoints() {
 export async function renderBreakerInput(root, params) {
   const sheetId = params.get('sheetId');
   const roundNumber = Number(params.get('round') || 1);
+  const section = params.get('section') || 'gearbox_breaker';
   let currentSide = params.get('side') || 'BARAT';
 
-  const roundId = await getOrCreateRound(sheetId, 'gearbox_breaker', roundNumber);
+  const roundId = await getOrCreateRound(sheetId, section, roundNumber);
   const user = getCurrentUser();
   const POINTS = await resolvePoints();
+
+  // Ronde belum habis -> ronde berikutnya di section yang sama. Ronde habis
+  // & masih di breaker -> lanjut ke Gearbox Sizer (round 1). Ronde habis &
+  // sudah di sizer -> baru ke Layar Ringkasan.
+  function nextStep() {
+    if (roundNumber < TOTAL_ROUNDS) {
+      return {
+        label: `Lanjut → Ronde ${roundNumber + 1}`,
+        path: `/breaker-equipment?sheetId=${sheetId}&round=${roundNumber + 1}&section=${section}`,
+      };
+    }
+    if (section === 'gearbox_breaker') {
+      return {
+        label: 'Lanjut → Gearbox Sizer',
+        path: `/breaker-equipment?sheetId=${sheetId}&round=1&section=gearbox_sizer`,
+      };
+    }
+    return { label: 'Selesai — Ke Ringkasan', path: `/summary?sheetId=${sheetId}` };
+  }
 
   async function draw() {
     const unitStatus = await getUnitStatus(roundId, currentSide, null);
@@ -56,7 +85,7 @@ export async function renderBreakerInput(root, params) {
       <div class="topbar">
         <button class="btn-back" id="btn-back">← Equipment</button>
         <div class="topbar-label">Lanjutan · Ronde ${roundNumber}</div>
-        <div class="topbar-title">Temperature Gearbox Breaker</div>
+        <div class="topbar-title">${SECTION_LABELS[section]}</div>
       </div>
       <div class="screen-body">
         <div class="side-toggle">
@@ -105,7 +134,7 @@ export async function renderBreakerInput(root, params) {
         }
 
         <button class="btn-primary" id="btn-selesai" style="margin-top:20px;">
-          ${roundNumber >= 2 ? 'Selesai — Ke Ringkasan' : 'Lanjut → Ronde 2'}
+          ${nextStep().label}
         </button>
       </div>
     `;
@@ -115,19 +144,10 @@ export async function renderBreakerInput(root, params) {
 
   async function wireEvents(unitStatus) {
     const back = root.querySelector('#btn-back');
-    back.addEventListener('click', () => navigate(`/breaker-equipment?sheetId=${sheetId}&round=${roundNumber}`));
+    back.addEventListener('click', () => navigate(`/breaker-equipment?sheetId=${sheetId}&round=${roundNumber}&section=${section}`));
 
-    // Ronde 1 selesai -> lanjut ke Ronde 2 (lewat layar equipment input, sama
-    // seperti alur awal). Ronde 2 selesai -> baru ke Layar Ringkasan sungguhan,
-    // crew lihat status kelengkapan kedua ronde sebelum submit.
     const selesaiBtn = root.querySelector('#btn-selesai');
-    selesaiBtn.addEventListener('click', () => {
-      if (roundNumber >= 2) {
-        navigate(`/summary?sheetId=${sheetId}`);
-      } else {
-        navigate(`/breaker-equipment?sheetId=${sheetId}&round=${roundNumber + 1}`);
-      }
-    });
+    selesaiBtn.addEventListener('click', () => navigate(nextStep().path));
 
     root.querySelectorAll('.side-toggle button').forEach((btn) => {
       btn.addEventListener('click', () => {

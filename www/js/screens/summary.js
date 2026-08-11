@@ -1,15 +1,17 @@
 import { getSheet, getUnitStatus, submitSheet, initDb } from '../lib/db.js';
 import { navigate } from '../lib/router.js';
 
-// SEMENTARA: Gearbox Breaker, Ronde 1 & 2 tetap (bukan Sizer). Belum ada jalan
-// untuk mencapai form Sizer dari mana pun di aplikasi — begitu itu dibangun,
-// daftar ini perlu diperluas (idealnya dibaca dari struktur form_template,
-// bukan di-hardcode seperti sekarang).
+// SEMENTARA: Gearbox Breaker + Sizer, Ronde 1 & 2 tetap. Idealnya dibaca dari
+// struktur form_template, bukan di-hardcode seperti sekarang.
 const EXPECTED_SIDES = [
   { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 1 · BARAT' },
   { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Breaker — Ronde 1 · TIMUR' },
   { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 2 · BARAT' },
   { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Breaker — Ronde 2 · TIMUR' },
+  { section: 'gearbox_sizer', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Sizer — Ronde 1 · BARAT' },
+  { section: 'gearbox_sizer', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Sizer — Ronde 1 · TIMUR' },
+  { section: 'gearbox_sizer', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Sizer — Ronde 2 · BARAT' },
+  { section: 'gearbox_sizer', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Sizer — Ronde 2 · TIMUR' },
 ];
 
 export async function renderSummary(root, params) {
