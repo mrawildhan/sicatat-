@@ -1,0 +1,143 @@
+:root {
+  --ink: #1a1f1a;
+  --ink-soft: #5c645c;
+  --line: #d8ddd6;
+  --paper: #ffffff;
+  --bg: #eef1ec;
+  --accent: #2f6b4f;
+  --accent-bg: #e3efe8;
+  --warn: #b5651d;
+  --warn-bg: #faf0e2;
+  --alarm: #a6332c;
+  --alarm-bg: #fbe9e7;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app { min-height: 100vh; background: var(--paper); }
+
+/* Login */
+.login-screen { padding: 40px 20px 20px; text-align: center; }
+.login-logo { width: 140px; height: auto; margin-bottom: 28px; }
+.error-text { color: var(--alarm); font-size: 12px; margin: 4px 0 12px; min-height: 16px; }
+
+/* Topbar */
+.topbar { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+.topbar-with-logout { display: flex; justify-content: space-between; align-items: flex-start; }
+.topbar-label { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
+.btn-back {
+  display: inline-block; background: var(--accent); color: #fff; border: none;
+  border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+  cursor: pointer; margin-bottom: 10px;
+}
+.topbar-title { font-size: 17px; font-weight: 600; margin-top: 4px; margin-left: 0; text-align: center; line-height: 1.3; }
+.btn-logout {
+  border: 1px solid var(--alarm); background: var(--alarm-bg); color: var(--alarm);
+  border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+
+.screen-body { padding: 14px 16px 32px; }
+
+/* Buttons */
+.btn-primary {
+  display: block; width: 100%; background: var(--accent); color: #fff;
+  border: none; border-radius: 10px; padding: 13px; font-size: 14px;
+  font-weight: 600; text-align: center; margin-bottom: 10px; cursor: pointer;
+}
+.btn-secondary {
+  display: block; width: 100%; background: #fff; border: 1px solid var(--line);
+  color: var(--ink); border-radius: 10px; padding: 12px; font-size: 13px;
+  font-weight: 600; text-align: center; cursor: pointer;
+}
+
+/* Menu cards (beranda) */
+.menu-card {
+  border: 1px solid var(--line); border-radius: 12px; padding: 16px 14px;
+  margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+}
+.menu-card.disabled { opacity: 0.45; cursor: default; }
+.menu-card-label { font-size: 15px; font-weight: 600; }
+.menu-card-sub { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+.chevron { font-size: 18px; color: var(--ink-soft); }
+
+/* Sheet cards (daftar lembar) */
+.sheet-card {
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer;
+}
+.sheet-date { font-size: 14px; font-weight: 600; }
+.sheet-shift { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.pill { font-size: 10px; font-weight: 600; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+.pill.draft { background: var(--warn-bg); color: var(--warn); }
+.pill.pending { background: #eee; color: var(--ink-soft); }
+.pill.synced { background: var(--accent-bg); color: var(--accent); }
+
+.section-label {
+  font-size: 11px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase;
+  letter-spacing: 0.04em; margin: 16px 0 8px;
+}
+.hint-text, .sync-note, .empty-text {
+  font-size: 11px; color: var(--ink-soft); text-align: center; margin: 8px 0 14px;
+}
+
+/* Fields */
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.field label { font-size: 10px; color: var(--ink-soft); font-weight: 600; }
+.field input {
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
+  font-size: 15px; width: 100%;
+}
+.point-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+
+/* Kartu equipment (Feeder Breaker, dst) */
+.equip-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+.equip-name { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+.equip-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.oil-toggle { display: flex; gap: 6px; }
+.oil-toggle button {
+  flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 8px;
+  font-size: 12px; font-weight: 600; background: #fff; color: var(--ink-soft); cursor: pointer;
+}
+.oil-toggle button.selected { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+
+/* Side toggle & status */
+.side-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+.side-toggle button {
+  flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 11px;
+  font-size: 13px; font-weight: 600; background: #fff; color: var(--ink-soft); cursor: pointer;
+}
+.side-toggle button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+.status-select { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+.status-select-label { font-size: 11px; color: var(--ink-soft); font-weight: 600; margin-bottom: 8px; }
+.status-options { display: flex; flex-direction: column; gap: 6px; }
+.status-opt { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 4px; cursor: pointer; }
+
+.warn-box {
+  background: var(--warn-bg); color: var(--warn); border-radius: 10px;
+  padding: 10px 12px; font-size: 12px; font-weight: 500; margin: 10px 0; line-height: 1.5;
+}
+.alarm-banner {
+  background: var(--alarm-bg); color: var(--alarm); border-radius: 10px;
+  padding: 10px 12px; font-size: 12px; font-weight: 600; margin-top: 12px;
+}
+/* Layar Ringkasan */
+.summary-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 13px;
+}
+.summary-row:last-of-type { border-bottom: none; }
+.summary-name { font-weight: 600; }
+.status-text { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.status-text.complete { background: var(--accent-bg); color: var(--accent); }
+.status-text.incomplete { background: var(--warn-bg); color: var(--warn); }

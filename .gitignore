@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Build output (regenerate dengan `npm run build`)
+www/js/bundle.js
+
+# Hasil analisis graphify (bukan source code project)
+graphify-out/
+
+# Local Claude Code settings (permission cache khusus mesin ini)
+.claude/settings.local.json
