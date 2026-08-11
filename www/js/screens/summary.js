@@ -1,4 +1,5 @@
-import { getSheet, getUnitStatus, submitSheet, getContributors, initDb } from '../lib/db.js';
+import { getSheet, getUnitStatus, submitSheet, forceSubmitSheet, getContributors, initDb } from '../lib/db.js';
+import { getCurrentUser, requireRole } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
 
 // SEMENTARA: Gearbox Breaker + Sizer, Ronde 1 & 2 tetap. Idealnya dibaca dari
@@ -16,6 +17,7 @@ const EXPECTED_SIDES = [
 
 export async function renderSummary(root, params) {
   const sheetId = params.get('sheetId');
+  const user = getCurrentUser();
 
   root.innerHTML = `<div class="screen-body"><p class="empty-text">Memuat...</p></div>`;
 
@@ -40,6 +42,12 @@ export async function renderSummary(root, params) {
   const contributors = await getContributors(sheetId);
   const crewBelumDiisi = contributors.length === 0;
   const bisaSubmit = belumDiisi.length === 0 && !crewBelumDiisi;
+
+  // FR-15: jalur override -- Foreman/Supervisor/Admin boleh kirim lembar
+  // meski ada sisi ronde belum diisi (mis. shift habis, crew harus pulang).
+  // Nama Crew Pengisi TETAP wajib -- override cuma untuk data ukur yang
+  // belum lengkap, bukan alasan buat tidak mencatat siapa yang mengisi.
+  const canOverride = belumDiisi.length > 0 && !crewBelumDiisi && requireRole('foreman', 'supervisor', 'admin');
 
   root.innerHTML = `
     <div class="topbar">
@@ -79,6 +87,23 @@ export async function renderSummary(root, params) {
       <button class="btn-primary" id="btn-submit" ${bisaSubmit ? '' : 'disabled style="opacity:0.4;"'}>
         Kirim Lembar
       </button>
+
+      ${
+        canOverride
+          ? `
+            <div class="status-select" style="margin-top:20px;">
+              <div class="status-select-label">Jalur Override (${user.role}) — kirim meski belum lengkap</div>
+              <div class="field">
+                <label>Alasan (wajib)</label>
+                <input id="force-reason" type="text" placeholder="Contoh: shift habis, crew sudah pulang">
+              </div>
+              <button class="btn-primary" id="btn-force-submit" style="margin-top:10px; opacity:0.4;" disabled>
+                Kirim Sebagai "Tidak Lengkap"
+              </button>
+            </div>
+          `
+          : ''
+      }
     </div>
   `;
 
@@ -102,9 +127,34 @@ export async function renderSummary(root, params) {
   };
   submitBtn.addEventListener('click', handleSubmit);
 
+  let cleanupOverride = () => {};
+  if (canOverride) {
+    const reasonInput = root.querySelector('#force-reason');
+    const forceBtn = root.querySelector('#btn-force-submit');
+    const updateForceBtn = () => {
+      const filled = reasonInput.value.trim().length > 0;
+      forceBtn.disabled = !filled;
+      forceBtn.style.opacity = filled ? '1' : '0.4';
+    };
+    const handleForceSubmit = async () => {
+      const reason = reasonInput.value.trim();
+      if (!reason) return;
+      await forceSubmitSheet(sheetId, reason, user.id);
+      alert('Lembar dikirim sebagai "Tidak Lengkap". Akan tersinkron otomatis begitu online.');
+      navigate('/sheet-list');
+    };
+    reasonInput.addEventListener('input', updateForceBtn);
+    forceBtn.addEventListener('click', handleForceSubmit);
+    cleanupOverride = () => {
+      reasonInput.removeEventListener('input', updateForceBtn);
+      forceBtn.removeEventListener('click', handleForceSubmit);
+    };
+  }
+
   return () => {
     back.removeEventListener('click', goBack);
     submitBtn.removeEventListener('click', handleSubmit);
+    cleanupOverride();
   };
 }
 

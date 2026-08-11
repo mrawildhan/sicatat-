@@ -16,6 +16,9 @@ create table if not exists sheet (
     created_at        text not null,
     submitted_at      text,
     app_version       text,
+    force_submitted_by text,
+    force_submitted_at text,
+    force_reason       text,
     sync_status       text not null default 'pending'
 );
 

@@ -255,6 +255,34 @@ export async function submitSheet(sheetId) {
   );
 }
 
+// ---- JALUR OVERRIDE (FR-15): kirim meski masih ada sisi "Belum diisi" ----
+// Cuma boleh dipanggil dari layar yang sudah menegakkan requireRole
+// ('foreman','supervisor','admin') — fungsi ini sendiri tidak cek role.
+export async function forceSubmitSheet(sheetId, reason, forcedByUserId) {
+  const database = await initDb();
+  const now = new Date().toISOString();
+  await database.run(
+    `update sheet set status = ?, submitted_at = ?, force_submitted_by = ?,
+     force_submitted_at = ?, force_reason = ?, sync_status = ? where id = ?`,
+    ['submitted_incomplete', now, forcedByUserId, now, reason, 'pending', sheetId]
+  );
+
+  const row = await database.query('select client_uuid from sheet where id = ?', [sheetId]);
+  const clientUuid = row.values[0].client_uuid;
+
+  await database.run(
+    `insert into sync_queue (entity_type, client_uuid, operation, payload_json) values (?,?,?,?)`,
+    ['sheet', clientUuid, 'update', JSON.stringify({
+      client_uuid: clientUuid,
+      status: 'submitted_incomplete',
+      submitted_at: now,
+      force_submitted_by: forcedByUserId,
+      force_submitted_at: now,
+      force_reason: reason,
+    })]
+  );
+}
+
 // ---- SHEET CONTRIBUTOR (nama crew pengisi) ----
 // SEMENTARA: cuma dikirim sekali via operation 'insert' (upsert onConflict
 // sheet_id+user_id di sync-engine.js) — belum ada jalur 'update'/'delete'
