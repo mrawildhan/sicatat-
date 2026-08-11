@@ -18,6 +18,29 @@ import { renderAdminShift } from './screens/adminShift.js';
 import { renderAdminTeam } from './screens/adminTeam.js';
 import { renderAdminRoster } from './screens/adminRoster.js';
 import { renderAdminCrew } from './screens/adminCrew.js';
+import { checkAppVersion, APP_VERSION } from './lib/version.js';
+
+// FR-57: overlay penuh yang menutupi app, tidak ada tombol lanjut. Cuma
+// dipanggil kalau server KONFIRMASI versi ini di bawah minimum -- lihat
+// catatan fail-open di lib/version.js.
+function showVersionBlock(info) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed; inset:0; background:#fff; z-index:9999; padding:40px 24px; text-align:center; font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;';
+  overlay.innerHTML = `
+    <div style="font-size:17px; font-weight:700; margin-bottom:10px;">Update Wajib</div>
+    <div style="font-size:13px; color:#5c645c; line-height:1.6;">
+      Versi aplikasi ini (${info.currentVersion}) sudah tidak didukung.
+      Minta APK versi terbaru (${info.latestVersion}) ke admin sebelum melanjutkan.
+      ${info.releaseNotes ? `<br><br>${info.releaseNotes}` : ''}
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+// FR-56: pemberitahuan ringan, tidak menghalangi pemakaian app.
+function showUpdateAvailableNotice(info) {
+  alert(`Versi baru (${info.latestVersion}) tersedia. App tetap bisa dipakai, tapi minta update ke admin kalau sempat.`);
+}
 
 async function bootstrap() {
   await initDb();
@@ -50,6 +73,13 @@ async function bootstrap() {
   startRouter();
   watchConnectivity();
   syncNow(); // coba sinkron begitu app dibuka, kalau kebetulan online
+
+  // Jalan di belakang, TIDAK menunda render pertama -- app offline-first
+  // harus tetap cepat dibuka meski cek versi lambat/gagal (lihat lib/version.js).
+  checkAppVersion().then((info) => {
+    if (info.blocked) showVersionBlock({ ...info, currentVersion: APP_VERSION });
+    else if (info.updateAvailable) showUpdateAvailableNotice(info);
+  });
 }
 
 bootstrap();
