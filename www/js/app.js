@@ -8,6 +8,7 @@ import { renderTemperatureMenu } from './screens/temperatureMenu.js';
 import { renderSheetList } from './screens/sheetList.js';
 import { renderEquipmentInput } from './screens/equipmentInput.js';
 import { renderBreakerInput } from './screens/breakerInput.js';
+import { renderCrewNames } from './screens/crewNames.js';
 import { renderSummary } from './screens/summary.js';
 
 async function bootstrap() {
@@ -19,6 +20,7 @@ async function bootstrap() {
   register('/sheet-list', renderSheetList);
   register('/breaker-equipment', renderEquipmentInput);
   register('/breaker-input', renderBreakerInput);
+  register('/crew-names', renderCrewNames);
   register('/summary', renderSummary);
 
   // Layar berikut ADA di PRD & wireframe (sizer input, nama crew, ringkasan,

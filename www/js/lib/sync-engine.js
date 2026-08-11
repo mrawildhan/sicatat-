@@ -16,11 +16,18 @@
 import { supabase } from './supabase-client.js';
 import { initDb } from './db.js';
 
+// conflictKey = kolom onConflict untuk upsert (insert). Tiga entitas pertama
+// punya client_uuid sendiri sebagai identitas baris. sheet_contributor TIDAK
+// — primary key-nya gabungan (sheet_id, user_id), makanya conflictKey beda
+// dan entitas ini juga TIDAK PERNAH dikirim dengan operation 'update' (lihat
+// db.js saveContributors) sehingga cabang update().eq('client_uuid', ...)
+// di bawah tidak pernah tersentuh untuknya.
 const TABLE_MAP = {
-  sheet: 'sheet',
-  round: 'round',
-  unit_status: 'unit_status',
-  reading: 'reading',
+  sheet: { table: 'sheet', conflictKey: 'client_uuid' },
+  round: { table: 'round', conflictKey: 'client_uuid' },
+  unit_status: { table: 'unit_status', conflictKey: 'client_uuid' },
+  reading: { table: 'reading', conflictKey: 'client_uuid' },
+  sheet_contributor: { table: 'sheet_contributor', conflictKey: 'sheet_id,user_id' },
 };
 
 let syncing = false;
@@ -35,11 +42,12 @@ export async function syncNow() {
     );
 
     for (const item of pending.values ?? []) {
-      const table = TABLE_MAP[item.entity_type];
-      if (!table) {
+      const mapping = TABLE_MAP[item.entity_type];
+      if (!mapping) {
         console.warn('sync-engine: entity_type tidak dikenal', item.entity_type);
         continue;
       }
+      const { table, conflictKey } = mapping;
 
       const payload = JSON.parse(item.payload_json);
       const { sync_status, ...serverPayload } = payload;
@@ -53,7 +61,7 @@ export async function syncNow() {
       // payload parsial selalu gagal dengan "null value in column ... violates
       // not-null constraint". update().eq() cuma menyentuh kolom yang dikirim.
       const { error } = item.operation === 'insert'
-        ? await supabase.from(table).upsert(serverPayload, { onConflict: 'client_uuid' })
+        ? await supabase.from(table).upsert(serverPayload, { onConflict: conflictKey })
         : await supabase.from(table).update(serverPayload).eq('client_uuid', item.client_uuid);
 
       if (error) {
@@ -66,10 +74,14 @@ export async function syncNow() {
       }
 
       await database.run('delete from sync_queue where id = ?', [item.id]);
-      await database.run(
-        `update ${item.entity_type} set sync_status = 'synced' where client_uuid = ?`,
-        [item.client_uuid]
-      );
+      // sheet_contributor tidak punya kolom sync_status (primary key gabungan,
+      // bukan baris tunggal ber-client_uuid) - tidak ada yang perlu ditandai.
+      if (item.entity_type !== 'sheet_contributor') {
+        await database.run(
+          `update ${item.entity_type} set sync_status = 'synced' where client_uuid = ?`,
+          [item.client_uuid]
+        );
+      }
     }
   } finally {
     syncing = false;

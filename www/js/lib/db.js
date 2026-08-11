@@ -255,6 +255,32 @@ export async function submitSheet(sheetId) {
   );
 }
 
+// ---- SHEET CONTRIBUTOR (nama crew pengisi) ----
+// SEMENTARA: cuma dikirim sekali via operation 'insert' (upsert onConflict
+// sheet_id+user_id di sync-engine.js) — belum ada jalur 'update'/'delete'
+// individual karena sheet_contributor primary key-nya gabungan, tidak
+// punya client_uuid sendiri seperti tabel lain. Kalau nanti perlu edit
+// bebas setelah tersimpan, sync-engine.js perlu operasi delete juga.
+export async function saveContributors(sheetId, userIds) {
+  const database = await initDb();
+  for (const userId of userIds) {
+    await database.run(
+      'insert into sheet_contributor (sheet_id, user_id) values (?, ?)',
+      [sheetId, userId]
+    );
+    await database.run(
+      `insert into sync_queue (entity_type, client_uuid, operation, payload_json) values (?,?,?,?)`,
+      ['sheet_contributor', uuid(), 'insert', JSON.stringify({ sheet_id: sheetId, user_id: userId })]
+    );
+  }
+}
+
+export async function getContributors(sheetId) {
+  const database = await initDb();
+  const res = await database.query('select user_id from sheet_contributor where sheet_id = ?', [sheetId]);
+  return (res.values ?? []).map((r) => r.user_id);
+}
+
 // ---- SUBMIT VALIDATION (FR-45: tidak boleh ada status "Belum diisi") ----
 export async function findUnansweredSides(sheetId) {
   // Mengembalikan daftar {round_id, section, round_number, unit_code} yang statusnya

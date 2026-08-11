@@ -1,4 +1,4 @@
-import { getSheet, getUnitStatus, submitSheet, initDb } from '../lib/db.js';
+import { getSheet, getUnitStatus, submitSheet, getContributors, initDb } from '../lib/db.js';
 import { navigate } from '../lib/router.js';
 
 // SEMENTARA: Gearbox Breaker + Sizer, Ronde 1 & 2 tetap. Idealnya dibaca dari
@@ -37,7 +37,9 @@ export async function renderSummary(root, params) {
   }
 
   const belumDiisi = rows.filter((r) => r.status === null);
-  const bisaSubmit = belumDiisi.length === 0;
+  const contributors = await getContributors(sheetId);
+  const crewBelumDiisi = contributors.length === 0;
+  const bisaSubmit = belumDiisi.length === 0 && !crewBelumDiisi;
 
   root.innerHTML = `
     <div class="topbar">
@@ -60,11 +62,19 @@ export async function renderSummary(root, params) {
         )
         .join('')}
 
+      <div class="summary-row">
+        <span class="summary-name">Nama Crew Pengisi</span>
+        <span class="status-text ${crewBelumDiisi ? 'incomplete' : 'complete'}">
+          ${crewBelumDiisi ? 'Belum diisi' : `${contributors.length} orang ✓`}
+        </span>
+      </div>
+
       ${
-        bisaSubmit
-          ? ''
-          : `<div class="warn-box">${belumDiisi.length} sisi masih "Belum diisi": ${belumDiisi.map((r) => r.label).join(', ')}. Lembar tidak dapat dikirim sampai semua terjawab.</div>`
+        belumDiisi.length > 0
+          ? `<div class="warn-box">${belumDiisi.length} sisi masih "Belum diisi": ${belumDiisi.map((r) => r.label).join(', ')}. Lembar tidak dapat dikirim sampai semua terjawab.</div>`
+          : ''
       }
+      ${crewBelumDiisi ? `<div class="warn-box">Nama Crew Pengisi belum diisi.</div>` : ''}
 
       <button class="btn-primary" id="btn-submit" ${bisaSubmit ? '' : 'disabled style="opacity:0.4;"'}>
         Kirim Lembar

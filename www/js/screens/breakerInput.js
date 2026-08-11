@@ -57,7 +57,8 @@ export async function renderBreakerInput(root, params) {
 
   // Ronde belum habis -> ronde berikutnya di section yang sama. Ronde habis
   // & masih di breaker -> lanjut ke Gearbox Sizer (round 1). Ronde habis &
-  // sudah di sizer -> baru ke Layar Ringkasan.
+  // sudah di sizer -> Layar Nama Crew (wireframe 4c), baru dari situ ke
+  // Ringkasan.
   function nextStep() {
     if (roundNumber < TOTAL_ROUNDS) {
       return {
@@ -71,7 +72,7 @@ export async function renderBreakerInput(root, params) {
         path: `/breaker-equipment?sheetId=${sheetId}&round=1&section=gearbox_sizer`,
       };
     }
-    return { label: 'Selesai — Ke Ringkasan', path: `/summary?sheetId=${sheetId}` };
+    return { label: 'Lanjut → Nama Crew', path: `/crew-names?sheetId=${sheetId}` };
   }
 
   async function draw() {
