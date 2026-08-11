@@ -2,6 +2,7 @@ import { listSheets, createSheet } from '../lib/db.js';
 import { getCurrentUser } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
 import { supabase } from '../lib/supabase-client.js';
+import { computeTeamCodeForShift } from '../lib/roster.js';
 
 const TEMPLATE_VERSION = 'v0.4';
 
@@ -12,10 +13,13 @@ async function resolveModuleId() {
   return data.id;
 }
 
-// SEMENTARA sampai FR-73 (auto-saran dari tabel `roster`) benar-benar dibangun:
-// ambil shift berdasarkan jam saat ini, dan tim pertama yang ada kalau user
-// (mis. admin) tidak terikat satu tim. Ini bukan implementasi FR-73 yang benar
-// — cuma supaya alur bisa dites tanpa nabrak foreign key constraint dulu.
+// FR-73: shift ditentukan dari jam saat ini (bukan bagian roster — roster
+// cuma menentukan REGU mana yang piket, bukan jenis shift-nya). Regu
+// dihitung otomatis dari roster_anchor (lihat lib/roster.js). Kalau
+// roster_anchor belum dikonfigurasi admin, atau user bukan crew/foreman
+// (mis. admin/supervisor bikin lembar tes) -- fallback ke team_id user
+// sendiri atau tim pertama yang ada, supaya alur tidak nabrak foreign key
+// constraint sementara roster belum diisi.
 async function resolveShiftAndTeam(user) {
   const hour = new Date().getHours();
   const shiftCode = hour >= 7 && hour < 19 ? 'PAGI' : 'MALAM';
@@ -24,7 +28,23 @@ async function resolveShiftAndTeam(user) {
     .from('shift').select('id').eq('code', shiftCode).single();
   if (shiftError) throw new Error(`Gagal ambil shift: ${shiftError.message}`);
 
-  let teamId = user.team_id;
+  let teamId = null;
+  let suggestedByRoster = false;
+
+  const { data: anchor } = await supabase
+    .from('roster_anchor').select('*').eq('is_active', true)
+    .order('tanggal_mula', { ascending: false }).limit(1).maybeSingle();
+
+  if (anchor) {
+    const today = new Date().toISOString().slice(0, 10);
+    const teamCode = computeTeamCodeForShift(anchor, today, shiftCode);
+    if (teamCode) {
+      const { data: team } = await supabase.from('team').select('id').eq('code', teamCode).single();
+      if (team) { teamId = team.id; suggestedByRoster = true; }
+    }
+  }
+
+  if (!teamId) teamId = user.team_id;
   if (!teamId) {
     const { data: team, error: teamError } = await supabase
       .from('team').select('id').order('code').limit(1).single();
@@ -32,7 +52,7 @@ async function resolveShiftAndTeam(user) {
     teamId = team.id;
   }
 
-  return { shiftId: shift.id, teamId };
+  return { shiftId: shift.id, teamId, suggestedByRoster };
 }
 
 export async function renderSheetList(root) {
