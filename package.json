@@ -3,16 +3,19 @@
   "version": "0.1.0",
   "description": "SICATAT - Aplikasi pencatatan lapangan CPP Asam-Asam. Modul pertama: Temperature Check.",
   "scripts": {
-  "build": "npx esbuild www/js/app.js --bundle --outfile=www/js/bundle.js --format=iife --platform=browser",
-  "dev": "npm run build && npx serve www -l 5173",
-  "sync": "npm run build && npx cap sync android",
-  "open:android": "npx cap open android"
-},
+    "build": "npx esbuild www/js/app.js --bundle --outfile=www/js/bundle.js --format=iife --platform=browser",
+    "dev": "npm run build && npx serve www -l 5173",
+    "sync": "npm run build && npx cap sync android",
+    "open:android": "npx cap open android"
+  },
   "dependencies": {
+    "@capacitor-community/sqlite": "^6.0.0",
     "@capacitor/android": "^6.0.0",
     "@capacitor/core": "^6.0.0",
-    "@capacitor-community/sqlite": "^6.0.0",
-    "@supabase/supabase-js": "^2.45.0"
+    "@capacitor/filesystem": "^6.0.4",
+    "@capacitor/share": "^6.0.4",
+    "@supabase/supabase-js": "^2.45.0",
+    "jspdf": "^4.2.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.0.0",

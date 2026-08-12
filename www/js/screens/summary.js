@@ -1,6 +1,7 @@
 import { getSheet, getUnitStatus, submitSheet, forceSubmitSheet, getContributors, initDb } from '../lib/db.js';
 import { getCurrentUser, requireRole } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
+import { buildExportRows, resolveContributorNames, buildCsv, buildPdf, pdfToBase64, saveAndShareText, saveAndShareBase64 } from '../lib/export.js';
 
 // SEMENTARA: Gearbox Breaker + Sizer, Ronde 1 & 2 tetap. Idealnya dibaca dari
 // struktur form_template, bukan di-hardcode seperti sekarang.
@@ -106,6 +107,10 @@ export async function renderSummary(root, params) {
           `
           : ''
       }
+
+      <div class="section-label">Ekspor (FR-62/63)</div>
+      <button class="btn-secondary" id="btn-export-csv" style="margin-bottom:10px;">Ekspor Excel (CSV)</button>
+      <button class="btn-secondary" id="btn-export-pdf">Ekspor PDF</button>
     </div>
   `;
 
@@ -153,10 +158,43 @@ export async function renderSummary(root, params) {
     };
   }
 
+  const exportCsvBtn = root.querySelector('#btn-export-csv');
+  const exportPdfBtn = root.querySelector('#btn-export-pdf');
+  const handleExportCsv = async () => {
+    exportCsvBtn.textContent = 'Menyiapkan...';
+    try {
+      const exportRows = await buildExportRows(sheetId);
+      const names = await resolveContributorNames(contributors);
+      const csv = buildCsv(sheet, names, exportRows);
+      await saveAndShareText(csv, `sicatat-${sheet.tanggal}.csv`);
+    } catch (err) {
+      alert(`Gagal ekspor CSV: ${err.message}`);
+    } finally {
+      exportCsvBtn.textContent = 'Ekspor Excel (CSV)';
+    }
+  };
+  const handleExportPdf = async () => {
+    exportPdfBtn.textContent = 'Menyiapkan...';
+    try {
+      const exportRows = await buildExportRows(sheetId);
+      const names = await resolveContributorNames(contributors);
+      const doc = buildPdf(sheet, names, exportRows);
+      await saveAndShareBase64(pdfToBase64(doc), `sicatat-${sheet.tanggal}.pdf`);
+    } catch (err) {
+      alert(`Gagal ekspor PDF: ${err.message}`);
+    } finally {
+      exportPdfBtn.textContent = 'Ekspor PDF';
+    }
+  };
+  exportCsvBtn.addEventListener('click', handleExportCsv);
+  exportPdfBtn.addEventListener('click', handleExportPdf);
+
   return () => {
     back.removeEventListener('click', goBack);
     submitBtn.removeEventListener('click', handleSubmit);
     cleanupOverride();
+    exportCsvBtn.removeEventListener('click', handleExportCsv);
+    exportPdfBtn.removeEventListener('click', handleExportPdf);
   };
 }
 

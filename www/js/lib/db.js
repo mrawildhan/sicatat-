@@ -283,6 +283,24 @@ export async function forceSubmitSheet(sheetId, reason, forcedByUserId) {
   );
 }
 
+// ---- EKSPOR (FR-62/63) ----
+// Semua reading milik sheet, lintas section/ronde. measurement_point_id
+// belum di-resolve ke label -- itu perlu query terpisah ke Supabase
+// (lib/export.js), karena measurement_point tidak di-cache lokal.
+export async function getAllReadingsForSheet(sheetId) {
+  const database = await initDb();
+  const res = await database.query(`
+    select r.section, r.round_number, us.unit_code,
+           rd.measurement_point_id, rd.value_numeric, rd.value_boolean, rd.value_text
+    from round r
+    join reading rd on rd.round_id = r.id
+    left join unit_status us on us.id = rd.unit_status_id
+    where r.sheet_id = ?
+    order by r.section, r.round_number
+  `, [sheetId]);
+  return res.values ?? [];
+}
+
 // ---- SHEET CONTRIBUTOR (nama crew pengisi) ----
 // SEMENTARA: cuma dikirim sekali via operation 'insert' (upsert onConflict
 // sheet_id+user_id di sync-engine.js) — belum ada jalur 'update'/'delete'
