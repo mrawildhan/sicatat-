@@ -14,12 +14,14 @@ async function resolveModuleId() {
 }
 
 // FR-73: shift ditentukan dari jam saat ini (bukan bagian roster — roster
-// cuma menentukan REGU mana yang piket, bukan jenis shift-nya). Regu
-// dihitung otomatis dari roster_anchor (lihat lib/roster.js). Kalau
-// roster_anchor belum dikonfigurasi admin, atau user bukan crew/foreman
-// (mis. admin/supervisor bikin lembar tes) -- fallback ke team_id user
-// sendiri atau tim pertama yang ada, supaya alur tidak nabrak foreign key
-// constraint sementara roster belum diisi.
+// cuma menentukan REGU mana yang piket, bukan jenis shift-nya).
+//
+// Regu: crew & foreman SELALU punya team_id sendiri (wajib diisi di
+// app_user, lihat skema) — pakai itu LANGSUNG, tidak perlu hitung rotasi
+// sama sekali. Cuma supervisor/admin (team_id null, lintas tim) yang
+// butuh ditebak dari roster_anchor. Ini lebih sederhana & tidak pernah
+// salah karena config tanggal roster keliru — regu crew tidak tergantung
+// akurasi roster_anchor sama sekali.
 async function resolveShiftAndTeam(user) {
   const hour = new Date().getHours();
   const shiftCode = hour >= 7 && hour < 19 ? 'PAGI' : 'MALAM';
@@ -28,23 +30,23 @@ async function resolveShiftAndTeam(user) {
     .from('shift').select('id').eq('code', shiftCode).single();
   if (shiftError) throw new Error(`Gagal ambil shift: ${shiftError.message}`);
 
-  let teamId = null;
-  let suggestedByRoster = false;
+  let teamId = user.team_id;
 
-  const { data: anchor } = await supabase
-    .from('roster_anchor').select('*').eq('is_active', true)
-    .order('tanggal_mula', { ascending: false }).limit(1).maybeSingle();
+  if (!teamId) {
+    const { data: anchor } = await supabase
+      .from('roster_anchor').select('*').eq('is_active', true)
+      .order('tanggal_mula', { ascending: false }).limit(1).maybeSingle();
 
-  if (anchor) {
-    const today = new Date().toISOString().slice(0, 10);
-    const teamCode = computeTeamCodeForShift(anchor, today, shiftCode);
-    if (teamCode) {
-      const { data: team } = await supabase.from('team').select('id').eq('code', teamCode).single();
-      if (team) { teamId = team.id; suggestedByRoster = true; }
+    if (anchor) {
+      const today = new Date().toISOString().slice(0, 10);
+      const teamCode = computeTeamCodeForShift(anchor, today, shiftCode);
+      if (teamCode) {
+        const { data: team } = await supabase.from('team').select('id').eq('code', teamCode).single();
+        if (team) teamId = team.id;
+      }
     }
   }
 
-  if (!teamId) teamId = user.team_id;
   if (!teamId) {
     const { data: team, error: teamError } = await supabase
       .from('team').select('id').order('code').limit(1).single();
@@ -52,7 +54,7 @@ async function resolveShiftAndTeam(user) {
     teamId = team.id;
   }
 
-  return { shiftId: shift.id, teamId, suggestedByRoster };
+  return { shiftId: shift.id, teamId };
 }
 
 export async function renderSheetList(root) {
