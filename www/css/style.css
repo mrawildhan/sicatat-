@@ -97,6 +97,8 @@ body {
   border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
   font-size: 15px; width: 100%;
 }
+.field input.field-warn { border-color: var(--warn); background: var(--warn-bg); color: var(--warn); font-weight: 700; }
+.field input.field-alarm { border-color: var(--alarm); background: var(--alarm-bg); color: var(--alarm); font-weight: 700; }
 .point-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
 
 /* Kartu equipment (Feeder Breaker, dst) */

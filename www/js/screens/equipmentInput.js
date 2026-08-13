@@ -2,6 +2,7 @@ import { getOrCreateRound, getReadingsForUnit, saveReading } from '../lib/db.js'
 import { getCurrentUser } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
 import { supabase } from '../lib/supabase-client.js';
+import { tempFieldClass } from '../lib/tempColor.js';
 
 // Matriks field per equipment — sesuai PRD Bagian 5.2. Field yang TIDAK
 // disebut di sini untuk suatu equipment TIDAK ditampilkan sama sekali
@@ -97,7 +98,8 @@ export async function renderEquipmentInput(root, params) {
     return `
       <div class="field">
         <label>${FIELD_LABELS[point.code] ?? point.code}</label>
-        <input type="number" step="0.1" data-point-num="${point.id}" value="${saved?.value_numeric ?? ''}" placeholder="—">
+        <input type="number" step="0.1" data-point-num="${point.id}" value="${saved?.value_numeric ?? ''}"
+          class="${tempFieldClass(saved?.value_numeric)}" placeholder="—">
       </div>
     `;
   }
@@ -150,6 +152,7 @@ export async function renderEquipmentInput(root, params) {
 
   const numInputs = root.querySelectorAll('input[data-point-num]');
   const handleNumBlur = async (e) => {
+    e.target.className = tempFieldClass(e.target.value);
     if (e.target.value === '') return;
     await saveReading({
       roundId,

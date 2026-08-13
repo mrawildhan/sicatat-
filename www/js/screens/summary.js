@@ -49,10 +49,10 @@ export async function renderSummary(root, params) {
       ${rows
         .map(
           (r) => `
-        <div class="summary-row">
+        <div class="summary-row" ${r.status === null ? `data-fill="${r.section}|${r.roundNumber}|${r.unitCode}" style="cursor:pointer;"` : ''}>
           <span class="summary-name">${r.label}</span>
           <span class="status-text ${r.status === null ? 'incomplete' : 'complete'}">
-            ${r.status === null ? 'Belum diisi' : statusLabel(r.status)}
+            ${r.status === null ? 'Belum diisi →' : statusLabel(r.status)}
           </span>
         </div>
       `
@@ -110,6 +110,16 @@ export async function renderSummary(root, params) {
   const back = root.querySelector('#btn-back');
   const goBack = () => navigate('/sheet-list');
   back.addEventListener('click', goBack);
+
+  // Klik langsung baris "Belum diisi" -> loncat ke form ronde/sisi itu juga,
+  // tidak perlu balik ke Daftar Lembar & klik ulang dari Ronde 1.
+  const handleFillClick = (e) => {
+    const row = e.target.closest('[data-fill]');
+    if (!row) return;
+    const [section, roundNumber, unitCode] = row.dataset.fill.split('|');
+    navigate(`/breaker-input?sheetId=${sheetId}&round=${roundNumber}&section=${section}&side=${unitCode}`);
+  };
+  root.addEventListener('click', handleFillClick);
 
   const submitBtn = root.querySelector('#btn-submit');
   const handleSubmit = async () => {
@@ -183,6 +193,7 @@ export async function renderSummary(root, params) {
 
   return () => {
     back.removeEventListener('click', goBack);
+    root.removeEventListener('click', handleFillClick);
     submitBtn.removeEventListener('click', handleSubmit);
     cleanupOverride();
     exportCsvBtn.removeEventListener('click', handleExportCsv);

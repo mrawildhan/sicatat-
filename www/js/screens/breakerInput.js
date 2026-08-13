@@ -2,6 +2,7 @@ import { getOrCreateRound, getRound, setRoundJam, getUnitStatus, setUnitStatus, 
 import { getCurrentUser } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
 import { supabase } from '../lib/supabase-client.js';
+import { tempFieldClass } from '../lib/tempColor.js';
 
 function nowHHMM() {
   const d = new Date();
@@ -147,7 +148,8 @@ export async function renderBreakerInput(root, params) {
                   <div class="field">
                     <label>${p.label} °C</label>
                     <input type="number" step="0.1" data-point="${p.id}"
-                      value="${savedReadings[p.id]?.value_numeric ?? ''}" placeholder="—">
+                      value="${savedReadings[p.id]?.value_numeric ?? ''}"
+                      class="${tempFieldClass(savedReadings[p.id]?.value_numeric)}" placeholder="—">
                   </div>
                 `
                 ).join('')}
@@ -225,6 +227,7 @@ export async function renderBreakerInput(root, params) {
 
     root.querySelectorAll('#point-fields input').forEach((input) => {
       input.addEventListener('blur', async () => {
+        input.className = tempFieldClass(input.value);
         if (input.value === '') return;
         await saveReading({
           roundId,
