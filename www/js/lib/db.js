@@ -327,8 +327,8 @@ export async function forceSubmitSheet(sheetId, reason, forcedByUserId) {
 export async function getAllReadingsForSheet(sheetId) {
   const database = await initDb();
   const res = await database.query(`
-    select r.section, r.round_number, us.unit_code,
-           rd.measurement_point_id, rd.value_numeric, rd.value_boolean, rd.value_text
+    select r.section, r.round_number, r.jam, us.unit_code, us.status as status_unit,
+           rd.measurement_point_id, rd.value_numeric, rd.value_boolean, rd.value_text, rd.recorded_by
     from round r
     join reading rd on rd.round_id = r.id
     left join unit_status us on us.id = rd.unit_status_id

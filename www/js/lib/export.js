@@ -1,26 +1,58 @@
 // export.js — FR-62 (PDF) & FR-63 (Excel/CSV). Data dasar dari SQLite
-// lokal (readings device ini), label titik ukur di-resolve dari Supabase
-// sekali per ekspor (measurement_point tidak di-cache lokal) -- kalau
-// offline, label jatuh balik ke kode mentah, TIDAK menggagalkan ekspor.
+// lokal (readings device ini), label titik ukur/equipment/nama di-resolve
+// dari Supabase sekali per ekspor (tidak di-cache lokal) -- kalau offline,
+// jatuh balik ke kode/id mentah, TIDAK menggagalkan ekspor.
 
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { getAllReadingsForSheet } from './db.js';
 import { supabase } from './supabase-client.js';
+import { tempFieldClass } from './tempColor.js';
 
 const SECTION_LABELS = { gearbox_breaker: 'Gb. Breaker', gearbox_sizer: 'Gb. Sizer' };
+const STATUS_UNIT_LABELS = {
+  beroperasi: 'Beroperasi',
+  tidak_beroperasi: 'Tidak beroperasi',
+  tidak_dapat_diakses: 'Tidak dapat diakses',
+};
 
 async function resolvePointLabels(pointIds) {
   const uniqueIds = [...new Set(pointIds)];
   if (uniqueIds.length === 0) return {};
   try {
     const { data, error } = await supabase
-      .from('measurement_point').select('id, code, label, unit').in('id', uniqueIds);
+      .from('measurement_point').select('id, code, label, unit, equipment_id').in('id', uniqueIds);
     if (error) throw error;
     return Object.fromEntries(data.map((p) => [p.id, p]));
   } catch {
     return {}; // offline atau gagal -- ekspor tetap jalan, label jatuh ke kode
+  }
+}
+
+async function resolveEquipmentNames(equipmentIds) {
+  const uniqueIds = [...new Set(equipmentIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return {};
+  try {
+    const { data, error } = await supabase.from('equipment').select('id, name').in('id', uniqueIds);
+    if (error) throw error;
+    return Object.fromEntries(data.map((e) => [e.id, e.name]));
+  } catch {
+    return {};
+  }
+}
+
+// Regu & Shift ditampilkan sebagai nama, bukan uuid mentah, di kop CSV/PDF.
+export async function resolveSheetContext(sheet) {
+  try {
+    const [{ data: team }, { data: shift }] = await Promise.all([
+      supabase.from('team').select('name').eq('id', sheet.team_id).single(),
+      supabase.from('shift').select('name').eq('id', sheet.shift_id).single(),
+    ]);
+    return { teamName: team?.name ?? '—', shiftName: shift?.name ?? '—' };
+  } catch {
+    return { teamName: '—', shiftName: '—' };
   }
 }
 
@@ -44,19 +76,37 @@ export async function resolveContributorNames(userIds) {
 
 export async function buildExportRows(sheetId) {
   const readings = await getAllReadingsForSheet(sheetId);
-  const labels = await resolvePointLabels(readings.map((r) => r.measurement_point_id));
+  const points = await resolvePointLabels(readings.map((r) => r.measurement_point_id));
+  const equipmentNames = await resolveEquipmentNames(Object.values(points).map((p) => p.equipment_id));
+
+  const recordedByIds = [...new Set(readings.map((r) => r.recorded_by).filter(Boolean))];
+  const recordedByNames = recordedByIds.length ? await resolveContributorNamesMap(recordedByIds) : {};
 
   return readings.map((r) => {
-    const point = labels[r.measurement_point_id];
+    const point = points[r.measurement_point_id];
     return {
       section: SECTION_LABELS[r.section] ?? r.section,
       ronde: r.round_number,
+      jam: r.jam ?? '',
       sisi: r.unit_code ?? '',
+      statusUnit: STATUS_UNIT_LABELS[r.status_unit] ?? (r.status_unit ?? ''),
+      equipment: point?.equipment_id ? (equipmentNames[point.equipment_id] ?? '') : '',
       titikUkur: point ? point.label : r.measurement_point_id,
       nilai: readingValue(r),
       satuan: point?.unit ?? '',
+      dicatatOleh: recordedByNames[r.recorded_by] ?? '',
     };
   });
+}
+
+async function resolveContributorNamesMap(userIds) {
+  try {
+    const { data, error } = await supabase.from('app_user').select('id, name').in('id', userIds);
+    if (error) throw error;
+    return Object.fromEntries(data.map((u) => [u.id, u.name]));
+  } catch {
+    return {};
+  }
 }
 
 function csvEscape(v) {
@@ -64,49 +114,67 @@ function csvEscape(v) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function buildCsv(sheet, contributorNames, rows) {
+export function buildCsv(sheet, sheetContext, contributorNames, rows) {
   const lines = [
+    `SICATAT - Daily Temperature Check`,
     `Tanggal,${csvEscape(sheet.tanggal)}`,
-    `Status,${csvEscape(sheet.status)}`,
+    `Regu,${csvEscape(sheetContext.teamName)}`,
+    `Shift,${csvEscape(sheetContext.shiftName)}`,
+    `Status Lembar,${csvEscape(sheet.status)}`,
     `Crew Pengisi,${csvEscape(contributorNames.join('; '))}`,
     '',
-    'Section,Ronde,Sisi,Titik Ukur,Nilai,Satuan',
-    ...rows.map((r) => [r.section, r.ronde, r.sisi, r.titikUkur, r.nilai, r.satuan].map(csvEscape).join(',')),
+    'Section,Ronde,Jam,Sisi,Status Unit,Equipment,Titik Ukur,Nilai,Satuan,Dicatat Oleh',
+    ...rows.map((r) => [
+      r.section, r.ronde, r.jam, r.sisi, r.statusUnit, r.equipment, r.titikUkur, r.nilai, r.satuan, r.dicatatOleh,
+    ].map(csvEscape).join(',')),
   ];
   return lines.join('\n');
 }
 
-export function buildPdf(sheet, contributorNames, rows) {
-  const doc = new jsPDF();
+// Warna suhu sama seperti di layar input (lib/tempColor.js): 60-69.9C kuning,
+// >=70C merah -- cuma dipakai untuk sel "Nilai" yang satuannya benar-benar
+// °C (Oil Level/Remark tidak punya satuan itu, tidak ikut diwarnai).
+const CELL_COLORS = {
+  'field-warn': [250, 217, 148],   // selaras var(--warn-bg)/--warn di style.css
+  'field-alarm': [246, 191, 186],  // selaras var(--alarm-bg)/--alarm
+};
+
+export function buildPdf(sheet, sheetContext, contributorNames, rows) {
+  const doc = new jsPDF({ orientation: 'landscape' });
+
   doc.setFontSize(14);
-  doc.text('SICATAT — Daily Temperature Check', 14, 16);
+  doc.text('SICATAT — Daily Temperature Check', 14, 15);
   doc.setFontSize(10);
-  doc.text(`Tanggal: ${sheet.tanggal}`, 14, 26);
-  doc.text(`Status: ${sheet.status}`, 14, 32);
-  doc.text(`Crew Pengisi: ${contributorNames.join(', ') || '-'}`, 14, 38);
+  doc.text(
+    `Tanggal: ${sheet.tanggal}    Regu: ${sheetContext.teamName}    Shift: ${sheetContext.shiftName}    ` +
+    `Status: ${sheet.status}`,
+    14, 22
+  );
+  doc.text(`Crew Pengisi: ${contributorNames.join(', ') || '-'}`, 14, 28);
 
-  let y = 50;
-  doc.setFontSize(9);
-  doc.text('Section', 14, y);
-  doc.text('Ronde', 60, y);
-  doc.text('Sisi', 80, y);
-  doc.text('Titik Ukur', 105, y);
-  doc.text('Nilai', 165, y);
-  doc.text('Satuan', 185, y);
-  y += 4;
-  doc.line(14, y, 196, y);
-  y += 5;
+  const head = [['Section', 'Ronde', 'Jam', 'Sisi', 'Status Unit', 'Equipment', 'Titik Ukur', 'Nilai', 'Satuan', 'Dicatat Oleh']];
+  const body = rows.map((r) => [r.section, r.ronde, r.jam, r.sisi, r.statusUnit, r.equipment, r.titikUkur, r.nilai, r.satuan, r.dicatatOleh]);
 
-  for (const r of rows) {
-    if (y > 285) { doc.addPage(); y = 20; }
-    doc.text(String(r.section), 14, y);
-    doc.text(String(r.ronde), 60, y);
-    doc.text(String(r.sisi), 80, y);
-    doc.text(String(r.titikUkur), 105, y);
-    doc.text(String(r.nilai), 165, y);
-    doc.text(String(r.satuan), 185, y);
-    y += 6;
-  }
+  autoTable(doc, {
+    head,
+    body,
+    startY: 34,
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [26, 31, 26], textColor: 255 },
+    alternateRowStyles: { fillColor: [245, 246, 245] },
+    didParseCell: (data) => {
+      // Kolom "Nilai" = index 7. Cuma warnai kalau satuannya °C (kolom
+      // "Satuan" = index 8) -- Oil Level (OK/Low) & Remark tidak diwarnai.
+      if (data.section !== 'body' || data.column.index !== 7) return;
+      const satuan = data.row.raw[8];
+      if (satuan !== '°C') return;
+      const cls = tempFieldClass(data.cell.raw);
+      if (cls && CELL_COLORS[cls]) {
+        data.cell.styles.fillColor = CELL_COLORS[cls];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+  });
 
   return doc;
 }

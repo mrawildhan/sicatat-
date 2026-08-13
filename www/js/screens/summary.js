@@ -1,7 +1,7 @@
 import { getSheet, getUnitStatus, submitSheet, forceSubmitSheet, getContributors, initDb, EXPECTED_SIDES } from '../lib/db.js';
 import { getCurrentUser, requireRole } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
-import { buildExportRows, resolveContributorNames, buildCsv, buildPdf, pdfToBase64, saveAndShareText, saveAndShareBase64 } from '../lib/export.js';
+import { buildExportRows, resolveContributorNames, resolveSheetContext, buildCsv, buildPdf, pdfToBase64, saveAndShareText, saveAndShareBase64 } from '../lib/export.js';
 import { syncNow } from '../lib/sync-engine.js';
 
 export async function renderSummary(root, params) {
@@ -166,8 +166,8 @@ export async function renderSummary(root, params) {
     exportCsvBtn.textContent = 'Menyiapkan...';
     try {
       const exportRows = await buildExportRows(sheetId);
-      const names = await resolveContributorNames(contributors);
-      const csv = buildCsv(sheet, names, exportRows);
+      const [names, sheetContext] = await Promise.all([resolveContributorNames(contributors), resolveSheetContext(sheet)]);
+      const csv = buildCsv(sheet, sheetContext, names, exportRows);
       await saveAndShareText(csv, `sicatat-${sheet.tanggal}.csv`);
     } catch (err) {
       alert(`Gagal ekspor CSV: ${err.message}`);
@@ -179,8 +179,8 @@ export async function renderSummary(root, params) {
     exportPdfBtn.textContent = 'Menyiapkan...';
     try {
       const exportRows = await buildExportRows(sheetId);
-      const names = await resolveContributorNames(contributors);
-      const doc = buildPdf(sheet, names, exportRows);
+      const [names, sheetContext] = await Promise.all([resolveContributorNames(contributors), resolveSheetContext(sheet)]);
+      const doc = buildPdf(sheet, sheetContext, names, exportRows);
       await saveAndShareBase64(pdfToBase64(doc), `sicatat-${sheet.tanggal}.pdf`);
     } catch (err) {
       alert(`Gagal ekspor PDF: ${err.message}`);
