@@ -132,6 +132,28 @@ export async function getOrCreateRound(sheetId, section, roundNumber) {
   return id;
 }
 
+export async function getRound(roundId) {
+  const database = await initDb();
+  const res = await database.query('select * from round where id = ?', [roundId]);
+  return res.values?.[0] ?? null;
+}
+
+// jam = "waktu aktual" ronde ini (FR terkait di supabase/schema.sql: "bukan
+// hanya Jam: kosong seperti kertas") -- satu jam berlaku untuk seluruh ronde
+// (BARAT & TIMUR sekaligus), diisi manual karena bisa beda dari waktu entry
+// aplikasi (mis. dicatat di kertas dulu, baru diketik belakangan).
+export async function setRoundJam(roundId, jam) {
+  const database = await initDb();
+  await database.run('update round set jam = ?, sync_status = ? where id = ?', [jam, 'pending', roundId]);
+
+  const row = await database.query('select client_uuid from round where id = ?', [roundId]);
+  const clientUuid = row.values[0].client_uuid;
+  await database.run(
+    `insert into sync_queue (entity_type, client_uuid, operation, payload_json) values (?,?,?,?)`,
+    ['round', clientUuid, 'update', JSON.stringify({ client_uuid: clientUuid, jam })]
+  );
+}
+
 // ---- UNIT STATUS (per sisi — status default NULL / "belum diisi", lihat FR-26a) ----
 export async function setUnitStatus({ roundId, unitCode, equipmentId, status, reason }) {
   const database = await initDb();

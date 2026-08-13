@@ -1,7 +1,12 @@
-import { getOrCreateRound, getUnitStatus, setUnitStatus, saveReading, getReadingsForUnit } from '../lib/db.js';
+import { getOrCreateRound, getRound, setRoundJam, getUnitStatus, setUnitStatus, saveReading, getReadingsForUnit, saveContributors, getContributors } from '../lib/db.js';
 import { getCurrentUser } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
 import { supabase } from '../lib/supabase-client.js';
+
+function nowHHMM() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
 // Titik ukur gearbox — sama untuk breaker & sizer (Input Shaft = titik 4, dikonfirmasi berlaku keduanya)
 const POINT_CODES = [
@@ -55,9 +60,21 @@ export async function renderBreakerInput(root, params) {
   const user = getCurrentUser();
   const POINTS = await resolvePoints();
 
+  // Jam ronde ini (berlaku untuk BARAT & TIMUR sekaligus — satu ronde, satu
+  // waktu keliling). Kalau belum pernah diisi, default ke jam saat ini &
+  // langsung disimpan (supaya tidak pernah kosong "seperti kertas kosong"),
+  // tapi tetap bisa dikoreksi manual kalau waktu cek sebenarnya beda.
+  let round = await getRound(roundId);
+  if (!round.jam) {
+    round.jam = nowHHMM();
+    await setRoundJam(roundId, round.jam);
+  }
+
   // Satu Ronde = satu putaran keliling yang mencakup breaker DAN sizer (bukan
   // habiskan semua ronde breaker dulu baru pindah sizer). Jadi: Breaker
-  // Ronde 1 -> Sizer Ronde 1 -> Breaker Ronde 2 -> Sizer Ronde 2 -> Nama Crew.
+  // Ronde 1 -> Sizer Ronde 1 -> Breaker Ronde 2 -> Sizer Ronde 2 -> Ringkasan.
+  // Nama Crew Pengisi tidak lagi layar terpisah -- otomatis diisi user yang
+  // login begitu ronde terakhir selesai (dikonfirmasi user 2026-08-13).
   function nextStep() {
     if (section === 'gearbox_breaker') {
       return {
@@ -71,7 +88,7 @@ export async function renderBreakerInput(root, params) {
         path: `/breaker-equipment?sheetId=${sheetId}&round=${roundNumber + 1}&section=gearbox_breaker`,
       };
     }
-    return { label: 'Lanjut → Nama Crew', path: `/crew-names?sheetId=${sheetId}` };
+    return { label: 'Simpan & Lanjut → Ringkasan', path: `/summary?sheetId=${sheetId}`, isFinal: true };
   }
 
   async function draw() {
@@ -88,6 +105,11 @@ export async function renderBreakerInput(root, params) {
         <div class="topbar-title">${SECTION_LABELS[section]}</div>
       </div>
       <div class="screen-body">
+        <div class="field">
+          <label>Jam Ronde ${roundNumber} (berlaku BARAT &amp; TIMUR)</label>
+          <input type="time" id="input-jam" value="${round.jam}">
+        </div>
+
         <div class="side-toggle">
           <button data-side="BARAT" class="${currentSide === 'BARAT' ? 'active' : ''}">BARAT</button>
           <button data-side="TIMUR" class="${currentSide === 'TIMUR' ? 'active' : ''}">TIMUR</button>
@@ -147,7 +169,25 @@ export async function renderBreakerInput(root, params) {
     back.addEventListener('click', () => navigate(`/breaker-equipment?sheetId=${sheetId}&round=${roundNumber}&section=${section}`));
 
     const selesaiBtn = root.querySelector('#btn-selesai');
-    selesaiBtn.addEventListener('click', () => navigate(nextStep().path));
+    selesaiBtn.addEventListener('click', async () => {
+      const step = nextStep();
+      if (step.isFinal) {
+        // idempoten -- pengguna bisa bolak-balik ke layar ini & klik lagi
+        // sebelum kirim, sheet_contributor cuma boleh disimpan sekali.
+        const already = await getContributors(sheetId);
+        if (already.length === 0) {
+          await saveContributors(sheetId, [user.id]);
+        }
+      }
+      navigate(step.path);
+    });
+
+    const jamInput = root.querySelector('#input-jam');
+    jamInput.addEventListener('change', async () => {
+      if (!jamInput.value) return;
+      round.jam = jamInput.value;
+      await setRoundJam(roundId, jamInput.value);
+    });
 
     root.querySelectorAll('.side-toggle button').forEach((btn) => {
       btn.addEventListener('click', () => {

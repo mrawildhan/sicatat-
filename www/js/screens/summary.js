@@ -131,7 +131,9 @@ export async function renderSummary(root, params) {
     if (!bisaSubmit) return;
     await submitSheet(sheetId);
     syncNow(); // coba sinkron langsung kalau kebetulan online, jangan nunggu interval berkala
-    alert('Lembar berhasil dikirim. Akan tersinkron otomatis begitu online.');
+    alert(navigator.onLine
+      ? 'Lembar berhasil dikirim & sedang disinkronkan sekarang.'
+      : 'Lembar berhasil dikirim. Akan tersinkron otomatis begitu online.');
     navigate('/sheet-list');
   };
   submitBtn.addEventListener('click', handleSubmit);
@@ -150,7 +152,9 @@ export async function renderSummary(root, params) {
       if (!reason) return;
       await forceSubmitSheet(sheetId, reason, user.id);
       syncNow();
-      alert('Lembar dikirim sebagai "Tidak Lengkap". Akan tersinkron otomatis begitu online.');
+      alert(navigator.onLine
+        ? 'Lembar dikirim sebagai "Tidak Lengkap" & sedang disinkronkan sekarang.'
+        : 'Lembar dikirim sebagai "Tidak Lengkap". Akan tersinkron otomatis begitu online.');
       navigate('/sheet-list');
     };
     reasonInput.addEventListener('input', updateForceBtn);

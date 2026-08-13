@@ -6,14 +6,17 @@ import { supabase } from '../lib/supabase-client.js';
 // Matriks field per equipment — sesuai PRD Bagian 5.2. Field yang TIDAK
 // disebut di sini untuk suatu equipment TIDAK ditampilkan sama sekali
 // (bukan ditampilkan kosong/disabled) — ini realisasi FR-21.
+// Oil Level cuma ada secara fisik di Feeder Breaker & Gearbox Sizer Motor --
+// equipment lain (Hydraulic Pump 1/2, Heat Exchanger, Sizer Bearing, Sizer
+// Timing) tidak punya reservoir oli untuk dicek, dikonfirmasi user 2026-08-13.
 const EQUIPMENT_FIELDS = {
   feeder_breaker: ['motor_de', 'motor_nde', 'drum_east', 'drum_west', 'oil_level', 'gear_box', 'remark'],
-  hydraulic_pump_1: ['motor_de', 'motor_nde', 'chain_head', 'chain_tail', 'oil_level', 'remark'],
-  hydraulic_pump_2: ['motor_de', 'motor_nde', 'chain_head', 'chain_tail', 'oil_level', 'remark'],
-  heat_exchanger: ['motor_de', 'motor_nde', 'oil_level', 'remark'],
+  hydraulic_pump_1: ['motor_de', 'motor_nde', 'chain_head', 'chain_tail', 'remark'],
+  hydraulic_pump_2: ['motor_de', 'motor_nde', 'chain_head', 'chain_tail', 'remark'],
+  heat_exchanger: ['motor_de', 'motor_nde', 'remark'],
   sizer_motor: ['motor_de', 'motor_nde', 'oil_level', 'remark'],
-  sizer_bearing: ['motor_de', 'motor_nde', 'oil_level', 'remark'],
-  sizer_timing: ['motor_de', 'motor_nde', 'oil_level', 'remark'],
+  sizer_bearing: ['motor_de', 'motor_nde', 'remark'],
+  sizer_timing: ['motor_de', 'motor_nde', 'remark'],
 };
 
 const SECTION_LABELS = {
