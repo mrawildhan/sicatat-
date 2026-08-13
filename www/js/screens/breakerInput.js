@@ -101,7 +101,7 @@ export async function renderBreakerInput(root, params) {
 
     root.innerHTML = `
       <div class="topbar">
-        <button class="btn-back" id="btn-back">← Equipment</button>
+        <button class="btn-back" id="btn-back">← Ringkasan</button>
         <div class="topbar-label">Lanjutan · Ronde ${roundNumber}</div>
         <div class="topbar-title">${SECTION_LABELS[section]}</div>
       </div>
@@ -168,7 +168,9 @@ export async function renderBreakerInput(root, params) {
 
   async function wireEvents(unitStatus) {
     const back = root.querySelector('#btn-back');
-    back.addEventListener('click', () => navigate(`/breaker-equipment?sheetId=${sheetId}&round=${roundNumber}&section=${section}`));
+    // Selalu ke Ringkasan, bukan ke Equipment ronde ini -- lihat catatan
+    // sama di equipmentInput.js (dikonfirmasi user 2026-08-13).
+    back.addEventListener('click', () => navigate(`/summary?sheetId=${sheetId}`));
 
     const selesaiBtn = root.querySelector('#btn-selesai');
     selesaiBtn.addEventListener('click', async () => {

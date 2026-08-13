@@ -106,7 +106,7 @@ export async function renderEquipmentInput(root, params) {
 
   root.innerHTML = `
     <div class="topbar">
-      <button class="btn-back" id="btn-back">← Daftar Lembar</div>
+      <button class="btn-back" id="btn-back">← Ringkasan</div>
       <div class="topbar-label">Ronde ${roundNumber}</div>
       <div class="topbar-title">${SECTION_LABELS[section]}</div>
     </div>
@@ -143,7 +143,10 @@ export async function renderEquipmentInput(root, params) {
   `;
 
   const back = root.querySelector('#btn-back');
-  const goBack = () => navigate('/sheet-list');
+  // Selalu ke Ringkasan (bukan Daftar Lembar) -- supaya alur "klik sisi
+  // Belum Diisi di Ringkasan -> isi -> balik lagi ke Ringkasan" lancar
+  // tanpa harus muter lewat Daftar Lembar (dikonfirmasi user 2026-08-13).
+  const goBack = () => navigate(`/summary?sheetId=${sheetId}`);
   back.addEventListener('click', goBack);
 
   const nextBtn = root.querySelector('#btn-next');
