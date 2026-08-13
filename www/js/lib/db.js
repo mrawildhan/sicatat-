@@ -15,6 +15,21 @@ import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 const sqlite = new SQLiteConnection(CapacitorSQLite);
 const DB_NAME = 'sicatat_local';
 
+// SEMENTARA: Gearbox Breaker + Sizer, Ronde 1 & 2 tetap. Idealnya dibaca dari
+// struktur form_template, bukan di-hardcode seperti sekarang. Satu tempat
+// (bukan didefinisikan ulang di summary.js/sheetList.js/incompleteList.js)
+// supaya definisi "8 sisi yang diharapkan" tidak pernah berbeda-beda.
+export const EXPECTED_SIDES = [
+  { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 1 · BARAT' },
+  { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Breaker — Ronde 1 · TIMUR' },
+  { section: 'gearbox_sizer', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Sizer — Ronde 1 · BARAT' },
+  { section: 'gearbox_sizer', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Sizer — Ronde 1 · TIMUR' },
+  { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 2 · BARAT' },
+  { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Breaker — Ronde 2 · TIMUR' },
+  { section: 'gearbox_sizer', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Sizer — Ronde 2 · BARAT' },
+  { section: 'gearbox_sizer', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Sizer — Ronde 2 · TIMUR' },
+];
+
 let db = null;
 
 export function uuid() {
@@ -350,16 +365,24 @@ export async function getContributors(sheetId) {
 }
 
 // ---- SUBMIT VALIDATION (FR-45: tidak boleh ada status "Belum diisi") ----
-export async function findUnansweredSides(sheetId) {
-  // Mengembalikan daftar {round_id, section, round_number, unit_code} yang statusnya
-  // masih NULL. Layar ringkasan (screens/summary.js) memakai ini untuk menunjuk
-  // persis sisi mana yang belum dijawab — bukan cuma bilang "belum lengkap".
+// Mengembalikan subset EXPECTED_SIDES yang belum dijawab -- termasuk sisi yang
+// round/unit_status-nya belum pernah dibuat sama sekali (belum pernah dibuka),
+// bukan cuma yang sudah ada barisnya tapi status-nya NULL. Dipakai layar
+// Ringkasan (validasi kirim) dan Daftar Lembar (ringkasan progres per kartu).
+export async function getIncompleteSides(sheetId) {
   const database = await initDb();
   const res = await database.query(`
-    select r.id as round_id, r.section, r.round_number, us.unit_code
+    select r.section, r.round_number, us.unit_code, us.status
     from round r
-    join unit_status us on us.round_id = r.id
-    where r.sheet_id = ? and us.status is null
+    left join unit_status us on us.round_id = r.id
+    where r.sheet_id = ?
   `, [sheetId]);
-  return res.values ?? [];
+
+  const answered = new Set();
+  for (const row of res.values ?? []) {
+    if (row.status !== null && row.unit_code) {
+      answered.add(`${row.section}|${row.round_number}|${row.unit_code}`);
+    }
+  }
+  return EXPECTED_SIDES.filter((e) => !answered.has(`${e.section}|${e.roundNumber}|${e.unitCode}`));
 }

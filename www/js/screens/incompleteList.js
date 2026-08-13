@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase-client.js';
 import { getCurrentUser } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
-import { EXPECTED_SIDES } from './summary.js';
+import { EXPECTED_SIDES } from '../lib/db.js';
 
 // Wireframe Layar 6. Query LANGSUNG ke Supabase, bukan SQLite lokal --
 // tujuan layar ini melihat lembar milik crew lain di device lain, yang
