@@ -92,10 +92,18 @@ export async function renderSheetList(root) {
       <button class="btn-primary" id="btn-create">+ Buat Lembar</button>
       <div class="hint-text">Default hari ini &amp; shift sesuai jam sekarang — ganti kalau mengisi susulan. Regu terisi otomatis dari jadwal roster — bisa dikoreksi jika meleset</div>
 
-      <div class="section-label">Belum Selesai</div>
+      <div class="field">
+        <label>Cari tanggal</label>
+        <div class="side-toggle">
+          <input type="date" id="input-search" style="flex:1; min-width:140px; border:1px solid var(--line, #d8ddd8); border-radius:10px; padding:10px 12px; font-size:14px;">
+          <button type="button" id="btn-clear-search" class="btn-secondary" style="flex:0 0 auto;">Semua</button>
+        </div>
+      </div>
+
+      <div class="section-label" id="draft-label">Belum Selesai</div>
       <div id="draft-list"></div>
 
-      <div class="section-label">Riwayat</div>
+      <div class="section-label" id="history-label">Riwayat</div>
       <div id="history-list"></div>
 
       <div class="sync-note">Draft tidak kedaluwarsa — bisa dilanjutkan kapan saja</div>
@@ -104,9 +112,8 @@ export async function renderSheetList(root) {
 
   const draftContainer = root.querySelector('#draft-list');
   const historyContainer = root.querySelector('#history-list');
-
-  const drafts = sheets.filter((s) => s.status === 'draft');
-  const history = sheets.filter((s) => s.status !== 'draft');
+  const draftLabel = root.querySelector('#draft-label');
+  const historyLabel = root.querySelector('#history-label');
 
   // Sisi belum diisi per lembar (buat subjudul kartu) dihitung sekali di
   // muka untuk semua lembar sebelum dirender -- getIncompleteSides itu async.
@@ -134,12 +141,24 @@ export async function renderSheetList(root) {
     `;
   }
 
-  draftContainer.innerHTML = drafts.length
-    ? drafts.map(sheetCardHtml).join('')
-    : '<p class="empty-text">Belum ada draft.</p>';
-  historyContainer.innerHTML = history.length
-    ? history.map(sheetCardHtml).join('')
-    : '<p class="empty-text">Belum ada riwayat.</p>';
+  // Cari tanggal (mis. "3 Agustus") menyaring daftar draft & riwayat sekaligus
+  // secara lokal -- data sudah ada semua di memori, tidak perlu query ulang.
+  function renderLists(filterDate) {
+    const filtered = filterDate ? sheets.filter((s) => s.tanggal === filterDate) : sheets;
+    const drafts = filtered.filter((s) => s.status === 'draft');
+    const history = filtered.filter((s) => s.status !== 'draft');
+
+    draftLabel.textContent = filterDate ? `Belum Selesai (tanggal ${filterDate})` : 'Belum Selesai';
+    historyLabel.textContent = filterDate ? `Riwayat (tanggal ${filterDate})` : 'Riwayat';
+
+    draftContainer.innerHTML = drafts.length
+      ? drafts.map(sheetCardHtml).join('')
+      : `<p class="empty-text">${filterDate ? 'Tidak ada draft di tanggal ini.' : 'Belum ada draft.'}</p>`;
+    historyContainer.innerHTML = history.length
+      ? history.map(sheetCardHtml).join('')
+      : `<p class="empty-text">${filterDate ? 'Tidak ada riwayat di tanggal ini.' : 'Belum ada riwayat.'}</p>`;
+  }
+  renderLists(null);
 
   const back = root.querySelector('#btn-back');
   const createBtn = root.querySelector('#btn-create');
@@ -191,15 +210,27 @@ export async function renderSheetList(root) {
     navigate(`/breaker-equipment?sheetId=${card.dataset.id}&round=1`);
   };
 
+  const searchInput = root.querySelector('#input-search');
+  const clearSearchBtn = root.querySelector('#btn-clear-search');
+  const handleSearch = () => renderLists(searchInput.value || null);
+  const handleClearSearch = () => {
+    searchInput.value = '';
+    renderLists(null);
+  };
+
   back.addEventListener('click', goBack);
   createBtn.addEventListener('click', handleCreate);
   shiftToggle.addEventListener('click', handleShiftPick);
   root.addEventListener('click', openSheet);
+  searchInput.addEventListener('change', handleSearch);
+  clearSearchBtn.addEventListener('click', handleClearSearch);
 
   return () => {
     back.removeEventListener('click', goBack);
     createBtn.removeEventListener('click', handleCreate);
     shiftToggle.removeEventListener('click', handleShiftPick);
     root.removeEventListener('click', openSheet);
+    searchInput.removeEventListener('change', handleSearch);
+    clearSearchBtn.removeEventListener('click', handleClearSearch);
   };
 }

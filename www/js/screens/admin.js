@@ -7,6 +7,7 @@ const MENU = [
   { label: 'Team', sub: 'Regu A / B / C', path: '/admin-team' },
   { label: 'Roster', sub: 'Pola rotasi regu (roster_anchor)', path: '/admin-roster' },
   { label: 'Crew', sub: 'Role, tim, aktif/nonaktif', path: '/admin-crew' },
+  { label: 'Ekspor Rentang Tanggal', sub: 'Tarik data CSV lintas regu untuk analisa', path: '/admin-export' },
 ];
 
 export function renderAdmin(root) {

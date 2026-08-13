@@ -17,6 +17,7 @@ import { renderAdminShift } from './screens/adminShift.js';
 import { renderAdminTeam } from './screens/adminTeam.js';
 import { renderAdminRoster } from './screens/adminRoster.js';
 import { renderAdminCrew } from './screens/adminCrew.js';
+import { renderAdminExport } from './screens/adminExport.js';
 import { checkAppVersion, APP_VERSION } from './lib/version.js';
 
 // FR-57: overlay penuh yang menutupi app, tidak ada tombol lanjut. Cuma
@@ -59,6 +60,7 @@ async function bootstrap() {
   register('/admin-team', renderAdminTeam);
   register('/admin-roster', renderAdminRoster);
   register('/admin-crew', renderAdminCrew);
+  register('/admin-export', renderAdminExport);
 
   // Cek dulu apakah ada sesi login tersimpan SEBELUM router pertama kali
   // menggambar layar — supaya tidak sempat kelihatan kedip ke layar Login
