@@ -30,6 +30,18 @@ const TABLE_MAP = {
   sheet_contributor: { table: 'sheet_contributor', conflictKey: 'sheet_id,user_id' },
 };
 
+// Entitas anak (FK ke induknya) -- tabel & kolom lokal tempat mengecek
+// apakah induknya SUDAH tersinkron. round/unit_status/reading punya kolom
+// client_uuid sendiri jadi baris lokalnya bisa dicari langsung; sheet_contributor
+// tidak (primary key gabungan), jadi induknya diambil dari payload (yang selalu
+// utuh karena entitas ini cuma pernah dikirim dengan operation 'insert').
+const PARENT_INFO = {
+  round: { parentTable: 'sheet', parentField: 'sheet_id' },
+  unit_status: { parentTable: 'round', parentField: 'round_id' },
+  reading: { parentTable: 'round', parentField: 'round_id' },
+  sheet_contributor: { parentTable: 'sheet', parentField: 'sheet_id' },
+};
+
 let syncing = false;
 
 export async function syncNow() {
@@ -52,6 +64,37 @@ export async function syncNow() {
       const payload = JSON.parse(item.payload_json);
       const { sync_status, ...serverPayload } = payload;
 
+      // Anak jangan dicoba dulu sebelum induknya SUNGGUH tersinkron -- kalau
+      // dipaksa, server selalu tolak dengan FK violation (induknya belum ada
+      // sama sekali di server), dan itu kelihatan seperti kegagalan permanen
+      // padahal cuma soal urutan/timing. Kalau induknya sudah dipastikan gagal
+      // permanen ('conflict', lihat penanganan duplicate key di bawah), anak
+      // ini juga MUSTAHIL bisa sinkron -- buang saja, jangan diulang selamanya.
+      const parentInfo = PARENT_INFO[item.entity_type];
+      if (parentInfo) {
+        const parentId = item.entity_type === 'sheet_contributor'
+          ? payload.sheet_id
+          : (await database.query(
+              `select ${parentInfo.parentField} as parent_id from ${table} where client_uuid = ?`,
+              [item.client_uuid]
+            )).values?.[0]?.parent_id;
+        const parentRes = await database.query(
+          `select sync_status from ${parentInfo.parentTable} where id = ?`,
+          [parentId]
+        );
+        const parentStatus = parentRes.values?.[0]?.sync_status;
+        if (parentStatus === 'conflict') {
+          await database.run('delete from sync_queue where id = ?', [item.id]);
+          if (item.entity_type !== 'sheet_contributor') {
+            await database.run(`update ${table} set sync_status = 'conflict' where client_uuid = ?`, [item.client_uuid]);
+          }
+          continue;
+        }
+        if (parentStatus !== 'synced') {
+          continue; // coba lagi di putaran sinkron berikutnya, setelah induk beres
+        }
+      }
+
       // insert -> upsert (aman diulang, tidak pernah duplikat berkat onConflict).
       // update -> update().eq() sungguhan, BUKAN upsert: payload update cuma
       // berisi kolom yang berubah (mis. submitSheet cuma kirim status +
@@ -65,6 +108,20 @@ export async function syncNow() {
         : await supabase.from(table).update(serverPayload).eq('client_uuid', item.client_uuid);
 
       if (error) {
+        // Lembar dengan module+tanggal+shift+tim yang sama sudah ada di server
+        // (mis. dibuat dari sesi/perangkat lain). Ini PERMANEN -- diulang
+        // sebanyak apa pun hasilnya akan selalu sama. Tandai 'conflict' supaya
+        // berhenti dicoba, dan anak-anaknya (round/unit_status/reading) ikut
+        // dibuang di putaran berikutnya lewat pengecekan induk di atas.
+        const isDuplicateSheet = item.entity_type === 'sheet'
+          && error.message.includes('duplicate key value violates unique constraint');
+        if (isDuplicateSheet) {
+          await database.run(`update sheet set sync_status = 'conflict' where client_uuid = ?`, [item.client_uuid]);
+          await database.run('delete from sync_queue where id = ?', [item.id]);
+          console.warn('sync-engine: lembar ini sudah ada di server (kemungkinan dibuat dari sesi/perangkat lain) -- ditandai conflict, tidak diulang lagi', item.client_uuid);
+          continue;
+        }
+
         await database.run(
           'update sync_queue set attempt_count = attempt_count + 1, last_error = ? where id = ?',
           [error.message, item.id]

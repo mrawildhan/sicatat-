@@ -2,6 +2,7 @@ import { getSheet, getUnitStatus, submitSheet, forceSubmitSheet, getContributors
 import { getCurrentUser, requireRole } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
 import { buildExportRows, resolveContributorNames, buildCsv, buildPdf, pdfToBase64, saveAndShareText, saveAndShareBase64 } from '../lib/export.js';
+import { syncNow } from '../lib/sync-engine.js';
 
 // SEMENTARA: Gearbox Breaker + Sizer, Ronde 1 & 2 tetap. Idealnya dibaca dari
 // struktur form_template, bukan di-hardcode seperti sekarang.
@@ -10,10 +11,10 @@ import { buildExportRows, resolveContributorNames, buildCsv, buildPdf, pdfToBase
 export const EXPECTED_SIDES = [
   { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 1 · BARAT' },
   { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Breaker — Ronde 1 · TIMUR' },
-  { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 2 · BARAT' },
-  { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Breaker — Ronde 2 · TIMUR' },
   { section: 'gearbox_sizer', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Sizer — Ronde 1 · BARAT' },
   { section: 'gearbox_sizer', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Sizer — Ronde 1 · TIMUR' },
+  { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 2 · BARAT' },
+  { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Breaker — Ronde 2 · TIMUR' },
   { section: 'gearbox_sizer', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Sizer — Ronde 2 · BARAT' },
   { section: 'gearbox_sizer', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Sizer — Ronde 2 · TIMUR' },
 ];
@@ -129,6 +130,7 @@ export async function renderSummary(root, params) {
   const handleSubmit = async () => {
     if (!bisaSubmit) return;
     await submitSheet(sheetId);
+    syncNow(); // coba sinkron langsung kalau kebetulan online, jangan nunggu interval berkala
     alert('Lembar berhasil dikirim. Akan tersinkron otomatis begitu online.');
     navigate('/sheet-list');
   };
@@ -147,6 +149,7 @@ export async function renderSummary(root, params) {
       const reason = reasonInput.value.trim();
       if (!reason) return;
       await forceSubmitSheet(sheetId, reason, user.id);
+      syncNow();
       alert('Lembar dikirim sebagai "Tidak Lengkap". Akan tersinkron otomatis begitu online.');
       navigate('/sheet-list');
     };

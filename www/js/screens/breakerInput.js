@@ -55,21 +55,20 @@ export async function renderBreakerInput(root, params) {
   const user = getCurrentUser();
   const POINTS = await resolvePoints();
 
-  // Ronde belum habis -> ronde berikutnya di section yang sama. Ronde habis
-  // & masih di breaker -> lanjut ke Gearbox Sizer (round 1). Ronde habis &
-  // sudah di sizer -> Layar Nama Crew (wireframe 4c), baru dari situ ke
-  // Ringkasan.
+  // Satu Ronde = satu putaran keliling yang mencakup breaker DAN sizer (bukan
+  // habiskan semua ronde breaker dulu baru pindah sizer). Jadi: Breaker
+  // Ronde 1 -> Sizer Ronde 1 -> Breaker Ronde 2 -> Sizer Ronde 2 -> Nama Crew.
   function nextStep() {
-    if (roundNumber < TOTAL_ROUNDS) {
-      return {
-        label: `Lanjut → Ronde ${roundNumber + 1}`,
-        path: `/breaker-equipment?sheetId=${sheetId}&round=${roundNumber + 1}&section=${section}`,
-      };
-    }
     if (section === 'gearbox_breaker') {
       return {
         label: 'Lanjut → Gearbox Sizer',
-        path: `/breaker-equipment?sheetId=${sheetId}&round=1&section=gearbox_sizer`,
+        path: `/breaker-equipment?sheetId=${sheetId}&round=${roundNumber}&section=gearbox_sizer`,
+      };
+    }
+    if (roundNumber < TOTAL_ROUNDS) {
+      return {
+        label: `Lanjut → Ronde ${roundNumber + 1}`,
+        path: `/breaker-equipment?sheetId=${sheetId}&round=${roundNumber + 1}&section=gearbox_breaker`,
       };
     }
     return { label: 'Lanjut → Nama Crew', path: `/crew-names?sheetId=${sheetId}` };

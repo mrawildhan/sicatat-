@@ -67,8 +67,12 @@ export async function renderSheetList(root) {
       <div class="topbar-title">Daily Temperature Check</div>
     </div>
     <div class="screen-body">
-      <button class="btn-primary" id="btn-create">+ Buat Lembar Hari Ini</button>
-      <div class="hint-text">Shift &amp; regu terisi otomatis dari jadwal roster — bisa dikoreksi jika meleset</div>
+      <div class="field">
+        <label>Tanggal lembar</label>
+        <input type="date" id="input-tanggal" value="${new Date().toISOString().slice(0, 10)}">
+      </div>
+      <button class="btn-primary" id="btn-create">+ Buat Lembar</button>
+      <div class="hint-text">Default hari ini — ganti kalau mengisi susulan untuk tanggal yang kelewat. Shift &amp; regu terisi otomatis dari jadwal roster — bisa dikoreksi jika meleset</div>
 
       <div class="section-label">Belum Selesai</div>
       <div id="draft-list"></div>
@@ -94,8 +98,8 @@ export async function renderSheetList(root) {
     : '<p class="empty-text">Belum ada riwayat.</p>';
 
   function sheetCardHtml(s) {
-    const pillClass = s.status === 'draft' ? 'draft' : s.sync_status === 'synced' ? 'synced' : 'pending';
-    const pillLabel = s.status === 'draft' ? 'Draft' : s.sync_status === 'synced' ? 'Tersinkron' : 'Belum tersinkron';
+    const pillClass = s.status === 'draft' ? 'draft' : s.sync_status === 'synced' ? 'synced' : s.sync_status === 'conflict' ? 'draft' : 'pending';
+    const pillLabel = s.status === 'draft' ? 'Draft' : s.sync_status === 'synced' ? 'Tersinkron' : s.sync_status === 'conflict' ? 'Sudah ada di server (duplikat)' : 'Belum tersinkron';
     return `
       <div class="sheet-card" data-id="${s.id}">
         <div>
@@ -111,17 +115,22 @@ export async function renderSheetList(root) {
   const createBtn = root.querySelector('#btn-create');
 
   const goBack = () => navigate('/temperature-menu');
+  const tanggalInput = root.querySelector('#input-tanggal');
   const handleCreate = async () => {
+    const tanggal = tanggalInput.value;
+    if (!tanggal) {
+      alert('Pilih tanggal lembar dulu.');
+      return;
+    }
     try {
       const [{ shiftId, teamId }, moduleId] = await Promise.all([
         resolveShiftAndTeam(user),
         resolveModuleId(),
       ]);
-      const today = new Date().toISOString().slice(0, 10);
       const sheetId = await createSheet({
         moduleId,
         templateVersion: TEMPLATE_VERSION,
-        tanggal: today,
+        tanggal,
         shiftId,
         teamId,
         createdBy: user.id,
