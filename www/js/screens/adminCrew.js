@@ -33,7 +33,7 @@ export async function renderAdminCrew(root) {
     const needsTeam = x.role === 'crew' || x.role === 'foreman';
     return `
       <div class="equip-card">
-        ${isNew ? `<div class="warn-box">Ini cuma bikin baris data (app_user). Akun login (Supabase Auth) TETAP harus ditambahkan manual -- lihat instruksi setelah disimpan.</div>` : ''}
+        ${isNew ? `<div class="hint-text">Akun login langsung aktif setelah disimpan -- tidak perlu langkah tambahan di Supabase Dashboard.</div>` : ''}
         <div class="field">
           <label>NIK</label>
           <input id="f-nik" type="text" value="${x.nik ?? ''}" ${isNew ? '' : 'disabled'}>
@@ -58,6 +58,12 @@ export async function renderAdminCrew(root) {
           <label>No. HP (opsional)</label>
           <input id="f-phone" type="text" value="${x.phone ?? ''}">
         </div>
+        ${isNew ? `
+        <div class="field">
+          <label>PIN (min. 6 digit, untuk login)</label>
+          <input id="f-pin" type="text" inputmode="numeric" placeholder="mis. 123456">
+        </div>
+        ` : ''}
         <label class="status-opt">
           <input type="checkbox" id="f-active" ${x.is_active ? 'checked' : ''}>
           Aktif
@@ -77,12 +83,7 @@ export async function renderAdminCrew(root) {
       <div class="screen-body">
         ${
           lastCreatedNik
-            ? `<div class="warn-box">
-                Baris data untuk NIK <strong>${lastCreatedNik}</strong> sudah dibuat. Supaya bisa login,
-                tambahkan akun di Supabase Dashboard → Authentication → Users → Add user:<br>
-                Email: <strong>${lastCreatedNik}@sicatat.local</strong><br>
-                Password: PIN yang diinginkan crew ini.
-              </div>`
+            ? `<div class="hint-text">Akun untuk NIK <strong>${lastCreatedNik}</strong> berhasil dibuat & sudah bisa langsung login.</div>`
             : ''
         }
 
@@ -143,8 +144,14 @@ export async function renderAdminCrew(root) {
 
         try {
           if (editingId === 'new') {
-            const { error } = await supabase.from('app_user').insert({ nik, name, role, team_id: teamId, phone, is_active: isActive });
+            const pin = root.querySelector('#f-pin').value.trim();
+            if (!pin || pin.length < 6) { alert('PIN wajib diisi, minimal 6 digit.'); return; }
+
+            const { data, error } = await supabase.functions.invoke('create-crew-user', {
+              body: { nik, name, role, team_id: teamId, phone, pin },
+            });
             if (error) throw new Error(error.message);
+            if (!data?.ok) throw new Error(data?.error ?? 'Gagal membuat akun.');
             lastCreatedNik = nik;
           } else {
             const { error } = await supabase.from('app_user')

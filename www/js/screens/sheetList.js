@@ -3,6 +3,7 @@ import { getCurrentUser } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
 import { supabase } from '../lib/supabase-client.js';
 import { computeTeamCodeForShift } from '../lib/roster.js';
+import { pullTeamDrafts } from '../lib/pull-sync.js';
 
 const TEMPLATE_VERSION = 'v0.4';
 
@@ -53,6 +54,19 @@ async function resolveTeam(user, shiftCode) {
 
 export async function renderSheetList(root) {
   const user = getCurrentUser();
+
+  // Tarik draft regu sendiri dari server dulu (kalau ada, & kalau online) --
+  // supaya lembar yang mulai diisi dari HP orang lain (regu sama) muncul di
+  // sini juga, bukan bikin duplikat. Cuma relevan utk crew/foreman (punya
+  // team_id sendiri); supervisor/admin dilewati, lihat lib/pull-sync.js.
+  if (user.team_id) {
+    try {
+      await pullTeamDrafts(user.team_id);
+    } catch (err) {
+      console.warn('sheetList: gagal tarik draft regu', err.message);
+    }
+  }
+
   const sheets = await listSheets();
 
   // Daftar shift buat picker Siang/Malam & buat label kartu riwayat. Kalau
@@ -67,6 +81,17 @@ export async function renderSheetList(root) {
     shifts = [];
   }
   const shiftCodeById = Object.fromEntries(shifts.map((s) => [s.id, s.code]));
+
+  // Daftar regu buat filter -- sama seperti shift, gagal diam-diam kalau offline
+  // (filter regu cuma tidak muncul, bukan mengganggu daftar lembar yang tetap tampil).
+  let teams = [];
+  try {
+    const { data, error } = await supabase.from('team').select('id, name').order('code');
+    if (error) throw error;
+    teams = data ?? [];
+  } catch {
+    teams = [];
+  }
 
   const currentHourCode = new Date().getHours() >= 7 && new Date().getHours() < 19 ? 'PAGI' : 'MALAM';
   let selectedShiftId = shifts.find((s) => s.code === currentHourCode)?.id ?? shifts[0]?.id ?? null;
@@ -99,6 +124,16 @@ export async function renderSheetList(root) {
           <button type="button" id="btn-clear-search" class="btn-secondary" style="flex:0 0 auto;">Semua</button>
         </div>
       </div>
+
+      ${teams.length > 0 ? `
+      <div class="field">
+        <label>Filter regu</label>
+        <select id="input-regu-filter" style="width:100%; border:1px solid var(--line, #d8ddd8); border-radius:10px; padding:10px 12px; font-size:14px;">
+          <option value="">Semua Regu</option>
+          ${teams.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}
+        </select>
+      </div>
+      ` : ''}
 
       <div class="section-label" id="draft-label">Belum Selesai</div>
       <div id="draft-list"></div>
@@ -141,24 +176,26 @@ export async function renderSheetList(root) {
     `;
   }
 
-  // Cari tanggal (mis. "3 Agustus") menyaring daftar draft & riwayat sekaligus
-  // secara lokal -- data sudah ada semua di memori, tidak perlu query ulang.
-  function renderLists(filterDate) {
-    const filtered = filterDate ? sheets.filter((s) => s.tanggal === filterDate) : sheets;
+  // Cari tanggal (mis. "3 Agustus") + filter regu menyaring daftar draft & riwayat
+  // sekaligus secara lokal -- data sudah ada semua di memori, tidak perlu query ulang.
+  function renderLists(filterDate, filterTeamId) {
+    let filtered = filterDate ? sheets.filter((s) => s.tanggal === filterDate) : sheets;
+    if (filterTeamId) filtered = filtered.filter((s) => s.team_id === filterTeamId);
     const drafts = filtered.filter((s) => s.status === 'draft');
     const history = filtered.filter((s) => s.status !== 'draft');
 
-    draftLabel.textContent = filterDate ? `Belum Selesai (tanggal ${filterDate})` : 'Belum Selesai';
-    historyLabel.textContent = filterDate ? `Riwayat (tanggal ${filterDate})` : 'Riwayat';
+    const suffix = filterDate ? ` (tanggal ${filterDate})` : '';
+    draftLabel.textContent = `Belum Selesai${suffix}`;
+    historyLabel.textContent = `Riwayat${suffix}`;
 
     draftContainer.innerHTML = drafts.length
       ? drafts.map(sheetCardHtml).join('')
-      : `<p class="empty-text">${filterDate ? 'Tidak ada draft di tanggal ini.' : 'Belum ada draft.'}</p>`;
+      : `<p class="empty-text">${filterDate || filterTeamId ? 'Tidak ada draft yang cocok filter.' : 'Belum ada draft.'}</p>`;
     historyContainer.innerHTML = history.length
       ? history.map(sheetCardHtml).join('')
-      : `<p class="empty-text">${filterDate ? 'Tidak ada riwayat di tanggal ini.' : 'Belum ada riwayat.'}</p>`;
+      : `<p class="empty-text">${filterDate || filterTeamId ? 'Tidak ada riwayat yang cocok filter.' : 'Belum ada riwayat.'}</p>`;
   }
-  renderLists(null);
+  renderLists(null, null);
 
   const back = root.querySelector('#btn-back');
   const createBtn = root.querySelector('#btn-create');
@@ -185,6 +222,12 @@ export async function renderSheetList(root) {
       return;
     }
     try {
+      // Tarik ulang sekali lagi tepat sebelum bikin lembar -- memperkecil
+      // celah race kalau layar ini sudah lama terbuka sebelum tombol ditekan
+      // (lihat catatan lib/pull-sync.js soal kenapa ini penting).
+      if (user.team_id) {
+        try { await pullTeamDrafts(user.team_id); } catch { /* tetap lanjut walau gagal tarik */ }
+      }
       const shiftCode = shiftCodeById[selectedShiftId];
       const [teamId, moduleId] = await Promise.all([
         resolveTeam(user, shiftCode),
@@ -212,11 +255,13 @@ export async function renderSheetList(root) {
 
   const searchInput = root.querySelector('#input-search');
   const clearSearchBtn = root.querySelector('#btn-clear-search');
-  const handleSearch = () => renderLists(searchInput.value || null);
+  const teamFilterSelect = root.querySelector('#input-regu-filter');
+  const handleSearch = () => renderLists(searchInput.value || null, teamFilterSelect?.value || null);
   const handleClearSearch = () => {
     searchInput.value = '';
-    renderLists(null);
+    renderLists(null, teamFilterSelect?.value || null);
   };
+  const handleTeamFilter = () => renderLists(searchInput.value || null, teamFilterSelect.value || null);
 
   back.addEventListener('click', goBack);
   createBtn.addEventListener('click', handleCreate);
@@ -224,6 +269,7 @@ export async function renderSheetList(root) {
   root.addEventListener('click', openSheet);
   searchInput.addEventListener('change', handleSearch);
   clearSearchBtn.addEventListener('click', handleClearSearch);
+  teamFilterSelect?.addEventListener('change', handleTeamFilter);
 
   return () => {
     back.removeEventListener('click', goBack);
@@ -232,5 +278,6 @@ export async function renderSheetList(root) {
     root.removeEventListener('click', openSheet);
     searchInput.removeEventListener('change', handleSearch);
     clearSearchBtn.removeEventListener('click', handleClearSearch);
+    teamFilterSelect?.removeEventListener('change', handleTeamFilter);
   };
 }

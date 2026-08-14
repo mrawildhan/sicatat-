@@ -39,6 +39,11 @@ body {
   cursor: pointer; margin-bottom: 10px;
 }
 .topbar-title { font-size: 17px; font-weight: 600; margin-top: 4px; margin-left: 0; text-align: center; line-height: 1.3; }
+.topbar-identity { display: flex; align-items: center; gap: 10px; }
+.topbar-logo { width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0; object-fit: contain; background: #fff; }
+.topbar-identity .topbar-label,
+.topbar-identity .topbar-title { text-align: left; margin-top: 0; }
+.topbar-user { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
 .btn-logout {
   border: 1px solid var(--alarm); background: var(--alarm-bg); color: var(--alarm);
   border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;

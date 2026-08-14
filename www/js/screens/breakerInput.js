@@ -175,13 +175,14 @@ export async function renderBreakerInput(root, params) {
     const selesaiBtn = root.querySelector('#btn-selesai');
     selesaiBtn.addEventListener('click', async () => {
       const step = nextStep();
-      if (step.isFinal) {
-        // idempoten -- pengguna bisa bolak-balik ke layar ini & klik lagi
-        // sebelum kirim, sheet_contributor cuma boleh disimpan sekali.
-        const already = await getContributors(sheetId);
-        if (already.length === 0) {
-          await saveContributors(sheetId, [user.id]);
-        }
+      // Dicatat di TIAP ronde yang diselesaikan, bukan cuma ronde final --
+      // supaya kalau orang berbeda (tapi regu sama) isi ronde berbeda-beda
+      // dari HP masing-masing, semua orang yang ikut isi tercatat sebagai
+      // kontributor, bukan cuma siapa yang kebetulan menutup ronde terakhir.
+      // Idempoten per user.id -- aman diklik berkali-kali / bolak-balik layar.
+      const already = await getContributors(sheetId);
+      if (!already.includes(user.id)) {
+        await saveContributors(sheetId, [user.id]);
       }
       navigate(step.path);
     });

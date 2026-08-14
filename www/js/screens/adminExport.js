@@ -40,11 +40,13 @@ async function fetchAllIn(table, columns, filterColumn, filterValues) {
 // query nested) karena filter tanggal ada di `sheet`, sementara PostgREST
 // tidak bisa filter kolom di embed dua-level-dalam (reading -> round -> sheet)
 // dengan andal.
-async function buildExportRows(startDate, endDate) {
-  const { data: sheets, error: sheetErr } = await supabase
+async function buildExportRows(startDate, endDate, teamId) {
+  let query = supabase
     .from('sheet')
     .select('id, tanggal, status, team:team_id(name), shift:shift_id(name)')
     .gte('tanggal', startDate).lte('tanggal', endDate);
+  if (teamId) query = query.eq('team_id', teamId);
+  const { data: sheets, error: sheetErr } = await query;
   if (sheetErr) throw new Error(`Gagal ambil lembar: ${sheetErr.message}`);
   if (sheets.length === 0) return { rows: [], sheetCount: 0 };
 
@@ -117,7 +119,7 @@ function buildCsv(rows) {
   return lines.join('\n');
 }
 
-export function renderAdminExport(root) {
+export async function renderAdminExport(root) {
   if (!requireRole('admin')) {
     root.innerHTML = `<div class="screen-body"><div class="warn-box">Halaman ini khusus admin.</div></div>`;
     return () => {};
@@ -125,6 +127,17 @@ export function renderAdminExport(root) {
 
   const today = new Date().toISOString().slice(0, 10);
   const firstOfMonth = today.slice(0, 8) + '01';
+
+  // Gagal diam-diam kalau offline -- filter regu cuma tidak muncul, ekspor
+  // tetap bisa jalan tanpa filter (lintas semua regu, seperti sebelumnya).
+  let teams = [];
+  try {
+    const { data, error } = await supabase.from('team').select('id, name').order('code');
+    if (error) throw error;
+    teams = data ?? [];
+  } catch {
+    teams = [];
+  }
 
   root.innerHTML = `
     <div class="topbar">
@@ -141,6 +154,15 @@ export function renderAdminExport(root) {
         <label>Sampai tanggal</label>
         <input type="date" id="input-end" value="${today}">
       </div>
+      ${teams.length > 0 ? `
+      <div class="field">
+        <label>Regu</label>
+        <select id="input-team">
+          <option value="">Semua Regu</option>
+          ${teams.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}
+        </select>
+      </div>
+      ` : ''}
       <button class="btn-primary" id="btn-export" style="margin-top:10px;">Ekspor CSV</button>
       <div id="export-status" class="hint-text"></div>
     </div>
@@ -152,12 +174,14 @@ export function renderAdminExport(root) {
 
   const startInput = root.querySelector('#input-start');
   const endInput = root.querySelector('#input-end');
+  const teamSelect = root.querySelector('#input-team');
   const exportBtn = root.querySelector('#btn-export');
   const statusEl = root.querySelector('#export-status');
 
   const handleExport = async () => {
     const start = startInput.value;
     const end = endInput.value;
+    const teamId = teamSelect?.value || null;
     if (!start || !end) { statusEl.textContent = 'Isi dulu tanggal mulai & akhir.'; return; }
     if (start > end) { statusEl.textContent = 'Tanggal mulai tidak boleh setelah tanggal akhir.'; return; }
 
@@ -165,13 +189,14 @@ export function renderAdminExport(root) {
     exportBtn.textContent = 'Mengambil data...';
     statusEl.textContent = '';
     try {
-      const { rows, sheetCount } = await buildExportRows(start, end);
+      const { rows, sheetCount } = await buildExportRows(start, end, teamId);
       if (rows.length === 0) {
         statusEl.textContent = `Tidak ada data lembar antara ${start} dan ${end}.`;
         return;
       }
+      const teamSuffix = teamId ? `-${teamSelect.options[teamSelect.selectedIndex].textContent.replace(/\s+/g, '_')}` : '';
       const csv = buildCsv(rows);
-      await saveAndShareText(csv, `sicatat-export-${start}_${end}.csv`);
+      await saveAndShareText(csv, `sicatat-export-${start}_${end}${teamSuffix}.csv`);
       statusEl.textContent = `${sheetCount} lembar, ${rows.length} baris data berhasil diekspor.`;
     } catch (err) {
       statusEl.textContent = `Gagal ekspor: ${err.message}`;

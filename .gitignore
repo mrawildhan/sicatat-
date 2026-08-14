@@ -9,3 +9,6 @@ graphify-out/
 
 # Local Claude Code settings (permission cache khusus mesin ini)
 .claude/settings.local.json
+
+# State lokal Supabase CLI (project ref, versi, dsb -- hasil `supabase link`, bukan source code)
+supabase/.temp/
