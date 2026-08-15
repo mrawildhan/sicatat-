@@ -18,15 +18,19 @@ const POINT_CODES = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: 'beroperasi', label: 'Beroperasi' },
-  { value: 'tidak_beroperasi', label: 'Tidak beroperasi' },
-  { value: 'tidak_dapat_diakses', label: 'Tidak dapat diakses' },
+  { value: 'beroperasi', label: 'Operating' },
+  { value: 'tidak_beroperasi', label: 'Not operating' },
+  { value: 'tidak_dapat_diakses', label: 'Not accessible' },
 ];
 
 const SECTION_LABELS = {
   gearbox_breaker: 'Temperature Gearbox Breaker',
   gearbox_sizer: 'Temperature Gearbox Sizer',
 };
+
+// unit_code mentah tetap 'BARAT'/'TIMUR' (dibandingkan ke data), cuma label
+// tampilnya West/East.
+const SIDE_LABELS = { BARAT: 'West', TIMUR: 'East' };
 
 // SEMENTARA: tetap 2 ronde per section (breaker & sizer masing-masing),
 // dikonfirmasi manual — belum dibaca dari form_template.
@@ -42,11 +46,11 @@ async function resolvePoints() {
     .from('measurement_point')
     .select('id, code')
     .is('equipment_id', null); // titik gearbox itu sendiri, bukan milik equipment tertentu
-  if (error) throw new Error(`Gagal ambil titik ukur: ${error.message}`);
+  if (error) throw new Error(`Failed to fetch measurement points: ${error.message}`);
 
   return POINT_CODES.map((p) => {
     const found = data.find((d) => d.code === p.code);
-    if (!found) throw new Error(`Titik ukur "${p.code}" belum ada di master data measurement_point`);
+    if (!found) throw new Error(`Measurement point "${p.code}" not found in master data`);
     return { ...p, id: found.id };
   });
 }
@@ -79,17 +83,17 @@ export async function renderBreakerInput(root, params) {
   function nextStep() {
     if (section === 'gearbox_breaker') {
       return {
-        label: 'Lanjut → Gearbox Sizer',
+        label: 'Next → Gearbox Sizer',
         path: `/breaker-equipment?sheetId=${sheetId}&round=${roundNumber}&section=gearbox_sizer`,
       };
     }
     if (roundNumber < TOTAL_ROUNDS) {
       return {
-        label: `Lanjut → Ronde ${roundNumber + 1}`,
+        label: `Next → Round ${roundNumber + 1}`,
         path: `/breaker-equipment?sheetId=${sheetId}&round=${roundNumber + 1}&section=gearbox_breaker`,
       };
     }
-    return { label: 'Simpan & Lanjut → Ringkasan', path: `/summary?sheetId=${sheetId}`, isFinal: true };
+    return { label: 'Save & Continue → Summary', path: `/summary?sheetId=${sheetId}`, isFinal: true };
   }
 
   async function draw() {
@@ -101,23 +105,23 @@ export async function renderBreakerInput(root, params) {
 
     root.innerHTML = `
       <div class="topbar">
-        <button class="btn-back" id="btn-back">← Ringkasan</button>
-        <div class="topbar-label">Lanjutan · Ronde ${roundNumber}</div>
+        <button class="btn-back" id="btn-back">← Summary</button>
+        <div class="topbar-label">Continued · Round ${roundNumber}</div>
         <div class="topbar-title">${SECTION_LABELS[section]}</div>
       </div>
       <div class="screen-body">
         <div class="field">
-          <label>Jam Ronde ${roundNumber} (berlaku BARAT &amp; TIMUR)</label>
+          <label>Round ${roundNumber} Time (applies to West &amp; East)</label>
           <input type="time" id="input-jam" value="${round.jam}">
         </div>
 
         <div class="side-toggle">
-          <button data-side="BARAT" class="${currentSide === 'BARAT' ? 'active' : ''}">BARAT</button>
-          <button data-side="TIMUR" class="${currentSide === 'TIMUR' ? 'active' : ''}">TIMUR</button>
+          <button data-side="BARAT" class="${currentSide === 'BARAT' ? 'active' : ''}">${SIDE_LABELS.BARAT}</button>
+          <button data-side="TIMUR" class="${currentSide === 'TIMUR' ? 'active' : ''}">${SIDE_LABELS.TIMUR}</button>
         </div>
 
         <div class="status-select">
-          <div class="status-select-label">Status unit sisi ini</div>
+          <div class="status-select-label">Status of this side's unit</div>
           <div class="status-options">
             ${STATUS_OPTIONS.map(
               (opt) => `
@@ -132,14 +136,14 @@ export async function renderBreakerInput(root, params) {
 
         ${
           status === null
-            ? `<div class="warn-box">Belum ada yang dipilih. Ini bukan status apa pun — murni belum dijawab. Lembar tidak bisa dikirim selama ini kosong.</div>`
+            ? `<div class="warn-box">Nothing selected yet. This isn't a status — it's simply unanswered. The sheet can't be submitted while this is empty.</div>`
             : status !== 'beroperasi'
             ? `
               <div class="field">
-                <label>Alasan (wajib)</label>
-                <input id="reason" type="text" value="${unitStatus?.reason ?? ''}" placeholder="Jelaskan alasannya">
+                <label>Reason (required)</label>
+                <input id="reason" type="text" value="${unitStatus?.reason ?? ''}" placeholder="Explain the reason">
               </div>
-              <div class="warn-box">Karena status bukan "Beroperasi", titik ukur 1–4 disembunyikan dan tidak wajib diisi.</div>
+              <div class="warn-box">Because the status isn't "Operating", measurement points 1–4 are hidden and not required.</div>
             `
             : `
               <div class="point-fields" id="point-fields">

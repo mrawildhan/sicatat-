@@ -4,32 +4,36 @@ import { supabase } from '../lib/supabase-client.js';
 
 // Menu per peran — persis logika di wireframe Layar 0/0-fore/0-sup/0-adm.
 // Ditulis sebagai data, bukan if/else bercabang di HTML, supaya menambah
-// modul baru nanti (Peminjaman Barang, dst — lihat PRD Bagian 3.1) cukup
-// menambah baris di sini.
+// modul baru nanti cukup menambah baris di sini.
 function menuForRole(role) {
   const base = [
-    { label: 'Temperature', sub: '1 form tersedia', path: '/temperature-menu', enabled: true },
+    { label: 'Temperature', sub: '1 form available', path: '/temperature-menu', enabled: true },
   ];
 
   if (role === 'foreman' || role === 'supervisor' || role === 'admin') {
     base.push({
-      label: 'Belum Lengkap',
-      sub: role === 'foreman' ? 'Regu Anda saja' : 'Semua regu',
+      label: 'Incomplete',
+      sub: role === 'foreman' ? 'Your crew only' : 'All crews',
       path: '/incomplete-list',
+      enabled: true,
+    });
+    base.push({
+      label: 'High Temperature Report',
+      sub: '≥60°C across all crews',
+      path: '/high-temp-report',
       enabled: true,
     });
   }
 
   if (role === 'admin') {
     base.push({
-      label: 'Kelola Master Data',
+      label: 'Manage Master Data',
       sub: 'Crew, equipment, threshold, shift',
       path: '/admin',
       enabled: true,
     });
   }
 
-  base.push({ label: 'Peminjaman Barang', sub: 'Segera hadir', path: null, enabled: false });
   return base;
 }
 
@@ -70,7 +74,7 @@ export async function renderHome(root) {
           <div class="topbar-user">${user.name}</div>
         </div>
       </div>
-      <button id="btn-logout" class="btn-logout">Keluar</button>
+      <button id="btn-logout" class="btn-logout">Log out</button>
     </div>
     <div class="screen-body">
       <div class="section-label">Menu</div>
@@ -92,7 +96,7 @@ export async function renderHome(root) {
 
   const logoutBtn = root.querySelector('#btn-logout');
   const handleLogout = async () => {
-    const yakin = confirm('Keluar dari akun ini? Lembar yang belum tersinkron tetap tersimpan di HP ini.');
+    const yakin = confirm('Log out of this account? Sheets that haven\'t synced yet will stay saved on this phone.');
     if (!yakin) return;
     await logout();
     navigate('/login');

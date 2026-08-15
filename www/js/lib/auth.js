@@ -29,7 +29,7 @@ export async function login(nik, pin) {
     // Pesan Supabase asli ("Invalid login credentials") sengaja diganti
     // dengan bahasa yang lebih jelas untuk crew, tanpa membocorkan apakah
     // yang salah NIK atau PIN-nya (praktik keamanan standar).
-    throw new Error('NIK atau PIN salah, atau akun belum aktif');
+    throw new Error('Incorrect NIK or PIN, or the account is not active');
   }
 
   // Auth berhasil -> ambil profil lengkap (role, team_id, dll) dari app_user.
@@ -42,7 +42,7 @@ export async function login(nik, pin) {
 
   if (error || !data) {
     await supabase.auth.signOut(); // jangan biarkan sesi auth menggantung tanpa profil
-    throw new Error('Akun ditemukan di Auth tapi tidak ada di app_user — hubungi admin');
+    throw new Error('Account found in Auth but not in app_user — contact your admin');
   }
 
   currentUser = data;

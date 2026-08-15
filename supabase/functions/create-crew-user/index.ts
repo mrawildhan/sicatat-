@@ -40,14 +40,14 @@ Deno.serve(async (req) => {
   try {
     // ---- 1. Identifikasi & otorisasi caller (harus admin aktif) ----
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return json({ ok: false, error: 'Tidak ada sesi login.' }, 401);
+    if (!authHeader) return json({ ok: false, error: 'No login session.' }, 401);
 
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: authUser }, error: authError } = await callerClient.auth.getUser();
     if (authError || !authUser?.email) {
-      return json({ ok: false, error: 'Sesi tidak valid, silakan login ulang.' }, 401);
+      return json({ ok: false, error: 'Invalid session, please log in again.' }, 401);
     }
     const callerNik = authUser.email.replace('@sicatat.local', '');
 
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
       .eq('nik', callerNik)
       .single();
     if (callerErr || !callerProfile || callerProfile.role !== 'admin' || !callerProfile.is_active) {
-      return json({ ok: false, error: 'Cuma admin yang boleh menambah akun.' }, 403);
+      return json({ ok: false, error: 'Only admins can add accounts.' }, 403);
     }
 
     // ---- 2. Validasi input ----
@@ -72,16 +72,16 @@ Deno.serve(async (req) => {
     const pin = String(body.pin ?? '').trim();
 
     if (!nik || !name || !role || !pin) {
-      return json({ ok: false, error: 'NIK, nama, role, dan PIN wajib diisi.' }, 400);
+      return json({ ok: false, error: 'NIK, name, role, and PIN are required.' }, 400);
     }
     if (!VALID_ROLES.includes(role)) {
-      return json({ ok: false, error: 'Role tidak valid.' }, 400);
+      return json({ ok: false, error: 'Invalid role.' }, 400);
     }
     if ((role === 'crew' || role === 'foreman') && !teamId) {
-      return json({ ok: false, error: 'Tim wajib diisi untuk role crew/foreman.' }, 400);
+      return json({ ok: false, error: 'Crew is required for the crew/foreman role.' }, 400);
     }
     if (pin.length < 6) {
-      return json({ ok: false, error: 'PIN minimal 6 digit.' }, 400);
+      return json({ ok: false, error: 'PIN must be at least 6 digits.' }, 400);
     }
 
     // ---- 3. Bikin akun Auth ----
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
     });
     if (createAuthErr) {
       const msg = /already been registered|already exists/i.test(createAuthErr.message)
-        ? `NIK ${nik} sudah terdaftar.`
+        ? `NIK ${nik} is already registered.`
         : createAuthErr.message;
       return json({ ok: false, error: msg }, 400);
     }
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
       // Rollback -- jangan biarkan akun Auth yatim tanpa profil app_user.
       await admin.auth.admin.deleteUser(createdAuth.user.id);
       const msg = /duplicate key/i.test(insertErr.message)
-        ? `NIK ${nik} sudah terdaftar.`
+        ? `NIK ${nik} is already registered.`
         : insertErr.message;
       return json({ ok: false, error: msg }, 400);
     }

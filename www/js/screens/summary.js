@@ -2,17 +2,17 @@ import { getSheet, getUnitStatus, submitSheet, forceSubmitSheet, getContributors
 import { getCurrentUser, requireRole } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
 import { buildExportRows, resolveContributorNames, resolveSheetContext, buildCsv, buildPdf, pdfToBase64, saveAndShareText, saveAndShareBase64 } from '../lib/export.js';
-import { syncNow } from '../lib/sync-engine.js';
+import { syncNow, deleteSheet } from '../lib/sync-engine.js';
 
 export async function renderSummary(root, params) {
   const sheetId = params.get('sheetId');
   const user = getCurrentUser();
 
-  root.innerHTML = `<div class="screen-body"><p class="empty-text">Memuat...</p></div>`;
+  root.innerHTML = `<div class="screen-body"><p class="empty-text">Loading...</p></div>`;
 
   const sheet = await getSheet(sheetId);
   if (!sheet) {
-    root.innerHTML = `<div class="screen-body"><div class="warn-box">Lembar tidak ditemukan.</div></div>`;
+    root.innerHTML = `<div class="screen-body"><div class="warn-box">Sheet not found.</div></div>`;
     return () => {};
   }
 
@@ -40,8 +40,8 @@ export async function renderSummary(root, params) {
 
   root.innerHTML = `
     <div class="topbar">
-      <button class="btn-back" id="btn-back">← Daftar Lembar</button>
-      <div class="topbar-title">Ringkasan Lembar</div>
+      <button class="btn-back" id="btn-back">← Sheet List</button>
+      <div class="topbar-title">Sheet Summary</div>
     </div>
     <div class="screen-body">
       <div class="section-label">${sheet.tanggal}</div>
@@ -52,7 +52,7 @@ export async function renderSummary(root, params) {
         <div class="summary-row" ${r.status === null ? `data-fill="${r.section}|${r.roundNumber}|${r.unitCode}" style="cursor:pointer;"` : ''}>
           <span class="summary-name">${r.label}</span>
           <span class="status-text ${r.status === null ? 'incomplete' : 'complete'}">
-            ${r.status === null ? 'Belum diisi →' : statusLabel(r.status)}
+            ${r.status === null ? 'Not filled in →' : statusLabel(r.status)}
           </span>
         </div>
       `
@@ -60,50 +60,52 @@ export async function renderSummary(root, params) {
         .join('')}
 
       <div class="summary-row">
-        <span class="summary-name">Nama Crew Pengisi</span>
+        <span class="summary-name">Filled By</span>
         <span class="status-text ${crewBelumDiisi ? 'incomplete' : 'complete'}">
-          ${crewBelumDiisi ? 'Belum diisi' : `${contributors.length} orang ✓`}
+          ${crewBelumDiisi ? 'Not filled in' : `${contributors.length} people ✓`}
         </span>
       </div>
 
       ${
         belumDiisi.length > 0
-          ? `<div class="warn-box">${belumDiisi.length} sisi masih "Belum diisi": ${belumDiisi.map((r) => r.label).join(', ')}. Lembar tidak dapat dikirim sampai semua terjawab.</div>`
+          ? `<div class="warn-box">${belumDiisi.length} side(s) still "Not filled in": ${belumDiisi.map((r) => r.label).join(', ')}. The sheet cannot be submitted until all are answered.</div>`
           : ''
       }
-      ${crewBelumDiisi ? `<div class="warn-box">Nama Crew Pengisi belum diisi.</div>` : ''}
+      ${crewBelumDiisi ? `<div class="warn-box">Filled By has not been recorded yet.</div>` : ''}
 
       <button class="btn-primary" id="btn-submit" ${bisaSubmit ? '' : 'disabled style="opacity:0.4;"'}>
-        Kirim Lembar
+        Submit Sheet
       </button>
 
       ${
         canOverride
           ? `
             <div class="status-select" style="margin-top:20px;">
-              <div class="status-select-label">Jalur Override (${user.role}) — kirim meski belum lengkap</div>
+              <div class="status-select-label">Override (${user.role}) — submit even if incomplete</div>
               <div class="field">
-                <label>Alasan (wajib)</label>
-                <input id="force-reason" type="text" placeholder="Contoh: shift habis, crew sudah pulang">
+                <label>Reason (required)</label>
+                <input id="force-reason" type="text" placeholder="e.g. shift ended, crew already left">
               </div>
               <button class="btn-primary" id="btn-force-submit" style="margin-top:10px; opacity:0.4;" disabled>
-                Kirim Sebagai "Tidak Lengkap"
+                Submit As "Incomplete"
               </button>
             </div>
           `
           : ''
       }
 
-      <div class="section-label">Ekspor (FR-62/63)</div>
-      <button class="btn-secondary" id="btn-export-csv" style="margin-bottom:10px;">Ekspor Excel (CSV)</button>
-      <button class="btn-secondary" id="btn-export-pdf">Ekspor PDF</button>
+      <div class="section-label">Export (FR-62/63)</div>
+      <button class="btn-secondary" id="btn-export-csv" style="margin-bottom:10px;">Export Excel (CSV)</button>
+      <button class="btn-secondary" id="btn-export-pdf">Export PDF</button>
+
+      <button class="btn-danger" id="btn-delete-sheet">Delete Sheet</button>
     </div>
   `;
 
   function statusLabel(status) {
-    if (status === 'beroperasi') return 'Beroperasi ✓';
-    if (status === 'tidak_beroperasi') return 'Tidak beroperasi';
-    if (status === 'tidak_dapat_diakses') return 'Tidak dapat diakses';
+    if (status === 'beroperasi') return 'Operating ✓';
+    if (status === 'tidak_beroperasi') return 'Not operating';
+    if (status === 'tidak_dapat_diakses') return 'Not accessible';
     return status;
   }
 
@@ -127,8 +129,8 @@ export async function renderSummary(root, params) {
     await submitSheet(sheetId);
     syncNow(); // coba sinkron langsung kalau kebetulan online, jangan nunggu interval berkala
     alert(navigator.onLine
-      ? 'Lembar berhasil dikirim & sedang disinkronkan sekarang.'
-      : 'Lembar berhasil dikirim. Akan tersinkron otomatis begitu online.');
+      ? 'Sheet submitted and syncing now.'
+      : 'Sheet submitted. It will sync automatically once you\'re back online.');
     navigate('/sheet-list');
   };
   submitBtn.addEventListener('click', handleSubmit);
@@ -148,8 +150,8 @@ export async function renderSummary(root, params) {
       await forceSubmitSheet(sheetId, reason, user.id);
       syncNow();
       alert(navigator.onLine
-        ? 'Lembar dikirim sebagai "Tidak Lengkap" & sedang disinkronkan sekarang.'
-        : 'Lembar dikirim sebagai "Tidak Lengkap". Akan tersinkron otomatis begitu online.');
+        ? 'Sheet submitted as "Incomplete" and syncing now.'
+        : 'Sheet submitted as "Incomplete". It will sync automatically once you\'re back online.');
       navigate('/sheet-list');
     };
     reasonInput.addEventListener('input', updateForceBtn);
@@ -163,33 +165,47 @@ export async function renderSummary(root, params) {
   const exportCsvBtn = root.querySelector('#btn-export-csv');
   const exportPdfBtn = root.querySelector('#btn-export-pdf');
   const handleExportCsv = async () => {
-    exportCsvBtn.textContent = 'Menyiapkan...';
+    exportCsvBtn.textContent = 'Preparing...';
     try {
       const exportRows = await buildExportRows(sheetId);
       const [names, sheetContext] = await Promise.all([resolveContributorNames(contributors), resolveSheetContext(sheet)]);
       const csv = buildCsv(sheet, sheetContext, names, exportRows);
       await saveAndShareText(csv, `sicatat-${sheet.tanggal}.csv`);
     } catch (err) {
-      alert(`Gagal ekspor CSV: ${err.message}`);
+      alert(`Failed to export CSV: ${err.message}`);
     } finally {
-      exportCsvBtn.textContent = 'Ekspor Excel (CSV)';
+      exportCsvBtn.textContent = 'Export Excel (CSV)';
     }
   };
   const handleExportPdf = async () => {
-    exportPdfBtn.textContent = 'Menyiapkan...';
+    exportPdfBtn.textContent = 'Preparing...';
     try {
       const exportRows = await buildExportRows(sheetId);
       const [names, sheetContext] = await Promise.all([resolveContributorNames(contributors), resolveSheetContext(sheet)]);
       const doc = buildPdf(sheet, sheetContext, names, exportRows);
       await saveAndShareBase64(pdfToBase64(doc), `sicatat-${sheet.tanggal}.pdf`);
     } catch (err) {
-      alert(`Gagal ekspor PDF: ${err.message}`);
+      alert(`Failed to export PDF: ${err.message}`);
     } finally {
-      exportPdfBtn.textContent = 'Ekspor PDF';
+      exportPdfBtn.textContent = 'Export PDF';
     }
   };
   exportCsvBtn.addEventListener('click', handleExportCsv);
   exportPdfBtn.addEventListener('click', handleExportPdf);
+
+  const deleteBtn = root.querySelector('#btn-delete-sheet');
+  const handleDelete = async () => {
+    if (!confirm('Delete this sheet? This cannot be undone.')) return;
+    deleteBtn.disabled = true;
+    try {
+      await deleteSheet(sheetId);
+      navigate('/sheet-list');
+    } catch (err) {
+      alert(`Failed to delete: ${err.message}`);
+      deleteBtn.disabled = false;
+    }
+  };
+  deleteBtn.addEventListener('click', handleDelete);
 
   return () => {
     back.removeEventListener('click', goBack);
@@ -198,6 +214,7 @@ export async function renderSummary(root, params) {
     cleanupOverride();
     exportCsvBtn.removeEventListener('click', handleExportCsv);
     exportPdfBtn.removeEventListener('click', handleExportPdf);
+    deleteBtn.removeEventListener('click', handleDelete);
   };
 }
 

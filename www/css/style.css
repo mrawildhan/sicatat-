@@ -10,6 +10,18 @@
   --warn-bg: #faf0e2;
   --alarm: #a6332c;
   --alarm-bg: #fbe9e7;
+
+  /* Warna khusus nilai suhu tinggi (field input & badge rekap) -- SENGAJA
+     token terpisah dari --warn/--alarm di atas, yang dipakai warn-box,
+     alarm-banner, dan pill lain di seluruh app. Kalau dipakai bareng, semua
+     elemen tak terkait ikut berubah drastis padahal cuma suhu yang diminta
+     dibikin lebih tegas -- lihat www/js/lib/tempColor.js. */
+  --temp-warn-bg: #ffb020;
+  --temp-warn-ink: #3d2400;
+  --temp-warn-border: #c97800;
+  --temp-alarm-bg: #e5342b;
+  --temp-alarm-ink: #ffffff;
+  --temp-alarm-border: #a6231c;
 }
 
 * { box-sizing: border-box; }
@@ -87,6 +99,18 @@ body {
 .pill.pending { background: #eee; color: var(--ink-soft); }
 .pill.synced { background: var(--accent-bg); color: var(--accent); }
 
+.sheet-card-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.btn-delete-card {
+  border: 1px solid var(--alarm); background: #fff; color: var(--alarm);
+  border-radius: 6px; padding: 2px 8px; font-size: 13px; line-height: 1.6; cursor: pointer;
+}
+
+.btn-danger {
+  display: block; width: 100%; border: 1px solid var(--alarm); background: var(--alarm-bg);
+  color: var(--alarm); border-radius: 10px; padding: 12px; font-size: 13px;
+  font-weight: 600; text-align: center; cursor: pointer; margin-top: 10px;
+}
+
 .section-label {
   font-size: 11px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase;
   letter-spacing: 0.04em; margin: 16px 0 8px;
@@ -102,8 +126,17 @@ body {
   border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
   font-size: 15px; width: 100%;
 }
-.field input.field-warn { border-color: var(--warn); background: var(--warn-bg); color: var(--warn); font-weight: 700; }
-.field input.field-alarm { border-color: var(--alarm); background: var(--alarm-bg); color: var(--alarm); font-weight: 700; }
+.field input.field-warn,
+.temp-badge.field-warn {
+  border: 2px solid var(--temp-warn-border); background: var(--temp-warn-bg); color: var(--temp-warn-ink); font-weight: 700;
+}
+.field input.field-alarm,
+.temp-badge.field-alarm {
+  border: 2px solid var(--temp-alarm-border); background: var(--temp-alarm-bg); color: var(--temp-alarm-ink); font-weight: 700;
+}
+.temp-badge {
+  display: inline-block; border-radius: 8px; padding: 4px 10px; font-size: 14px;
+}
 .point-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
 
 /* Kartu equipment (Feeder Breaker, dst) */

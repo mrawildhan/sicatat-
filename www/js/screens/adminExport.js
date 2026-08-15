@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase-client.js';
 import { saveAndShareText } from '../lib/export.js';
 
 const SECTION_LABELS = { gearbox_breaker: 'Gb. Breaker', gearbox_sizer: 'Gb. Sizer' };
+// unit_code mentah tetap 'BARAT'/'TIMUR' di data -- cuma label tampilnya West/East.
+const SIDE_LABELS = { BARAT: 'West', TIMUR: 'East' };
 
 function csvEscape(v) {
   const s = String(v ?? '');
@@ -27,7 +29,7 @@ async function fetchAllIn(table, columns, filterColumn, filterValues) {
     const { data, error } = await supabase
       .from(table).select(columns).in(filterColumn, filterValues)
       .range(offset, offset + pageSize - 1);
-    if (error) throw new Error(`Gagal ambil ${table}: ${error.message}`);
+    if (error) throw new Error(`Failed to fetch ${table}: ${error.message}`);
     rows.push(...data);
     if (data.length < pageSize) break;
   }
@@ -47,7 +49,7 @@ async function buildExportRows(startDate, endDate, teamId) {
     .gte('tanggal', startDate).lte('tanggal', endDate);
   if (teamId) query = query.eq('team_id', teamId);
   const { data: sheets, error: sheetErr } = await query;
-  if (sheetErr) throw new Error(`Gagal ambil lembar: ${sheetErr.message}`);
+  if (sheetErr) throw new Error(`Failed to fetch sheets: ${sheetErr.message}`);
   if (sheets.length === 0) return { rows: [], sheetCount: 0 };
 
   const sheetById = Object.fromEntries(sheets.map((s) => [s.id, s]));
@@ -93,7 +95,7 @@ async function buildExportRows(startDate, endDate, teamId) {
       section: SECTION_LABELS[round.section] ?? round.section ?? '',
       ronde: round.round_number ?? '',
       jam: round.jam ?? '',
-      sisi: us?.unit_code ?? '',
+      sisi: us?.unit_code ? SIDE_LABELS[us.unit_code] ?? us.unit_code : '',
       statusUnit: us?.status ?? '',
       equipment: equip?.name ?? '',
       titikUkur: point.label ?? rd.measurement_point_id,
@@ -110,7 +112,7 @@ async function buildExportRows(startDate, endDate, teamId) {
 
 function buildCsv(rows) {
   const lines = [
-    'Tanggal,Regu,Shift,Section,Ronde,Jam,Sisi,Status Unit,Equipment,Titik Ukur,Nilai,Satuan,Dicatat Jam,Dicatat Oleh,Status Lembar',
+    'Date,Crew,Shift,Section,Round,Time,Side,Unit Status,Equipment,Point,Value,Unit,Recorded At,Recorded By,Sheet Status',
     ...rows.map((r) => [
       r.tanggal, r.regu, r.shift, r.section, r.ronde, r.jam, r.sisi, r.statusUnit,
       r.equipment, r.titikUkur, r.nilai, r.satuan, r.measured_at ?? '', r.dicatatOleh, r.statusLembar,
@@ -121,7 +123,7 @@ function buildCsv(rows) {
 
 export async function renderAdminExport(root) {
   if (!requireRole('admin')) {
-    root.innerHTML = `<div class="screen-body"><div class="warn-box">Halaman ini khusus admin.</div></div>`;
+    root.innerHTML = `<div class="screen-body"><div class="warn-box">This page is for admins only.</div></div>`;
     return () => {};
   }
 
@@ -141,29 +143,29 @@ export async function renderAdminExport(root) {
 
   root.innerHTML = `
     <div class="topbar">
-      <button class="btn-back" id="btn-back">← Kelola Master Data</button>
-      <div class="topbar-title">Ekspor Rentang Tanggal</div>
+      <button class="btn-back" id="btn-back">← Manage Master Data</button>
+      <div class="topbar-title">Export Date Range</div>
     </div>
     <div class="screen-body">
-      <div class="hint-text">Tarik semua data pembacaan (lintas regu &amp; perangkat) dalam rentang tanggal jadi satu file CSV, untuk dianalisa di Excel.</div>
+      <div class="hint-text">Pull all reading data (across crews &amp; devices) in a date range into one CSV file, for analysis in Excel.</div>
       <div class="field">
-        <label>Dari tanggal</label>
+        <label>From date</label>
         <input type="date" id="input-start" value="${firstOfMonth}">
       </div>
       <div class="field">
-        <label>Sampai tanggal</label>
+        <label>To date</label>
         <input type="date" id="input-end" value="${today}">
       </div>
       ${teams.length > 0 ? `
       <div class="field">
-        <label>Regu</label>
+        <label>Crew</label>
         <select id="input-team">
-          <option value="">Semua Regu</option>
+          <option value="">All Crews</option>
           ${teams.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}
         </select>
       </div>
       ` : ''}
-      <button class="btn-primary" id="btn-export" style="margin-top:10px;">Ekspor CSV</button>
+      <button class="btn-primary" id="btn-export" style="margin-top:10px;">Export CSV</button>
       <div id="export-status" class="hint-text"></div>
     </div>
   `;
@@ -182,27 +184,27 @@ export async function renderAdminExport(root) {
     const start = startInput.value;
     const end = endInput.value;
     const teamId = teamSelect?.value || null;
-    if (!start || !end) { statusEl.textContent = 'Isi dulu tanggal mulai & akhir.'; return; }
-    if (start > end) { statusEl.textContent = 'Tanggal mulai tidak boleh setelah tanggal akhir.'; return; }
+    if (!start || !end) { statusEl.textContent = 'Pick a start and end date first.'; return; }
+    if (start > end) { statusEl.textContent = 'Start date cannot be after end date.'; return; }
 
     exportBtn.disabled = true;
-    exportBtn.textContent = 'Mengambil data...';
+    exportBtn.textContent = 'Fetching data...';
     statusEl.textContent = '';
     try {
       const { rows, sheetCount } = await buildExportRows(start, end, teamId);
       if (rows.length === 0) {
-        statusEl.textContent = `Tidak ada data lembar antara ${start} dan ${end}.`;
+        statusEl.textContent = `No sheet data between ${start} and ${end}.`;
         return;
       }
       const teamSuffix = teamId ? `-${teamSelect.options[teamSelect.selectedIndex].textContent.replace(/\s+/g, '_')}` : '';
       const csv = buildCsv(rows);
       await saveAndShareText(csv, `sicatat-export-${start}_${end}${teamSuffix}.csv`);
-      statusEl.textContent = `${sheetCount} lembar, ${rows.length} baris data berhasil diekspor.`;
+      statusEl.textContent = `${sheetCount} sheet(s), ${rows.length} row(s) exported successfully.`;
     } catch (err) {
-      statusEl.textContent = `Gagal ekspor: ${err.message}`;
+      statusEl.textContent = `Export failed: ${err.message}`;
     } finally {
       exportBtn.disabled = false;
-      exportBtn.textContent = 'Ekspor CSV';
+      exportBtn.textContent = 'Export CSV';
     }
   };
   exportBtn.addEventListener('click', handleExport);

@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase-client.js';
 import { navigate } from '../lib/router.js';
 
 export async function renderAdminThreshold(root) {
-  root.innerHTML = `<div class="screen-body"><p class="empty-text">Memuat...</p></div>`;
+  root.innerHTML = `<div class="screen-body"><p class="empty-text">Loading...</p></div>`;
 
   let thresholds, points;
 
@@ -26,7 +26,7 @@ export async function renderAdminThreshold(root) {
   try {
     await loadAll();
   } catch (err) {
-    root.innerHTML = `<div class="screen-body"><div class="warn-box">Gagal memuat: ${err.message}</div></div>`;
+    root.innerHTML = `<div class="screen-body"><div class="warn-box">Failed to load: ${err.message}</div></div>`;
     return () => {};
   }
 
@@ -43,7 +43,7 @@ export async function renderAdminThreshold(root) {
     return `
       <div class="equip-card">
         <div class="field">
-          <label>Titik ukur</label>
+          <label>Measurement point</label>
           <select id="f-point">
             ${points.map((p) => `<option value="${p.id}" ${x.measurement_point_id === p.id ? 'selected' : ''}>${pointLabel({ ...p })}</option>`).join('')}
           </select>
@@ -69,19 +69,19 @@ export async function renderAdminThreshold(root) {
           </div>
         </div>
         <div class="field">
-          <label>Lonjakan maksimum antar ronde (delta)</label>
+          <label>Max jump between rounds (delta)</label>
           <input id="f-delta" type="number" step="0.1" value="${x.delta_max_per_round ?? ''}">
         </div>
         <div class="field">
-          <label>Rujukan (wajib -- manual OEM, engineering, dll)</label>
+          <label>Source (required -- OEM manual, engineering, etc.)</label>
           <input id="f-note" type="text" value="${x.source_note ?? ''}">
         </div>
         <label class="status-opt">
           <input type="checkbox" id="f-active" ${x.is_active ? 'checked' : ''}>
-          Aktif
+          Active
         </label>
-        <button class="btn-primary" id="f-save" style="margin-top:10px;">${isNew ? 'Tambah Threshold' : 'Simpan'}</button>
-        <button class="btn-secondary" id="f-cancel">Batal</button>
+        <button class="btn-primary" id="f-save" style="margin-top:10px;">${isNew ? 'Add Threshold' : 'Save'}</button>
+        <button class="btn-secondary" id="f-cancel">Cancel</button>
       </div>
     `;
   }
@@ -89,11 +89,11 @@ export async function renderAdminThreshold(root) {
   function draw() {
     root.innerHTML = `
       <div class="topbar">
-        <button class="btn-back" id="btn-back">← Kelola Master Data</button>
+        <button class="btn-back" id="btn-back">← Manage Master Data</button>
         <div class="topbar-title">Threshold</div>
       </div>
       <div class="screen-body">
-        ${points.length === 0 ? '<div class="warn-box">Belum ada titik ukur aktif -- tambah dulu di menu Equipment.</div>' : ''}
+        ${points.length === 0 ? '<div class="warn-box">No active measurement points yet -- add one in the Equipment menu first.</div>' : ''}
 
         ${editingId === 'new' ? form(null) : ''}
 
@@ -106,13 +106,13 @@ export async function renderAdminThreshold(root) {
                   <div class="sheet-date">${pointLabel(t.measurement_point)}</div>
                   <div class="sheet-shift">Warning ${t.warning_min ?? '—'}–${t.warning_max ?? '—'} · Alarm ${t.alarm_min ?? '—'}–${t.alarm_max ?? '—'}</div>
                 </div>
-                <span class="pill ${t.is_active ? 'synced' : 'pending'}">${t.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                <span class="pill ${t.is_active ? 'synced' : 'pending'}">${t.is_active ? 'Active' : 'Inactive'}</span>
               </div>
             `;
           })
           .join('')}
 
-        ${editingId === null && points.length > 0 ? '<button class="btn-primary" id="btn-add" style="margin-top:10px;">+ Tambah Threshold</button>' : ''}
+        ${editingId === null && points.length > 0 ? '<button class="btn-primary" id="btn-add" style="margin-top:10px;">+ Add Threshold</button>' : ''}
       </div>
     `;
 
@@ -134,7 +134,7 @@ export async function renderAdminThreshold(root) {
       saveBtn.addEventListener('click', async () => {
         const measurementPointId = root.querySelector('#f-point').value;
         const sourceNote = root.querySelector('#f-note').value.trim();
-        if (!sourceNote) { alert('Rujukan wajib diisi -- jangan biarkan kosong (lihat catatan skema).'); return; }
+        if (!sourceNote) { alert('Source is required -- don\'t leave it blank (see schema notes).'); return; }
         const num = (id) => {
           const v = root.querySelector(id).value;
           return v === '' ? null : Number(v);
@@ -159,7 +159,7 @@ export async function renderAdminThreshold(root) {
           editingId = null;
           draw();
         } catch (err) {
-          alert(`Gagal simpan: ${err.message}`);
+          alert(`Failed to save: ${err.message}`);
         }
       });
     }

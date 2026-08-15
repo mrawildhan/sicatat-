@@ -5,7 +5,7 @@ const SECTION_LABELS = { gearbox_breaker: 'Gearbox Breaker', gearbox_sizer: 'Gea
 const DATA_TYPES = ['numeric', 'boolean', 'text'];
 
 export async function renderAdminEquipment(root) {
-  root.innerHTML = `<div class="screen-body"><p class="empty-text">Memuat...</p></div>`;
+  root.innerHTML = `<div class="screen-body"><p class="empty-text">Loading...</p></div>`;
 
   let equipmentList, pointsByEquipment, sharedPoints;
 
@@ -27,7 +27,7 @@ export async function renderAdminEquipment(root) {
   try {
     await loadAll();
   } catch (err) {
-    root.innerHTML = `<div class="screen-body"><div class="warn-box">Gagal memuat: ${err.message}</div></div>`;
+    root.innerHTML = `<div class="screen-body"><div class="warn-box">Failed to load: ${err.message}</div></div>`;
     return () => {};
   }
 
@@ -41,11 +41,11 @@ export async function renderAdminEquipment(root) {
     return `
       <div class="equip-card">
         <div class="field">
-          <label>Kode (mis. sizer_bearing)</label>
+          <label>Code (e.g. sizer_bearing)</label>
           <input id="eq-code" type="text" value="${e.code}">
         </div>
         <div class="field">
-          <label>Nama tampil (mis. Bearing)</label>
+          <label>Display name (e.g. Bearing)</label>
           <input id="eq-name" type="text" value="${e.name}">
         </div>
         <div class="field">
@@ -57,15 +57,15 @@ export async function renderAdminEquipment(root) {
           </select>
         </div>
         <div class="field">
-          <label>Urutan tampil</label>
+          <label>Sort order</label>
           <input id="eq-sort" type="number" value="${e.sort_order}">
         </div>
         <label class="status-opt">
           <input type="checkbox" id="eq-active" ${e.is_active ? 'checked' : ''}>
-          Aktif
+          Active
         </label>
-        <button class="btn-primary" id="eq-save" style="margin-top:10px;">${isNew ? 'Tambah Equipment' : 'Simpan'}</button>
-        <button class="btn-secondary" id="eq-cancel">Batal</button>
+        <button class="btn-primary" id="eq-save" style="margin-top:10px;">${isNew ? 'Add Equipment' : 'Save'}</button>
+        <button class="btn-secondary" id="eq-cancel">Cancel</button>
       </div>
     `;
   }
@@ -77,36 +77,36 @@ export async function renderAdminEquipment(root) {
       <div class="equip-card" style="margin-left:16px; border-style:dashed;">
         <div class="point-fields">
           <div class="field">
-            <label>Kode (mis. motor_de)</label>
+            <label>Code (e.g. motor_de)</label>
             <input id="pt-code" type="text" value="${p.code}">
           </div>
           <div class="field">
-            <label>Label (mis. Motor DE)</label>
+            <label>Label (e.g. Motor DE)</label>
             <input id="pt-label" type="text" value="${p.label}">
           </div>
         </div>
         <div class="point-fields">
           <div class="field">
-            <label>Tipe data</label>
+            <label>Data type</label>
             <select id="pt-type">
               ${DATA_TYPES.map((t) => `<option value="${t}" ${p.data_type === t ? 'selected' : ''}>${t}</option>`).join('')}
             </select>
           </div>
           <div class="field">
-            <label>Satuan (mis. °C, kosongkan jika bukan angka)</label>
+            <label>Unit (e.g. °C, leave blank if not numeric)</label>
             <input id="pt-unit" type="text" value="${p.unit ?? ''}">
           </div>
         </div>
         <label class="status-opt">
           <input type="checkbox" id="pt-required" ${p.is_required ? 'checked' : ''}>
-          Wajib diisi
+          Required
         </label>
         <label class="status-opt">
           <input type="checkbox" id="pt-active" ${p.is_active ? 'checked' : ''}>
-          Aktif
+          Active
         </label>
-        <button class="btn-primary" id="pt-save" style="margin-top:10px;">${isNew ? 'Tambah Titik Ukur' : 'Simpan'}</button>
-        <button class="btn-secondary" id="pt-cancel">Batal</button>
+        <button class="btn-primary" id="pt-save" style="margin-top:10px;">${isNew ? 'Add Measurement Point' : 'Save'}</button>
+        <button class="btn-secondary" id="pt-cancel">Cancel</button>
       </div>
     `;
   }
@@ -123,9 +123,9 @@ export async function renderAdminEquipment(root) {
               <div class="sheet-card" data-point-edit="${p.id}" data-equipment="${equipmentId ?? ''}" style="padding:8px 12px; margin-bottom:6px;">
                 <div>
                   <div class="sheet-date" style="font-size:12px;">${p.label} <span style="color:var(--ink-soft); font-weight:400;">(${p.code})</span></div>
-                  <div class="sheet-shift">${p.data_type}${p.unit ? ' · ' + p.unit : ''}${p.is_required ? '' : ' · opsional'}</div>
+                  <div class="sheet-shift">${p.data_type}${p.unit ? ' · ' + p.unit : ''}${p.is_required ? '' : ' · optional'}</div>
                 </div>
-                <span class="pill ${p.is_active ? 'synced' : 'pending'}">${p.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                <span class="pill ${p.is_active ? 'synced' : 'pending'}">${p.is_active ? 'Active' : 'Inactive'}</span>
               </div>
             `
           )
@@ -133,7 +133,7 @@ export async function renderAdminEquipment(root) {
         ${
           editingPoint?.equipmentId === equipmentId && editingPoint?.pointId === 'new'
             ? pointForm(null, equipmentId)
-            : `<button class="btn-secondary" data-add-point="${equipmentId ?? ''}" style="margin-bottom:10px;">+ Tambah Titik Ukur</button>`
+            : `<button class="btn-secondary" data-add-point="${equipmentId ?? ''}" style="margin-bottom:10px;">+ Add Measurement Point</button>`
         }
       </div>
     `;
@@ -145,7 +145,7 @@ export async function renderAdminEquipment(root) {
 
     root.innerHTML = `
       <div class="topbar">
-        <button class="btn-back" id="btn-back">← Kelola Master Data</button>
+        <button class="btn-back" id="btn-back">← Manage Master Data</button>
         <div class="topbar-title">Equipment</div>
       </div>
       <div class="screen-body">
@@ -162,9 +162,9 @@ export async function renderAdminEquipment(root) {
                 <div class="sheet-card" data-eq-edit="${e.id}" style="border:none; padding:0; margin-bottom:0;">
                   <div>
                     <div class="sheet-date">${e.name}</div>
-                    <div class="sheet-shift">Kode: ${e.code}</div>
+                    <div class="sheet-shift">Code: ${e.code}</div>
                   </div>
-                  <span class="pill ${e.is_active ? 'synced' : 'pending'}">${e.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                  <span class="pill ${e.is_active ? 'synced' : 'pending'}">${e.is_active ? 'Active' : 'Inactive'}</span>
                 </div>
                 ${pointListHtml(pointsByEquipment[e.id] ?? [], e.id)}
               </div>
@@ -174,13 +174,13 @@ export async function renderAdminEquipment(root) {
           ${
             editingEquipment === 'new' && newEquipmentSection === section
               ? equipmentForm(null)
-              : `<button class="btn-secondary" data-add-equipment="${section}" style="margin-bottom:14px;">+ Tambah Equipment ${label}</button>`
+              : `<button class="btn-secondary" data-add-equipment="${section}" style="margin-bottom:14px;">+ Add ${label} Equipment</button>`
           }
         `
           )
           .join('')}
 
-        <div class="section-label">Titik Ukur Gearbox (Umum, bukan milik equipment tertentu)</div>
+        <div class="section-label">Shared Gearbox Measurement Points (not tied to a specific equipment)</div>
         <div class="equip-card">
           ${pointListHtml(sharedPoints, null)}
         </div>
@@ -206,7 +206,7 @@ export async function renderAdminEquipment(root) {
         const section = root.querySelector('#eq-section').value;
         const sortOrder = Number(root.querySelector('#eq-sort').value || 0);
         const isActive = root.querySelector('#eq-active').checked;
-        if (!code || !name) { alert('Kode dan nama wajib diisi.'); return; }
+        if (!code || !name) { alert('Code and name are required.'); return; }
         try {
           if (editingEquipment === 'new') {
             const { data: moduleRow, error: modErr } = await supabase.from('module').select('id').eq('code', 'temperature_check').single();
@@ -225,7 +225,7 @@ export async function renderAdminEquipment(root) {
           editingEquipment = null;
           draw();
         } catch (err) {
-          alert(`Gagal simpan: ${err.message}`);
+          alert(`Failed to save: ${err.message}`);
         }
       });
     }
@@ -254,7 +254,7 @@ export async function renderAdminEquipment(root) {
         const unit = root.querySelector('#pt-unit').value.trim() || null;
         const isRequired = root.querySelector('#pt-required').checked;
         const isActive = root.querySelector('#pt-active').checked;
-        if (!code || !label) { alert('Kode dan label wajib diisi.'); return; }
+        if (!code || !label) { alert('Code and label are required.'); return; }
         try {
           const payload = { code, label, data_type: dataType, unit, is_required: isRequired, is_active: isActive };
           if (editingPoint.pointId === 'new') {
@@ -268,7 +268,7 @@ export async function renderAdminEquipment(root) {
           editingPoint = null;
           draw();
         } catch (err) {
-          alert(`Gagal simpan: ${err.message}`);
+          alert(`Failed to save: ${err.message}`);
         }
       });
     }

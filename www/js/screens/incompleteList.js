@@ -12,7 +12,7 @@ export async function renderIncompleteList(root) {
   const user = getCurrentUser();
   const scopedToOwnTeam = user.role === 'foreman';
 
-  root.innerHTML = `<div class="screen-body"><p class="empty-text">Memuat...</p></div>`;
+  root.innerHTML = `<div class="screen-body"><p class="empty-text">Loading...</p></div>`;
 
   let sheets;
   try {
@@ -23,10 +23,10 @@ export async function renderIncompleteList(root) {
       .order('tanggal', { ascending: false });
     if (scopedToOwnTeam) query = query.eq('team_id', user.team_id);
     const { data, error } = await query;
-    if (error) throw new Error(`Gagal ambil daftar lembar: ${error.message}`);
+    if (error) throw new Error(`Failed to fetch sheets: ${error.message}`);
     sheets = data;
   } catch (err) {
-    root.innerHTML = `<div class="screen-body"><div class="warn-box">Gagal memuat: ${err.message}</div></div>`;
+    root.innerHTML = `<div class="screen-body"><div class="warn-box">Failed to load: ${err.message}</div></div>`;
     return () => {};
   }
 
@@ -53,14 +53,14 @@ export async function renderIncompleteList(root) {
 
   root.innerHTML = `
     <div class="topbar">
-      <button class="btn-back" id="btn-back">← Beranda</button>
-      <div class="topbar-title">Belum Lengkap</div>
+      <button class="btn-back" id="btn-back">← Home</button>
+      <div class="topbar-title">Incomplete</div>
     </div>
     <div class="screen-body">
-      <div class="hint-text">${scopedToOwnTeam ? 'Regu Anda saja' : 'Semua regu'}</div>
+      <div class="hint-text">${scopedToOwnTeam ? 'Your crew only' : 'All crews'}</div>
       ${
         rows.length === 0
-          ? '<p class="empty-text">Tidak ada lembar belum lengkap.</p>'
+          ? '<p class="empty-text">No incomplete sheets.</p>'
           : rows
               .map(
                 (r) => `

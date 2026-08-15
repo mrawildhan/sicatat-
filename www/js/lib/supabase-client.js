@@ -7,7 +7,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://ofczleeyqrxyuuupzirq.supabase.co';
+export const SUPABASE_URL = 'https://ofczleeyqrxyuuupzirq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_e85vPiEENe19yCviVUzuLg_nTewJBSW';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

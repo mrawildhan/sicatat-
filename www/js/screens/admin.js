@@ -1,20 +1,20 @@
 import { navigate } from '../lib/router.js';
 
 const MENU = [
-  { label: 'Equipment', sub: 'Daftar equipment & titik ukur', path: '/admin-equipment' },
-  { label: 'Threshold', sub: 'Batas warning/alarm per titik ukur', path: '/admin-threshold' },
-  { label: 'Shift', sub: 'Pagi / Malam, jam mulai-selesai', path: '/admin-shift' },
-  { label: 'Team', sub: 'Regu A / B / C', path: '/admin-team' },
-  { label: 'Roster', sub: 'Pola rotasi regu (roster_anchor)', path: '/admin-roster' },
-  { label: 'Crew', sub: 'Role, tim, aktif/nonaktif', path: '/admin-crew' },
-  { label: 'Ekspor Rentang Tanggal', sub: 'Tarik data CSV lintas regu untuk analisa', path: '/admin-export' },
+  { label: 'Equipment', sub: 'List of equipment & measurement points', path: '/admin-equipment' },
+  { label: 'Threshold', sub: 'Warning/alarm limits per measurement point', path: '/admin-threshold' },
+  { label: 'Shift', sub: 'Day / Night, start-end time', path: '/admin-shift' },
+  { label: 'Team', sub: 'Crew A / B / C', path: '/admin-team' },
+  { label: 'Roster', sub: 'Crew rotation pattern (roster_anchor)', path: '/admin-roster' },
+  { label: 'Crew', sub: 'Role, crew, active/inactive', path: '/admin-crew' },
+  { label: 'Export Date Range', sub: 'Pull CSV data across crews for analysis', path: '/admin-export' },
 ];
 
 export function renderAdmin(root) {
   root.innerHTML = `
     <div class="topbar">
-      <button class="btn-back" id="btn-back">← Beranda</button>
-      <div class="topbar-title">Kelola Master Data</div>
+      <button class="btn-back" id="btn-back">← Home</button>
+      <div class="topbar-title">Manage Master Data</div>
     </div>
     <div class="screen-body">
       ${MENU.map(

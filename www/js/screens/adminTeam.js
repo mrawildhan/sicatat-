@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase-client.js';
 import { navigate } from '../lib/router.js';
 
 export async function renderAdminTeam(root) {
-  root.innerHTML = `<div class="screen-body"><p class="empty-text">Memuat...</p></div>`;
+  root.innerHTML = `<div class="screen-body"><p class="empty-text">Loading...</p></div>`;
 
   let teams;
   try {
@@ -10,7 +10,7 @@ export async function renderAdminTeam(root) {
     if (error) throw new Error(error.message);
     teams = data;
   } catch (err) {
-    root.innerHTML = `<div class="screen-body"><div class="warn-box">Gagal memuat: ${err.message}</div></div>`;
+    root.innerHTML = `<div class="screen-body"><div class="warn-box">Failed to load: ${err.message}</div></div>`;
     return () => {};
   }
 
@@ -22,19 +22,19 @@ export async function renderAdminTeam(root) {
     return `
       <div class="equip-card">
         <div class="field">
-          <label>Kode (mis. A)</label>
+          <label>Code (e.g. A)</label>
           <input id="f-code" type="text" value="${t.code}" maxlength="10">
         </div>
         <div class="field">
-          <label>Nama (mis. Regu A)</label>
+          <label>Name (e.g. Crew A)</label>
           <input id="f-name" type="text" value="${t.name}">
         </div>
         <label class="status-opt">
           <input type="checkbox" id="f-active" ${t.is_active ? 'checked' : ''}>
-          Aktif
+          Active
         </label>
-        <button class="btn-primary" id="f-save" style="margin-top:10px;">${isNew ? 'Tambah' : 'Simpan'}</button>
-        <button class="btn-secondary" id="f-cancel">Batal</button>
+        <button class="btn-primary" id="f-save" style="margin-top:10px;">${isNew ? 'Add' : 'Save'}</button>
+        <button class="btn-secondary" id="f-cancel">Cancel</button>
       </div>
     `;
   }
@@ -42,7 +42,7 @@ export async function renderAdminTeam(root) {
   async function draw() {
     root.innerHTML = `
       <div class="topbar">
-        <button class="btn-back" id="btn-back">← Kelola Master Data</button>
+        <button class="btn-back" id="btn-back">← Manage Master Data</button>
         <div class="topbar-title">Team</div>
       </div>
       <div class="screen-body">
@@ -55,15 +55,15 @@ export async function renderAdminTeam(root) {
               <div class="sheet-card" data-id="${t.id}">
                 <div>
                   <div class="sheet-date">${t.name}</div>
-                  <div class="sheet-shift">Kode: ${t.code}</div>
+                  <div class="sheet-shift">Code: ${t.code}</div>
                 </div>
-                <span class="pill ${t.is_active ? 'synced' : 'pending'}">${t.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                <span class="pill ${t.is_active ? 'synced' : 'pending'}">${t.is_active ? 'Active' : 'Inactive'}</span>
               </div>
             `;
           })
           .join('')}
 
-        ${editingId === null ? '<button class="btn-primary" id="btn-add" style="margin-top:10px;">+ Tambah Team</button>' : ''}
+        ${editingId === null ? '<button class="btn-primary" id="btn-add" style="margin-top:10px;">+ Add Team</button>' : ''}
       </div>
     `;
 
@@ -86,7 +86,7 @@ export async function renderAdminTeam(root) {
         const code = root.querySelector('#f-code').value.trim();
         const name = root.querySelector('#f-name').value.trim();
         const isActive = root.querySelector('#f-active').checked;
-        if (!code || !name) { alert('Kode dan nama wajib diisi.'); return; }
+        if (!code || !name) { alert('Code and name are required.'); return; }
 
         try {
           if (editingId === 'new') {
@@ -102,7 +102,7 @@ export async function renderAdminTeam(root) {
           editingId = null;
           draw();
         } catch (err) {
-          alert(`Gagal simpan: ${err.message}`);
+          alert(`Failed to save: ${err.message}`);
         }
       });
     }

@@ -19,15 +19,18 @@ const DB_NAME = 'sicatat_local';
 // struktur form_template, bukan di-hardcode seperti sekarang. Satu tempat
 // (bukan didefinisikan ulang di summary.js/sheetList.js/incompleteList.js)
 // supaya definisi "8 sisi yang diharapkan" tidak pernah berbeda-beda.
+// unitCode TETAP 'BARAT'/'TIMUR' (nilai data mentah, dibandingkan langsung ke
+// unit_status.unit_code di server/lokal) -- cuma `label` (yang benar-benar
+// tampil ke user) yang diterjemahkan West/East.
 export const EXPECTED_SIDES = [
-  { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 1 · BARAT' },
-  { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Breaker — Ronde 1 · TIMUR' },
-  { section: 'gearbox_sizer', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Sizer — Ronde 1 · BARAT' },
-  { section: 'gearbox_sizer', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Sizer — Ronde 1 · TIMUR' },
-  { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Breaker — Ronde 2 · BARAT' },
-  { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Breaker — Ronde 2 · TIMUR' },
-  { section: 'gearbox_sizer', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Sizer — Ronde 2 · BARAT' },
-  { section: 'gearbox_sizer', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Sizer — Ronde 2 · TIMUR' },
+  { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Breaker — Round 1 · West' },
+  { section: 'gearbox_breaker', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Breaker — Round 1 · East' },
+  { section: 'gearbox_sizer', roundNumber: 1, unitCode: 'BARAT', label: 'Gb. Sizer — Round 1 · West' },
+  { section: 'gearbox_sizer', roundNumber: 1, unitCode: 'TIMUR', label: 'Gb. Sizer — Round 1 · East' },
+  { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Breaker — Round 2 · West' },
+  { section: 'gearbox_breaker', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Breaker — Round 2 · East' },
+  { section: 'gearbox_sizer', roundNumber: 2, unitCode: 'BARAT', label: 'Gb. Sizer — Round 2 · West' },
+  { section: 'gearbox_sizer', roundNumber: 2, unitCode: 'TIMUR', label: 'Gb. Sizer — Round 2 · East' },
 ];
 
 let db = null;
@@ -362,6 +365,44 @@ export async function getContributors(sheetId) {
   const database = await initDb();
   const res = await database.query('select user_id from sheet_contributor where sheet_id = ?', [sheetId]);
   return (res.values ?? []).map((r) => r.user_id);
+}
+
+// ---- HAPUS LEMBAR (dipanggil dari sync-engine.js, TIDAK dari layar
+// langsung -- lihat deleteSheet() di sana untuk bagian hapus-dari-server) ----
+// SQLite lokal TIDAK punya FK constraint/cascade otomatis seperti Postgres,
+// jadi anak-anaknya dihapus manual satu-satu di sini, urutan dari yang paling
+// dalam ke luar. client_uuid dikumpulkan DULU (sebelum baris dihapus) supaya
+// entri sync_queue yang masih nyantol ke baris-baris ini ikut dibuang --
+// kalau tidak, sync-engine akan terus mencoba sinkron baris yang sudah tidak
+// ada lagi.
+export async function deleteSheetLocal(sheetId) {
+  const database = await initDb();
+
+  const sheetRow = (await database.query('select client_uuid from sheet where id = ?', [sheetId])).values?.[0];
+  if (!sheetRow) return; // sudah tidak ada -- tidak ada yang perlu dilakukan
+
+  const rounds = (await database.query('select id, client_uuid from round where sheet_id = ?', [sheetId])).values ?? [];
+  const roundIds = rounds.map((r) => r.id);
+
+  let usUuids = [];
+  let readingUuids = [];
+  if (roundIds.length > 0) {
+    const placeholders = roundIds.map(() => '?').join(',');
+    usUuids = ((await database.query(`select client_uuid from unit_status where round_id in (${placeholders})`, roundIds)).values ?? [])
+      .map((r) => r.client_uuid);
+    readingUuids = ((await database.query(`select client_uuid from reading where round_id in (${placeholders})`, roundIds)).values ?? [])
+      .map((r) => r.client_uuid);
+    await database.run(`delete from reading where round_id in (${placeholders})`, roundIds);
+    await database.run(`delete from unit_status where round_id in (${placeholders})`, roundIds);
+    await database.run(`delete from round where sheet_id = ?`, [sheetId]);
+  }
+
+  await database.run('delete from sheet_contributor where sheet_id = ?', [sheetId]);
+  await database.run('delete from sheet where id = ?', [sheetId]);
+
+  const allUuids = [sheetRow.client_uuid, ...rounds.map((r) => r.client_uuid), ...usUuids, ...readingUuids];
+  const ph = allUuids.map(() => '?').join(',');
+  await database.run(`delete from sync_queue where client_uuid in (${ph})`, allUuids);
 }
 
 // ---- SUBMIT VALIDATION (FR-45: tidak boleh ada status "Belum diisi") ----

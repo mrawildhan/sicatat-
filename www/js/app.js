@@ -1,6 +1,7 @@
 import { register, startRouter } from './lib/router.js';
 import { initDb } from './lib/db.js';
 import { watchConnectivity, syncNow } from './lib/sync-engine.js';
+import { watchConnectivityGate } from './lib/connectivity-gate.js';
 import { restoreSession } from './lib/auth.js';
 import { renderLogin } from './screens/login.js';
 import { renderHome } from './screens/home.js';
@@ -18,6 +19,7 @@ import { renderAdminTeam } from './screens/adminTeam.js';
 import { renderAdminRoster } from './screens/adminRoster.js';
 import { renderAdminCrew } from './screens/adminCrew.js';
 import { renderAdminExport } from './screens/adminExport.js';
+import { renderHighTempReport } from './screens/highTempReport.js';
 import { checkAppVersion, APP_VERSION } from './lib/version.js';
 
 // FR-57: overlay penuh yang menutupi app, tidak ada tombol lanjut. Cuma
@@ -27,10 +29,10 @@ function showVersionBlock(info) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed; inset:0; background:#fff; z-index:9999; padding:40px 24px; text-align:center; font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;';
   overlay.innerHTML = `
-    <div style="font-size:17px; font-weight:700; margin-bottom:10px;">Update Wajib</div>
+    <div style="font-size:17px; font-weight:700; margin-bottom:10px;">Update Required</div>
     <div style="font-size:13px; color:#5c645c; line-height:1.6;">
-      Versi aplikasi ini (${info.currentVersion}) sudah tidak didukung.
-      Minta APK versi terbaru (${info.latestVersion}) ke admin sebelum melanjutkan.
+      This app version (${info.currentVersion}) is no longer supported.
+      Ask your admin for the latest APK (${info.latestVersion}) before continuing.
       ${info.releaseNotes ? `<br><br>${info.releaseNotes}` : ''}
     </div>
   `;
@@ -39,10 +41,16 @@ function showVersionBlock(info) {
 
 // FR-56: pemberitahuan ringan, tidak menghalangi pemakaian app.
 function showUpdateAvailableNotice(info) {
-  alert(`Versi baru (${info.latestVersion}) tersedia. App tetap bisa dipakai, tapi minta update ke admin kalau sempat.`);
+  alert(`A new version (${info.latestVersion}) is available. The app still works, but ask your admin to update it when you get a chance.`);
 }
 
 async function bootstrap() {
+  // Item #10: paling awal, sebelum apa pun lain -- kalau app dibuka offline,
+  // overlay blocking langsung muncul duluan sebelum sempat render layar apa
+  // pun (lihat lib/connectivity-gate.js untuk kenapa app ini sekarang
+  // online-only, bukan lagi offline-first).
+  watchConnectivityGate();
+
   await initDb();
 
   register('/login', renderLogin);
@@ -61,6 +69,7 @@ async function bootstrap() {
   register('/admin-roster', renderAdminRoster);
   register('/admin-crew', renderAdminCrew);
   register('/admin-export', renderAdminExport);
+  register('/high-temp-report', renderHighTempReport);
 
   // Cek dulu apakah ada sesi login tersimpan SEBELUM router pertama kali
   // menggambar layar — supaya tidak sempat kelihatan kedip ke layar Login

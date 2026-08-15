@@ -39,11 +39,11 @@ const FIELD_LABELS = {
 async function fetchEquipmentWithPoints(section) {
   const { data: equipmentRows, error: eqError } = await supabase
     .from('equipment').select('id, code, name, sort_order').eq('section', section).order('sort_order');
-  if (eqError) throw new Error(`Gagal ambil equipment: ${eqError.message}`);
+  if (eqError) throw new Error(`Failed to fetch equipment: ${eqError.message}`);
 
   const { data: pointRows, error: ptError } = await supabase
     .from('measurement_point').select('id, code, equipment_id, data_type');
-  if (ptError) throw new Error(`Gagal ambil measurement_point: ${ptError.message}`);
+  if (ptError) throw new Error(`Failed to fetch measurement_point: ${ptError.message}`);
 
   // Petakan point per equipment_id supaya gampang dicari layar per kartu.
   const pointsByEquipment = {};
@@ -61,7 +61,7 @@ export async function renderEquipmentInput(root, params) {
   const section = params.get('section') || 'gearbox_breaker';
   const user = getCurrentUser();
 
-  root.innerHTML = `<div class="screen-body"><p class="empty-text">Memuat...</p></div>`;
+  root.innerHTML = `<div class="screen-body"><p class="empty-text">Loading...</p></div>`;
 
   let roundId, equipmentRows, pointsByEquipment, savedReadings;
   try {
@@ -69,7 +69,7 @@ export async function renderEquipmentInput(root, params) {
     ({ equipmentRows, pointsByEquipment } = await fetchEquipmentWithPoints(section));
     savedReadings = await getReadingsForUnit(roundId, null); // null = readings equipment, bukan sisi BARAT/TIMUR
   } catch (err) {
-    root.innerHTML = `<div class="screen-body"><div class="warn-box">Gagal memuat: ${err.message}</div></div>`;
+    root.innerHTML = `<div class="screen-body"><div class="warn-box">Failed to load: ${err.message}</div></div>`;
     return () => {};
   }
 
@@ -91,7 +91,7 @@ export async function renderEquipmentInput(root, params) {
       return `
         <div class="field">
           <label>${FIELD_LABELS[point.code] ?? point.code}</label>
-          <input type="text" data-point-text="${point.id}" value="${saved?.value_text ?? ''}" placeholder="Opsional">
+          <input type="text" data-point-text="${point.id}" value="${saved?.value_text ?? ''}" placeholder="Optional">
         </div>
       `;
     }
@@ -106,8 +106,8 @@ export async function renderEquipmentInput(root, params) {
 
   root.innerHTML = `
     <div class="topbar">
-      <button class="btn-back" id="btn-back">← Ringkasan</div>
-      <div class="topbar-label">Ronde ${roundNumber}</div>
+      <button class="btn-back" id="btn-back">← Summary</div>
+      <div class="topbar-label">Round ${roundNumber}</div>
       <div class="topbar-title">${SECTION_LABELS[section]}</div>
     </div>
     <div class="screen-body">
@@ -122,7 +122,7 @@ export async function renderEquipmentInput(root, params) {
             return `
               <div class="equip-card" style="opacity:0.55;">
                 <div class="equip-name">${eq.name}</div>
-                <p class="empty-text" style="margin:4px 0;">Belum ada titik ukur terdaftar untuk equipment ini di master data.</p>
+                <p class="empty-text" style="margin:4px 0;">No measurement points registered for this equipment in master data.</p>
               </div>
             `;
           }
@@ -138,7 +138,7 @@ export async function renderEquipmentInput(root, params) {
         })
         .join('')}
 
-      <button class="btn-primary" id="btn-next" style="margin-top:6px;">Lanjut → Temperature Gearbox</button>
+      <button class="btn-primary" id="btn-next" style="margin-top:6px;">Next → Temperature Gearbox</button>
     </div>
   `;
 

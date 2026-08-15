@@ -9,14 +9,14 @@ export function renderLogin(root) {
       <form id="login-form">
         <div class="field">
           <label>NIK</label>
-          <input id="nik" type="text" inputmode="numeric" placeholder="Masukkan NIK Anda" required>
+          <input id="nik" type="text" inputmode="numeric" placeholder="Enter your NIK" required>
         </div>
         <div class="field">
           <label>PIN</label>
           <input id="pin" type="password" placeholder="••••" required>
         </div>
         <div id="login-error" class="error-text"></div>
-        <button type="submit" class="btn-primary">Masuk</button>
+        <button type="submit" class="btn-primary">Log in</button>
       </form>
     </div>
   `;

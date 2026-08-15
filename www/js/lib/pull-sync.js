@@ -43,7 +43,7 @@ export async function pullTeamDrafts(teamId) {
     .select('id, client_uuid, module_id, template_version, tanggal, shift_id, team_id, status, created_by, created_at, submitted_at, app_version, force_submitted_by, force_submitted_at, force_reason')
     .eq('team_id', teamId)
     .eq('status', 'draft');
-  if (sheetErr) throw new Error(`Gagal tarik lembar regu: ${sheetErr.message}`);
+  if (sheetErr) throw new Error(`Failed to pull crew sheets: ${sheetErr.message}`);
   if ((serverSheets ?? []).length === 0) return; // tidak ada draft di server utk regu ini -- selesai
 
   const haveSheetIds = await existingIds(database, 'sheet', serverSheets.map((s) => s.id));
@@ -68,7 +68,7 @@ export async function pullTeamDrafts(teamId) {
     .from('round')
     .select('id, client_uuid, sheet_id, section, round_number, jam')
     .in('sheet_id', sheetIds);
-  if (roundErr) throw new Error(`Gagal tarik ronde: ${roundErr.message}`);
+  if (roundErr) throw new Error(`Failed to pull rounds: ${roundErr.message}`);
 
   const haveRoundIds = await existingIds(database, 'round', (serverRounds ?? []).map((r) => r.id));
   for (const r of serverRounds ?? []) {
@@ -88,7 +88,7 @@ export async function pullTeamDrafts(teamId) {
     .from('unit_status')
     .select('id, client_uuid, round_id, unit_code, equipment_id, status, reason, answered_at')
     .in('round_id', roundIds);
-  if (usErr) throw new Error(`Gagal tarik status unit: ${usErr.message}`);
+  if (usErr) throw new Error(`Failed to pull unit status: ${usErr.message}`);
 
   const haveUsIds = await existingIds(database, 'unit_status', (serverUnitStatuses ?? []).map((u) => u.id));
   for (const u of serverUnitStatuses ?? []) {
@@ -105,7 +105,7 @@ export async function pullTeamDrafts(teamId) {
     .from('reading')
     .select('id, client_uuid, round_id, unit_status_id, measurement_point_id, value_numeric, value_boolean, value_text, measured_at, recorded_by, is_anomaly')
     .in('round_id', roundIds);
-  if (rdErr) throw new Error(`Gagal tarik pembacaan: ${rdErr.message}`);
+  if (rdErr) throw new Error(`Failed to pull readings: ${rdErr.message}`);
 
   const haveReadingIds = await existingIds(database, 'reading', (serverReadings ?? []).map((rd) => rd.id));
   for (const rd of serverReadings ?? []) {
@@ -125,7 +125,7 @@ export async function pullTeamDrafts(teamId) {
     .from('sheet_contributor')
     .select('sheet_id, user_id')
     .in('sheet_id', sheetIds);
-  if (scErr) throw new Error(`Gagal tarik kontributor: ${scErr.message}`);
+  if (scErr) throw new Error(`Failed to pull contributors: ${scErr.message}`);
 
   for (const c of serverContributors ?? []) {
     const existing = await database.query(

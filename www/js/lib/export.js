@@ -12,10 +12,12 @@ import { supabase } from './supabase-client.js';
 import { tempFieldClass } from './tempColor.js';
 
 const SECTION_LABELS = { gearbox_breaker: 'Gb. Breaker', gearbox_sizer: 'Gb. Sizer' };
+// unit_code mentah tetap 'BARAT'/'TIMUR' di data -- cuma label tampilnya West/East.
+const SIDE_LABELS = { BARAT: 'West', TIMUR: 'East' };
 const STATUS_UNIT_LABELS = {
-  beroperasi: 'Beroperasi',
-  tidak_beroperasi: 'Tidak beroperasi',
-  tidak_dapat_diakses: 'Tidak dapat diakses',
+  beroperasi: 'Operating',
+  tidak_beroperasi: 'Not operating',
+  tidak_dapat_diakses: 'Not accessible',
 };
 
 async function resolvePointLabels(pointIds) {
@@ -43,7 +45,7 @@ async function resolveEquipmentNames(equipmentIds) {
   }
 }
 
-// Regu & Shift ditampilkan sebagai nama, bukan uuid mentah, di kop CSV/PDF.
+// Crew & Shift ditampilkan sebagai nama, bukan uuid mentah, di kop CSV/PDF.
 export async function resolveSheetContext(sheet) {
   try {
     const [{ data: team }, { data: shift }] = await Promise.all([
@@ -88,7 +90,7 @@ export async function buildExportRows(sheetId) {
       section: SECTION_LABELS[r.section] ?? r.section,
       ronde: r.round_number,
       jam: r.jam ?? '',
-      sisi: r.unit_code ?? '',
+      sisi: r.unit_code ? SIDE_LABELS[r.unit_code] ?? r.unit_code : '',
       statusUnit: STATUS_UNIT_LABELS[r.status_unit] ?? (r.status_unit ?? ''),
       equipment: point?.equipment_id ? (equipmentNames[point.equipment_id] ?? '') : '',
       titikUkur: point ? point.label : r.measurement_point_id,
@@ -117,13 +119,13 @@ function csvEscape(v) {
 export function buildCsv(sheet, sheetContext, contributorNames, rows) {
   const lines = [
     `SICATAT - Daily Temperature Check`,
-    `Tanggal,${csvEscape(sheet.tanggal)}`,
-    `Regu,${csvEscape(sheetContext.teamName)}`,
+    `Date,${csvEscape(sheet.tanggal)}`,
+    `Crew,${csvEscape(sheetContext.teamName)}`,
     `Shift,${csvEscape(sheetContext.shiftName)}`,
-    `Status Lembar,${csvEscape(sheet.status)}`,
-    `Crew Pengisi,${csvEscape(contributorNames.join('; '))}`,
+    `Sheet Status,${csvEscape(sheet.status)}`,
+    `Filled By,${csvEscape(contributorNames.join('; '))}`,
     '',
-    'Section,Ronde,Jam,Sisi,Status Unit,Equipment,Titik Ukur,Nilai,Satuan,Dicatat Oleh',
+    'Section,Round,Time,Side,Unit Status,Equipment,Point,Value,Unit,Recorded By',
     ...rows.map((r) => [
       r.section, r.ronde, r.jam, r.sisi, r.statusUnit, r.equipment, r.titikUkur, r.nilai, r.satuan, r.dicatatOleh,
     ].map(csvEscape).join(',')),
@@ -131,12 +133,14 @@ export function buildCsv(sheet, sheetContext, contributorNames, rows) {
   return lines.join('\n');
 }
 
-// Warna suhu sama seperti di layar input (lib/tempColor.js): 60-69.9C kuning,
+// Warna suhu sama seperti di layar input (lib/tempColor.js): 60-69.9C amber,
 // >=70C merah -- cuma dipakai untuk sel "Nilai" yang satuannya benar-benar
-// °C (Oil Level/Remark tidak punya satuan itu, tidak ikut diwarnai).
+// °C (Oil Level/Remark tidak punya satuan itu, tidak ikut diwarnai). RGB
+// selaras dengan --temp-warn-bg/--temp-alarm-bg di style.css -- sengaja pekat
+// (bukan pucat) supaya langsung "nabrak mata" tanpa perlu baca satu-satu.
 const CELL_COLORS = {
-  'field-warn': [250, 217, 148],   // selaras var(--warn-bg)/--warn di style.css
-  'field-alarm': [246, 191, 186],  // selaras var(--alarm-bg)/--alarm
+  'field-warn': { fill: [255, 176, 32], text: [61, 36, 0] },    // var(--temp-warn-bg) / --temp-warn-ink
+  'field-alarm': { fill: [229, 52, 43], text: [255, 255, 255] }, // var(--temp-alarm-bg) / --temp-alarm-ink
 };
 
 export function buildPdf(sheet, sheetContext, contributorNames, rows) {
@@ -146,13 +150,13 @@ export function buildPdf(sheet, sheetContext, contributorNames, rows) {
   doc.text('SICATAT — Daily Temperature Check', 14, 15);
   doc.setFontSize(10);
   doc.text(
-    `Tanggal: ${sheet.tanggal}    Regu: ${sheetContext.teamName}    Shift: ${sheetContext.shiftName}    ` +
+    `Date: ${sheet.tanggal}    Crew: ${sheetContext.teamName}    Shift: ${sheetContext.shiftName}    ` +
     `Status: ${sheet.status}`,
     14, 22
   );
-  doc.text(`Crew Pengisi: ${contributorNames.join(', ') || '-'}`, 14, 28);
+  doc.text(`Filled By: ${contributorNames.join(', ') || '-'}`, 14, 28);
 
-  const head = [['Section', 'Ronde', 'Jam', 'Sisi', 'Status Unit', 'Equipment', 'Titik Ukur', 'Nilai', 'Satuan', 'Dicatat Oleh']];
+  const head = [['Section', 'Round', 'Time', 'Side', 'Unit Status', 'Equipment', 'Point', 'Value', 'Unit', 'Recorded By']];
   const body = rows.map((r) => [r.section, r.ronde, r.jam, r.sisi, r.statusUnit, r.equipment, r.titikUkur, r.nilai, r.satuan, r.dicatatOleh]);
 
   autoTable(doc, {
@@ -169,8 +173,10 @@ export function buildPdf(sheet, sheetContext, contributorNames, rows) {
       const satuan = data.row.raw[8];
       if (satuan !== '°C') return;
       const cls = tempFieldClass(data.cell.raw);
-      if (cls && CELL_COLORS[cls]) {
-        data.cell.styles.fillColor = CELL_COLORS[cls];
+      const colors = cls && CELL_COLORS[cls];
+      if (colors) {
+        data.cell.styles.fillColor = colors.fill;
+        data.cell.styles.textColor = colors.text;
         data.cell.styles.fontStyle = 'bold';
       }
     },

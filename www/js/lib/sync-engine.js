@@ -14,7 +14,7 @@
 // nyalakan WiFi lagi, pastikan semua masuk ke Supabase tanpa duplikat.
 
 import { supabase } from './supabase-client.js';
-import { initDb } from './db.js';
+import { initDb, getSheet, deleteSheetLocal } from './db.js';
 
 // conflictKey = kolom onConflict untuk upsert (insert). Tiga entitas pertama
 // punya client_uuid sendiri sebagai identitas baris. sheet_contributor TIDAK
@@ -143,6 +143,30 @@ export async function syncNow() {
   } finally {
     syncing = false;
   }
+}
+
+// Hapus lembar -- satu-satunya tempat yang tahu SQLite lokal DAN Supabase
+// sekaligus (db.js sengaja tidak tahu apa-apa soal Supabase, lihat catatan
+// di sana). Kalau baris ini sudah pernah tersinkron ('synced'), baris itu
+// juga ADA di server dan harus dihapus dari sana dulu (cascade otomatis ke
+// round/unit_status/reading/sheet_contributor lewat `on delete cascade` di
+// supabase/schema.sql) -- baru boleh dihapus lokal. Kalau belum pernah
+// tersinkron ('pending') atau gagal permanen ('conflict'), baris ini sendiri
+// tidak pernah diterima server sebagai baris yang sah, jadi cukup dihapus
+// lokal saja, tidak ada apa pun untuk dihapus di server.
+export async function deleteSheet(sheetId) {
+  const sheet = await getSheet(sheetId);
+  if (!sheet) return;
+
+  if (sheet.sync_status === 'synced') {
+    if (!navigator.onLine) {
+      throw new Error('No internet connection -- cannot delete a synced sheet right now.');
+    }
+    const { error } = await supabase.from('sheet').delete().eq('id', sheetId);
+    if (error) throw new Error(`Failed to delete from server: ${error.message}`);
+  }
+
+  await deleteSheetLocal(sheetId);
 }
 
 // Dipanggil dari app.js saat aplikasi dibuka & saat koneksi kembali online.

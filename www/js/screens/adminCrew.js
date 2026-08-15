@@ -4,7 +4,7 @@ import { navigate } from '../lib/router.js';
 const ROLES = ['crew', 'foreman', 'supervisor', 'admin'];
 
 export async function renderAdminCrew(root) {
-  root.innerHTML = `<div class="screen-body"><p class="empty-text">Memuat...</p></div>`;
+  root.innerHTML = `<div class="screen-body"><p class="empty-text">Loading...</p></div>`;
 
   let users, teams;
 
@@ -20,7 +20,7 @@ export async function renderAdminCrew(root) {
   try {
     await loadAll();
   } catch (err) {
-    root.innerHTML = `<div class="screen-body"><div class="warn-box">Gagal memuat: ${err.message}</div></div>`;
+    root.innerHTML = `<div class="screen-body"><div class="warn-box">Failed to load: ${err.message}</div></div>`;
     return () => {};
   }
 
@@ -33,13 +33,13 @@ export async function renderAdminCrew(root) {
     const needsTeam = x.role === 'crew' || x.role === 'foreman';
     return `
       <div class="equip-card">
-        ${isNew ? `<div class="hint-text">Akun login langsung aktif setelah disimpan -- tidak perlu langkah tambahan di Supabase Dashboard.</div>` : ''}
+        ${isNew ? `<div class="hint-text">The login account is active immediately after saving -- no extra steps needed in the Supabase Dashboard.</div>` : ''}
         <div class="field">
           <label>NIK</label>
           <input id="f-nik" type="text" value="${x.nik ?? ''}" ${isNew ? '' : 'disabled'}>
         </div>
         <div class="field">
-          <label>Nama</label>
+          <label>Name</label>
           <input id="f-name" type="text" value="${x.name}">
         </div>
         <div class="field">
@@ -49,27 +49,27 @@ export async function renderAdminCrew(root) {
           </select>
         </div>
         <div class="field" id="f-team-wrap" style="${needsTeam ? '' : 'display:none;'}">
-          <label>Tim (wajib untuk crew/foreman)</label>
+          <label>Crew (required for crew/foreman)</label>
           <select id="f-team">
             ${teams.map((t) => `<option value="${t.id}" ${x.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
           </select>
         </div>
         <div class="field">
-          <label>No. HP (opsional)</label>
+          <label>Phone (optional)</label>
           <input id="f-phone" type="text" value="${x.phone ?? ''}">
         </div>
         ${isNew ? `
         <div class="field">
-          <label>PIN (min. 6 digit, untuk login)</label>
-          <input id="f-pin" type="text" inputmode="numeric" placeholder="mis. 123456">
+          <label>PIN (min. 6 digits, for login)</label>
+          <input id="f-pin" type="text" inputmode="numeric" placeholder="e.g. 123456">
         </div>
         ` : ''}
         <label class="status-opt">
           <input type="checkbox" id="f-active" ${x.is_active ? 'checked' : ''}>
-          Aktif
+          Active
         </label>
-        <button class="btn-primary" id="f-save" style="margin-top:10px;">${isNew ? 'Tambah Crew' : 'Simpan'}</button>
-        <button class="btn-secondary" id="f-cancel">Batal</button>
+        <button class="btn-primary" id="f-save" style="margin-top:10px;">${isNew ? 'Add Crew' : 'Save'}</button>
+        <button class="btn-secondary" id="f-cancel">Cancel</button>
       </div>
     `;
   }
@@ -77,13 +77,13 @@ export async function renderAdminCrew(root) {
   function draw() {
     root.innerHTML = `
       <div class="topbar">
-        <button class="btn-back" id="btn-back">← Kelola Master Data</button>
+        <button class="btn-back" id="btn-back">← Manage Master Data</button>
         <div class="topbar-title">Crew</div>
       </div>
       <div class="screen-body">
         ${
           lastCreatedNik
-            ? `<div class="hint-text">Akun untuk NIK <strong>${lastCreatedNik}</strong> berhasil dibuat & sudah bisa langsung login.</div>`
+            ? `<div class="hint-text">Account for NIK <strong>${lastCreatedNik}</strong> was created successfully and can log in right away.</div>`
             : ''
         }
 
@@ -98,13 +98,13 @@ export async function renderAdminCrew(root) {
                   <div class="sheet-date">${u.name}</div>
                   <div class="sheet-shift">NIK ${u.nik ?? '—'} · ${u.role}${u.team ? ' · ' + u.team.name : ''}</div>
                 </div>
-                <span class="pill ${u.is_active ? 'synced' : 'pending'}">${u.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                <span class="pill ${u.is_active ? 'synced' : 'pending'}">${u.is_active ? 'Active' : 'Inactive'}</span>
               </div>
             `;
           })
           .join('')}
 
-        ${editingId === null ? '<button class="btn-primary" id="btn-add" style="margin-top:10px;">+ Tambah Crew</button>' : ''}
+        ${editingId === null ? '<button class="btn-primary" id="btn-add" style="margin-top:10px;">+ Add Crew</button>' : ''}
       </div>
     `;
 
@@ -139,19 +139,19 @@ export async function renderAdminCrew(root) {
         const teamId = needsTeam ? root.querySelector('#f-team').value : null;
         const phone = root.querySelector('#f-phone').value.trim() || null;
         const isActive = root.querySelector('#f-active').checked;
-        if (!name || (editingId === 'new' && !nik)) { alert('NIK dan nama wajib diisi.'); return; }
-        if (needsTeam && !teamId) { alert('Tim wajib diisi untuk role crew/foreman.'); return; }
+        if (!name || (editingId === 'new' && !nik)) { alert('NIK and name are required.'); return; }
+        if (needsTeam && !teamId) { alert('Crew is required for the crew/foreman role.'); return; }
 
         try {
           if (editingId === 'new') {
             const pin = root.querySelector('#f-pin').value.trim();
-            if (!pin || pin.length < 6) { alert('PIN wajib diisi, minimal 6 digit.'); return; }
+            if (!pin || pin.length < 6) { alert('PIN is required, at least 6 digits.'); return; }
 
             const { data, error } = await supabase.functions.invoke('create-crew-user', {
               body: { nik, name, role, team_id: teamId, phone, pin },
             });
             if (error) throw new Error(error.message);
-            if (!data?.ok) throw new Error(data?.error ?? 'Gagal membuat akun.');
+            if (!data?.ok) throw new Error(data?.error ?? 'Failed to create account.');
             lastCreatedNik = nik;
           } else {
             const { error } = await supabase.from('app_user')
@@ -163,7 +163,7 @@ export async function renderAdminCrew(root) {
           editingId = null;
           draw();
         } catch (err) {
-          alert(`Gagal simpan: ${err.message}`);
+          alert(`Failed to save: ${err.message}`);
         }
       });
     }
