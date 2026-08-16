@@ -38,6 +38,13 @@ export async function renderSummary(root, params) {
   // belum lengkap, bukan alasan buat tidak mencatat siapa yang mengisi.
   const canOverride = belumDiisi.length > 0 && !crewBelumDiisi && requireRole('foreman', 'supervisor', 'admin');
 
+  // Item #2 (2026-08-14, revisi): admin/supervisor/foreman boleh hapus lembar
+  // REGU MANA PUN; crew cuma boleh hapus lembar regunya sendiri, tidak bisa
+  // menyentuh punya regu lain (walau bisa melihatnya lewat pull lintas-regu
+  // yang sekarang dipakai admin/supervisor/foreman di sheetList.js).
+  const canDelete = requireRole('admin', 'supervisor', 'foreman')
+    || (user.role === 'crew' && sheet.team_id === user.team_id);
+
   root.innerHTML = `
     <div class="topbar">
       <button class="btn-back" id="btn-back">← Sheet List</button>
@@ -98,7 +105,7 @@ export async function renderSummary(root, params) {
       <button class="btn-secondary" id="btn-export-csv" style="margin-bottom:10px;">Export Excel (CSV)</button>
       <button class="btn-secondary" id="btn-export-pdf">Export PDF</button>
 
-      <button class="btn-danger" id="btn-delete-sheet">Delete Sheet</button>
+      ${canDelete ? `<button class="btn-danger" id="btn-delete-sheet">Delete Sheet</button>` : ''}
     </div>
   `;
 
@@ -182,7 +189,7 @@ export async function renderSummary(root, params) {
     try {
       const exportRows = await buildExportRows(sheetId);
       const [names, sheetContext] = await Promise.all([resolveContributorNames(contributors), resolveSheetContext(sheet)]);
-      const doc = buildPdf(sheet, sheetContext, names, exportRows);
+      const doc = await buildPdf(sheet, sheetContext, names, exportRows);
       await saveAndShareBase64(pdfToBase64(doc), `sicatat-${sheet.tanggal}.pdf`);
     } catch (err) {
       alert(`Failed to export PDF: ${err.message}`);
@@ -205,7 +212,7 @@ export async function renderSummary(root, params) {
       deleteBtn.disabled = false;
     }
   };
-  deleteBtn.addEventListener('click', handleDelete);
+  deleteBtn?.addEventListener('click', handleDelete);
 
   return () => {
     back.removeEventListener('click', goBack);
@@ -214,7 +221,7 @@ export async function renderSummary(root, params) {
     cleanupOverride();
     exportCsvBtn.removeEventListener('click', handleExportCsv);
     exportPdfBtn.removeEventListener('click', handleExportPdf);
-    deleteBtn.removeEventListener('click', handleDelete);
+    deleteBtn?.removeEventListener('click', handleDelete);
   };
 }
 

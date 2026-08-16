@@ -7,7 +7,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { getAllReadingsForSheet } from './db.js';
+import { getAllReadingsForSheet, getAllUnitStatusForSheet } from './db.js';
 import { supabase } from './supabase-client.js';
 import { tempFieldClass } from './tempColor.js';
 
@@ -134,52 +134,169 @@ export function buildCsv(sheet, sheetContext, contributorNames, rows) {
 }
 
 // Warna suhu sama seperti di layar input (lib/tempColor.js): 60-69.9C amber,
-// >=70C merah -- cuma dipakai untuk sel "Nilai" yang satuannya benar-benar
-// °C (Oil Level/Remark tidak punya satuan itu, tidak ikut diwarnai). RGB
-// selaras dengan --temp-warn-bg/--temp-alarm-bg di style.css -- sengaja pekat
-// (bukan pucat) supaya langsung "nabrak mata" tanpa perlu baca satu-satu.
+// >=70C merah. RGB selaras dengan --temp-warn-bg/--temp-alarm-bg di
+// style.css -- sengaja pekat (bukan pucat) supaya langsung "nabrak mata"
+// tanpa perlu baca satu-satu.
 const CELL_COLORS = {
   'field-warn': { fill: [255, 176, 32], text: [61, 36, 0] },    // var(--temp-warn-bg) / --temp-warn-ink
   'field-alarm': { fill: [229, 52, 43], text: [255, 255, 255] }, // var(--temp-alarm-bg) / --temp-alarm-ink
 };
 
-export function buildPdf(sheet, sheetContext, contributorNames, rows) {
+// 4 titik ukur gearbox baku -- HARUS sama persis dengan measurement_point.label
+// di Supabase (Title Case: "Low Speed"/"High Speed"/"Input Shaft"), BUKAN
+// label lokal di breakerInput.js (POINT_CODES pakai sentence case buat UI --
+// beda casing dari DB, pernah bikin 3 dari 4 titik hilang diam-diam dari PDF
+// karena string-match di buildGearboxBody gagal). SELALU ditampilkan di
+// laporan (walau kosong, ditulis "—") supaya pembaca tahu itu memang belum
+// diisi, bukan diam-diam hilang.
+const GEARBOX_POINT_LABELS = ['Low Speed', 'Intermediate', 'High Speed', 'Input Shaft'];
+
+const STATUS_DISPLAY = {
+  beroperasi: 'Operating',
+  tidak_beroperasi: 'Not operating',
+  tidak_dapat_diakses: 'Not accessible',
+};
+
+// Sel angka °C diwarnai (fill+text pekat, lihat CELL_COLORS); sel lain
+// (OK/Low, teks bebas, atau kosong) ditampilkan apa adanya, "—" kalau kosong.
+function pdfCell(value, satuan) {
+  if (value === '' || value === null || value === undefined) return '—';
+  if (satuan !== '°C') return String(value);
+  const cls = tempFieldClass(Number(value));
+  const colors = cls && CELL_COLORS[cls];
+  if (!colors) return String(value);
+  return { content: String(value), styles: { fillColor: colors.fill, textColor: colors.text, fontStyle: 'bold' } };
+}
+
+// Tabel "Equipment Readings" -- 1 baris per (equipment, field), Round 1 &
+// Round 2 sebagai KOLOM (bukan baris terpisah) supaya lebih ringkas. Semua
+// field SELALU tampil kecuali "Remark" yang boleh disembunyikan kalau kedua
+// ronde memang kosong (satu-satunya field yang murni catatan opsional).
+function buildEquipmentBody(rows) {
+  const groups = new Map();
+  const order = [];
+  for (const r of rows) {
+    if (!r.equipment) continue; // baris gearbox, bukan equipment
+    const key = `${r.equipment}|${r.titikUkur}`;
+    if (!groups.has(key)) {
+      const unitSuffix = r.satuan ? ` (${r.satuan})` : '';
+      groups.set(key, {
+        label: `${r.equipment} — ${r.titikUkur}${unitSuffix}`,
+        satuan: r.satuan,
+        isRemark: r.titikUkur === 'Remark',
+        r1: '', r2: '',
+      });
+      order.push(key);
+    }
+    const g = groups.get(key);
+    if (r.ronde === 1) g.r1 = r.nilai;
+    else if (r.ronde === 2) g.r2 = r.nilai;
+  }
+  return order
+    .map((k) => groups.get(k))
+    .filter((g) => !(g.isRemark && !g.r1 && !g.r2))
+    .map((g) => [g.label, pdfCell(g.r1, g.satuan), pdfCell(g.r2, g.satuan)]);
+}
+
+// Tabel "Gearbox Temperature" -- dikelompokkan per (section x sisi), diawali
+// baris Status (dari unitStatuses, BUKAN dari rows -- lihat catatan
+// getAllUnitStatusForSheet soal kenapa sumbernya beda), lalu 4 titik ukur
+// baku. rows dan unitStatuses SUDAH pakai label tampil yang sama
+// (SECTION_LABELS/SIDE_LABELS), jadi bisa digabung langsung pakai label itu
+// sebagai kunci, tidak perlu balik ke kode mentah.
+function buildGearboxBody(rows, unitStatuses) {
+  const groups = new Map();
+  const order = [];
+
+  function ensureGroup(sectionLabel, sideLabel) {
+    const key = `${sectionLabel}|${sideLabel}`;
+    if (!groups.has(key)) {
+      groups.set(key, { label: `${sectionLabel} — ${sideLabel}`, status: { r1: '', r2: '' }, points: new Map() });
+      order.push(key);
+    }
+    return groups.get(key);
+  }
+
+  for (const us of unitStatuses) {
+    const sectionLabel = SECTION_LABELS[us.section] ?? us.section;
+    const sideLabel = SIDE_LABELS[us.unit_code] ?? us.unit_code;
+    const g = ensureGroup(sectionLabel, sideLabel);
+    const display = STATUS_DISPLAY[us.status] ?? (us.status ?? '');
+    if (us.round_number === 1) g.status.r1 = display;
+    else if (us.round_number === 2) g.status.r2 = display;
+  }
+
+  for (const r of rows) {
+    if (!r.sisi) continue; // baris equipment, bukan gearbox
+    const g = ensureGroup(r.section, r.sisi); // r.section & r.sisi sudah label tampil
+    if (!g.points.has(r.titikUkur)) g.points.set(r.titikUkur, { satuan: r.satuan, r1: '', r2: '' });
+    const p = g.points.get(r.titikUkur);
+    if (r.ronde === 1) p.r1 = r.nilai;
+    else if (r.ronde === 2) p.r2 = r.nilai;
+  }
+
+  const body = [];
+  for (const key of order) {
+    const g = groups.get(key);
+    body.push([`${g.label} — Status`, g.status.r1 || '—', g.status.r2 || '—']);
+    for (const pointLabel of GEARBOX_POINT_LABELS) {
+      const p = g.points.get(pointLabel);
+      const satuan = p?.satuan ?? '°C';
+      body.push([`${g.label} — ${pointLabel} (${satuan})`, pdfCell(p?.r1 ?? '', satuan), pdfCell(p?.r2 ?? '', satuan)]);
+    }
+  }
+  return body;
+}
+
+// Layout 2 kolom BERDAMPINGAN (Equipment kiri, Gearbox kanan), bukan
+// ditumpuk vertikal -- landscape A4 lebar (297mm) tapi pendek (210mm);
+// ditumpuk vertikal kepotong 2 halaman (diverifikasi lewat skrip Node
+// standalone sebelum kode ini ditulis), berdampingan muat 1 halaman dengan
+// sisa ruang aman. font 7.5pt/padding 1.5mm dipilih dari validasi yang sama.
+export async function buildPdf(sheet, sheetContext, contributorNames, rows) {
+  const unitStatuses = await getAllUnitStatusForSheet(sheet.id);
+
   const doc = new jsPDF({ orientation: 'landscape' });
 
-  doc.setFontSize(14);
-  doc.text('SICATAT — Daily Temperature Check', 14, 15);
-  doc.setFontSize(10);
+  doc.setFontSize(13);
+  doc.text('SICATAT — Daily Temperature Check', 10, 12);
+  doc.setFontSize(8);
   doc.text(
     `Date: ${sheet.tanggal}    Crew: ${sheetContext.teamName}    Shift: ${sheetContext.shiftName}    ` +
     `Status: ${sheet.status}`,
-    14, 22
+    10, 17
   );
-  doc.text(`Filled By: ${contributorNames.join(', ') || '-'}`, 14, 28);
+  doc.text(`Filled By: ${contributorNames.join(', ') || '-'}`, 10, 21);
 
-  const head = [['Section', 'Round', 'Time', 'Side', 'Unit Status', 'Equipment', 'Point', 'Value', 'Unit', 'Recorded By']];
-  const body = rows.map((r) => [r.section, r.ronde, r.jam, r.sisi, r.statusUnit, r.equipment, r.titikUkur, r.nilai, r.satuan, r.dicatatOleh]);
+  const LEFT_X = 10, LEFT_W = 140, RIGHT_X = 155, RIGHT_W = 132, START_Y = 27;
+  const tableStyle = {
+    styles: { fontSize: 7.5, cellPadding: 1.5 },
+    headStyles: { fillColor: [26, 31, 26], textColor: 255, fontSize: 8 },
+    alternateRowStyles: { fillColor: [245, 246, 245] },
+  };
+
+  doc.setFontSize(9);
+  doc.text('Equipment Readings', LEFT_X, START_Y - 2);
+  doc.text('Gearbox Temperature', RIGHT_X, START_Y - 2);
 
   autoTable(doc, {
-    head,
-    body,
-    startY: 34,
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [26, 31, 26], textColor: 255 },
-    alternateRowStyles: { fillColor: [245, 246, 245] },
-    didParseCell: (data) => {
-      // Kolom "Nilai" = index 7. Cuma warnai kalau satuannya °C (kolom
-      // "Satuan" = index 8) -- Oil Level (OK/Low) & Remark tidak diwarnai.
-      if (data.section !== 'body' || data.column.index !== 7) return;
-      const satuan = data.row.raw[8];
-      if (satuan !== '°C') return;
-      const cls = tempFieldClass(data.cell.raw);
-      const colors = cls && CELL_COLORS[cls];
-      if (colors) {
-        data.cell.styles.fillColor = colors.fill;
-        data.cell.styles.textColor = colors.text;
-        data.cell.styles.fontStyle = 'bold';
-      }
-    },
+    ...tableStyle,
+    head: [['Equipment / Field', 'R1', 'R2']],
+    body: buildEquipmentBody(rows),
+    startY: START_Y,
+    columnStyles: { 0: { cellWidth: LEFT_W - 30 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 15, halign: 'center' } },
+    margin: { left: LEFT_X },
+    tableWidth: LEFT_W,
+  });
+
+  autoTable(doc, {
+    ...tableStyle,
+    head: [['Section / Point', 'R1', 'R2']],
+    body: buildGearboxBody(rows, unitStatuses),
+    startY: START_Y,
+    columnStyles: { 0: { cellWidth: RIGHT_W - 30 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 15, halign: 'center' } },
+    margin: { left: RIGHT_X },
+    tableWidth: RIGHT_W,
   });
 
   return doc;

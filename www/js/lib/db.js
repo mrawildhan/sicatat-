@@ -341,6 +341,24 @@ export async function getAllReadingsForSheet(sheetId) {
   return res.values ?? [];
 }
 
+// Status SEMUA sisi gearbox milik sheet (Item #3, 2026-08-14) -- BEDA dari
+// getAllReadingsForSheet di atas: itu JOIN mulai dari `reading`, jadi sisi
+// yang statusnya "Tidak beroperasi"/"Tidak dapat diakses" (tidak pernah
+// punya baris reading sama sekali, lihat breakerInput.js) diam-diam TIDAK
+// PERNAH muncul di sana. Laporan PDF butuh tahu status sisi itu juga --
+// makanya query terpisah ini JOIN dari `unit_status`, bukan `reading`.
+export async function getAllUnitStatusForSheet(sheetId) {
+  const database = await initDb();
+  const res = await database.query(`
+    select r.section, r.round_number, us.unit_code, us.status
+    from round r
+    join unit_status us on us.round_id = r.id
+    where r.sheet_id = ? and us.unit_code is not null
+    order by r.section, r.round_number
+  `, [sheetId]);
+  return res.values ?? [];
+}
+
 // ---- SHEET CONTRIBUTOR (nama crew pengisi) ----
 // SEMENTARA: cuma dikirim sekali via operation 'insert' (upsert onConflict
 // sheet_id+user_id di sync-engine.js) — belum ada jalur 'update'/'delete'

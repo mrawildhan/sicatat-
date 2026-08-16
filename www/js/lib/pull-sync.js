@@ -1,4 +1,5 @@
-// pull-sync.js — tarik draft milik SATU regu dari Supabase ke SQLite lokal.
+// pull-sync.js — tarik draft milik satu regu (atau SEMUA regu, lihat
+// parameter teamId di pullTeamDrafts) dari Supabase ke SQLite lokal.
 //
 // KENAPA INI ADA: sync-engine.js cuma satu arah (HP -> Supabase). Kalau crew
 // pakai HP masing-masing (bukan satu HP gantian), lembar draft yang dibuat &
@@ -32,17 +33,22 @@ function boolToInt(v) {
   return v === null || v === undefined ? null : (v ? 1 : 0);
 }
 
+// teamId null/undefined = tarik draft SEMUA regu (dipakai admin/supervisor/
+// foreman, yang butuh lihat & hapus lembar regu mana pun -- lihat summary.js
+// canDelete & sheetList.js). teamId berisi id = tarik draft REGU ITU SAJA
+// (dipakai crew, yang cuma boleh lihat & hapus lembar regunya sendiri).
 export async function pullTeamDrafts(teamId) {
-  if (!navigator.onLine || !teamId) return;
+  if (!navigator.onLine) return;
 
   const database = await initDb();
 
   // ---- SHEET ----
-  const { data: serverSheets, error: sheetErr } = await supabase
+  let sheetQuery = supabase
     .from('sheet')
     .select('id, client_uuid, module_id, template_version, tanggal, shift_id, team_id, status, created_by, created_at, submitted_at, app_version, force_submitted_by, force_submitted_at, force_reason')
-    .eq('team_id', teamId)
     .eq('status', 'draft');
+  if (teamId) sheetQuery = sheetQuery.eq('team_id', teamId);
+  const { data: serverSheets, error: sheetErr } = await sheetQuery;
   if (sheetErr) throw new Error(`Failed to pull crew sheets: ${sheetErr.message}`);
   if ((serverSheets ?? []).length === 0) return; // tidak ada draft di server utk regu ini -- selesai
 

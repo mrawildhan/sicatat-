@@ -1,6 +1,5 @@
 import { listSheets, createSheet, getIncompleteSides } from '../lib/db.js';
-import { deleteSheet } from '../lib/sync-engine.js';
-import { getCurrentUser } from '../lib/auth.js';
+import { getCurrentUser, requireRole } from '../lib/auth.js';
 import { navigate } from '../lib/router.js';
 import { supabase } from '../lib/supabase-client.js';
 import { computeTeamCodeForShift } from '../lib/roster.js';
@@ -23,6 +22,32 @@ async function resolveModuleId() {
     .from('module').select('id').eq('code', 'temperature_check').single();
   if (error) throw new Error(`Failed to fetch module: ${error.message}`);
   return data.id;
+}
+
+// Item #1 (2026-08-14): satu shift = satu regu bertugas (sesuai roster).
+// Kalau Regu A sudah punya lembar Day di tanggal X, regu LAIN tidak boleh
+// ikut bikin lembar Day juga di tanggal yang sama -- dianggap data dobel.
+// Baris milik REGU SENDIRI dikecualikan (itu bukan "dobel", itu lanjutan
+// pekerjaan sendiri -- dedupe-nya sudah ditangani createSheet() di db.js).
+// Kembalikan Map<shift_id, namaRegu> utk shift yang "sudah dipakai regu lain".
+async function getTakenShifts(moduleId, tanggal, ownTeamId) {
+  if (!moduleId || !tanggal) return new Map();
+  try {
+    const { data, error } = await supabase
+      .from('sheet')
+      .select('shift_id, team_id, team:team_id(name)')
+      .eq('module_id', moduleId)
+      .eq('tanggal', tanggal);
+    if (error) throw error;
+    const taken = new Map();
+    for (const row of data ?? []) {
+      if (ownTeamId && row.team_id === ownTeamId) continue; // regu sendiri, bukan dobel
+      if (!taken.has(row.shift_id)) taken.set(row.shift_id, row.team?.name ?? 'another crew');
+    }
+    return taken;
+  } catch {
+    return new Map(); // gagal/offline -- jangan blokir, biar tetap bisa dipakai
+  }
 }
 
 // Regu: crew & foreman SELALU punya team_id sendiri (wajib diisi di
@@ -61,19 +86,31 @@ async function resolveTeam(user, shiftCode) {
 export async function renderSheetList(root) {
   const user = getCurrentUser();
 
-  // Tarik draft regu sendiri dari server dulu (kalau ada, & kalau online) --
-  // supaya lembar yang mulai diisi dari HP orang lain (regu sama) muncul di
-  // sini juga, bukan bikin duplikat. Cuma relevan utk crew/foreman (punya
-  // team_id sendiri); supervisor/admin dilewati, lihat lib/pull-sync.js.
-  if (user.team_id) {
-    try {
+  // Tarik draft dari server dulu (kalau online) -- supaya lembar yang mulai
+  // diisi dari HP orang lain muncul di sini juga, bukan bikin duplikat.
+  // admin/supervisor/foreman tarik draft SEMUA regu (mereka boleh lihat &
+  // hapus lembar regu mana pun -- lihat summary.js canDelete); crew cuma
+  // tarik draft regunya sendiri.
+  try {
+    if (requireRole('admin', 'supervisor', 'foreman')) {
+      await pullTeamDrafts(null);
+    } else if (user.team_id) {
       await pullTeamDrafts(user.team_id);
-    } catch (err) {
-      console.warn('sheetList: gagal tarik draft regu', err.message);
     }
+  } catch (err) {
+    console.warn('sheetList: gagal tarik draft', err.message);
   }
 
   const sheets = await listSheets();
+
+  // Buat cek ketersediaan shift (Item #1) -- gagal diam-diam kalau offline,
+  // toggle shift tetap semua aktif (tidak memblokir kalau tidak bisa dicek).
+  let moduleId = null;
+  try {
+    moduleId = await resolveModuleId();
+  } catch {
+    moduleId = null;
+  }
 
   // Daftar shift buat picker Siang/Malam & buat label kartu riwayat. Kalau
   // offline saat cuma MELIHAT daftar (bukan bikin baru), gagal diam-diam --
@@ -122,6 +159,7 @@ export async function renderSheetList(root) {
             .map((s) => `<button type="button" data-shift-id="${s.id}" class="${s.id === selectedShiftId ? 'active' : ''}">${shiftLabel(s.code)}</button>`)
             .join('')}
         </div>
+        <div id="shift-availability-hint" class="hint-text" style="margin-top:6px; text-align:left;"></div>
       </div>
       <button class="btn-primary" id="btn-create">+ Create Sheet</button>
 
@@ -180,10 +218,7 @@ export async function renderSheetList(root) {
           <div class="sheet-date">${formatDateDMY(s.tanggal)} • ${crewText} • ${shiftText}</div>
           <div class="sheet-shift">${progressText}</div>
         </div>
-        <div class="sheet-card-actions">
-          <span class="pill ${pillClass}">${pillLabel}</span>
-          <button type="button" class="btn-delete-card" data-delete-id="${s.id}" aria-label="Delete sheet">🗑</button>
-        </div>
+        <span class="pill ${pillClass}">${pillLabel}</span>
       </div>
     `;
   }
@@ -218,9 +253,38 @@ export async function renderSheetList(root) {
 
   const handleShiftPick = (e) => {
     const btn = e.target.closest('button[data-shift-id]');
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
     selectedShiftId = btn.dataset.shiftId;
     shiftToggle.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b === btn));
+  };
+
+  // Item #1: cek shift mana yang sudah "dipakai" regu lain di tanggal
+  // terpilih, disable tombolnya + kasih tahu regu mana yang sudah pegang.
+  const shiftHint = root.querySelector('#shift-availability-hint');
+  const updateShiftAvailability = async () => {
+    const taken = await getTakenShifts(moduleId, tanggalInput.value, user.team_id);
+    const buttons = [...shiftToggle.querySelectorAll('button[data-shift-id]')];
+    buttons.forEach((b) => { b.disabled = taken.has(b.dataset.shiftId); });
+
+    if (selectedShiftId && taken.has(selectedShiftId)) {
+      const fallback = buttons.find((b) => !taken.has(b.dataset.shiftId));
+      selectedShiftId = fallback ? fallback.dataset.shiftId : null;
+      buttons.forEach((b) => b.classList.toggle('active', b.dataset.shiftId === selectedShiftId));
+    }
+
+    const allTaken = buttons.length > 0 && buttons.every((b) => taken.has(b.dataset.shiftId));
+    createBtn.disabled = allTaken;
+    createBtn.style.opacity = allTaken ? '0.4' : '1';
+
+    if (allTaken) {
+      shiftHint.textContent = 'Both shifts already have a crew rostered for this date.';
+    } else if (taken.size > 0) {
+      shiftHint.textContent = [...taken.entries()]
+        .map(([shiftId, teamName]) => `${shiftLabel(shiftCodeById[shiftId])} already used by ${teamName}`)
+        .join(' · ');
+    } else {
+      shiftHint.textContent = '';
+    }
   };
 
   const handleCreate = async () => {
@@ -237,16 +301,32 @@ export async function renderSheetList(root) {
       // Tarik ulang sekali lagi tepat sebelum bikin lembar -- memperkecil
       // celah race kalau layar ini sudah lama terbuka sebelum tombol ditekan
       // (lihat catatan lib/pull-sync.js soal kenapa ini penting).
-      if (user.team_id) {
-        try { await pullTeamDrafts(user.team_id); } catch { /* tetap lanjut walau gagal tarik */ }
-      }
+      try {
+        if (requireRole('admin', 'supervisor', 'foreman')) {
+          await pullTeamDrafts(null);
+        } else if (user.team_id) {
+          await pullTeamDrafts(user.team_id);
+        }
+      } catch { /* tetap lanjut walau gagal tarik */ }
       const shiftCode = shiftCodeById[selectedShiftId];
-      const [teamId, moduleId] = await Promise.all([
+      const [teamId, resolvedModuleId] = await Promise.all([
         resolveTeam(user, shiftCode),
-        resolveModuleId(),
+        moduleId ? Promise.resolve(moduleId) : resolveModuleId(),
       ]);
+
+      // Jaring pengaman terakhir (Item #1): cek ulang tepat sebelum insert,
+      // pakai teamId yang SUDAH di-resolve (bukan cuma user.team_id mentah --
+      // penting utk admin/supervisor yang team-nya ditebak dari roster) --
+      // kalau ternyata baru saja dipakai regu lain (race condition), batalkan.
+      const takenNow = await getTakenShifts(resolvedModuleId, tanggal, teamId);
+      if (takenNow.has(selectedShiftId)) {
+        alert(`This shift was just taken by ${takenNow.get(selectedShiftId)} for this date. Pick the other shift.`);
+        await updateShiftAvailability();
+        return;
+      }
+
       const sheetId = await createSheet({
-        moduleId,
+        moduleId: resolvedModuleId,
         templateVersion: TEMPLATE_VERSION,
         tanggal,
         shiftId: selectedShiftId,
@@ -259,21 +339,7 @@ export async function renderSheetList(root) {
     }
   };
 
-  const handleRootClick = async (e) => {
-    const deleteBtn = e.target.closest('.btn-delete-card');
-    if (deleteBtn) {
-      const id = deleteBtn.dataset.deleteId;
-      if (!confirm('Delete this sheet? This cannot be undone.')) return;
-      try {
-        await deleteSheet(id);
-        const idx = sheets.findIndex((s) => s.id === id);
-        if (idx !== -1) sheets.splice(idx, 1);
-        renderLists(searchInput.value || null, teamFilterSelect?.value || null);
-      } catch (err) {
-        alert(`Failed to delete: ${err.message}`);
-      }
-      return;
-    }
+  const handleRootClick = (e) => {
     const card = e.target.closest('.sheet-card');
     if (!card) return;
     navigate(`/breaker-equipment?sheetId=${card.dataset.id}&round=1`);
@@ -296,6 +362,8 @@ export async function renderSheetList(root) {
   searchInput.addEventListener('change', handleSearch);
   clearSearchBtn.addEventListener('click', handleClearSearch);
   teamFilterSelect?.addEventListener('change', handleTeamFilter);
+  tanggalInput.addEventListener('change', updateShiftAvailability);
+  updateShiftAvailability();
 
   return () => {
     back.removeEventListener('click', goBack);
@@ -305,5 +373,6 @@ export async function renderSheetList(root) {
     searchInput.removeEventListener('change', handleSearch);
     clearSearchBtn.removeEventListener('click', handleClearSearch);
     teamFilterSelect?.removeEventListener('change', handleTeamFilter);
+    tanggalInput.removeEventListener('change', updateShiftAvailability);
   };
 }
