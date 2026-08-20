@@ -12,3 +12,6 @@ graphify-out/
 
 # State lokal Supabase CLI (project ref, versi, dsb -- hasil `supabase link`, bukan source code)
 supabase/.temp/
+
+# Screenshot, PDF, dan log pengujian lokal
+tmp/
