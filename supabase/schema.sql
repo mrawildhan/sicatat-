@@ -148,7 +148,8 @@ create table sheet (
     force_submitted_by uuid references app_user(id),   -- wajib diisi jika status = submitted_incomplete
     force_submitted_at timestamptz,
     force_reason        text,                           -- wajib diisi jika status = submitted_incomplete
-    unique (module_id, tanggal, shift_id, team_id)      -- FR-11: cegah duplikasi lembar
+    unique (module_id, tanggal, shift_id, team_id),     -- audit snapshot per team
+    unique (module_id, tanggal, shift_id)               -- one sheet per actual shift
 );
 
 create table sheet_contributor (
@@ -241,3 +242,48 @@ create index idx_sheet_draft_monitoring on sheet (status, created_at) where stat
 create index idx_reading_point_time on reading (measurement_point_id, measured_at);
 create index idx_reading_round on reading (round_id);
 create index idx_audit_entity on audit_log (entity_type, entity_id);
+
+-- Verified sheets are immutable, including their rounds, unit statuses, and
+-- readings. This is duplicated in the dated migration for existing projects.
+create or replace function prevent_verified_sheet_mutation()
+returns trigger language plpgsql as $$
+begin
+    if old.status = 'verified' then
+        raise exception 'Verified sheets are locked and must not be edited.' using errcode = '55000';
+    end if;
+    return new;
+end;
+$$;
+create trigger trg_prevent_verified_sheet_mutation
+before update or delete on sheet
+for each row execute function prevent_verified_sheet_mutation();
+
+create or replace function prevent_verified_sheet_child_mutation()
+returns trigger language plpgsql as $$
+declare
+    current_round_id uuid;
+begin
+    if tg_op = 'INSERT' then
+        current_round_id := new.round_id;
+    else
+        current_round_id := old.round_id;
+    end if;
+    if exists (
+        select 1 from round r
+        join sheet s on s.id = r.sheet_id
+        where r.id = current_round_id and s.status = 'verified'
+    ) then
+        raise exception 'Readings and unit statuses in a verified sheet are locked.' using errcode = '55000';
+    end if;
+    if tg_op = 'DELETE' then
+        return old;
+    end if;
+    return new;
+end;
+$$;
+create trigger trg_prevent_verified_status_mutation
+before insert or update or delete on unit_status
+for each row execute function prevent_verified_sheet_child_mutation();
+create trigger trg_prevent_verified_reading_mutation
+before insert or update or delete on reading
+for each row execute function prevent_verified_sheet_child_mutation();

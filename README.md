@@ -1,4 +1,13 @@
-# SICATAT — Setup & Status Development
+# SICATAT — Repository History & Current Flutter App
+
+> The active application is the Flutter project in [`flutter_app/`](flutter_app/),
+> not the legacy Capacitor/vanilla-JS prototype in the repository root. Start
+> every new development session by reading [`CLAUDE.md`](CLAUDE.md) and
+> [`docs/PRD-SICATAT-v0.5.md`](docs/PRD-SICATAT-v0.5.md). The legacy notes below
+> are retained only for historical reference and must not be used as the current
+> build or deployment instructions.
+
+## Legacy Capacitor prototype (historical only)
 
 ## Ini kode belum pernah dijalankan
 
