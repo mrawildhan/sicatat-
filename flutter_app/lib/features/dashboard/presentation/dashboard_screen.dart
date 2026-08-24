@@ -95,7 +95,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
               ),
               Text(
-                'Field data recording application',
+                'Operational inspections & reminders',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.muted,
@@ -319,7 +319,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const Text(
-                    'Ready to record today’s equipment condition?',
+                    'Choose the operational task you want to manage.',
                     style: TextStyle(color: AppColors.muted),
                   ),
                 ],
@@ -329,42 +329,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ),
         const SizedBox(height: 22),
-        Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.greenDark, AppColors.green],
-            ),
-            borderRadius: BorderRadius.circular(26),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Daily Temperature Check',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Record equipment temperatures quickly and accurately.',
-                style: TextStyle(color: Colors.white70, height: 1.4),
-              ),
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.greenDark,
-                ),
-                onPressed: () => context.go('/sheets/new'),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Create new sheet'),
-              ),
-            ],
-          ),
+        const Text(
+          'Operations hub',
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 12),
+        _primaryAction(
+          icon: Icons.thermostat_rounded,
+          title: 'Temperature inspections',
+          subtitle: 'Record Feeder Breaker and Sizer readings. More temperature modules can be added here.',
+          actionLabel: 'Open inspections',
+          onTap: () => context.go('/sheets/new'),
+        ),
+        const SizedBox(height: 12),
+        _primaryAction(
+          icon: Icons.notifications_active_rounded,
+          title: 'Operational reminders',
+          subtitle: user?.role == UserRole.admin
+              ? 'Manage due dates for servicing, documents, and other operational follow-ups.'
+              : 'Reminder schedules are currently managed by the administrator.',
+          actionLabel: user?.role == UserRole.admin
+              ? 'Open reminders'
+              : 'Admin-managed',
+          enabled: user?.role == UserRole.admin,
+          onTap: () => context.go('/reminders'),
         ),
         const SizedBox(height: 28),
         SectionTitle(
@@ -460,13 +448,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ],
         if (user?.role == UserRole.admin) ...<Widget>[
           _quickAction(
-            Icons.notifications_active_outlined,
-            'Reminders',
-            'Vehicle documents, servicing, and other due dates',
-            () => context.go('/reminders'),
-          ),
-          const SizedBox(height: 10),
-          _quickAction(
             Icons.manage_accounts_outlined,
             'Master data & users',
             'Manage equipment, roster, teams, users, and exports',
@@ -512,6 +493,79 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
       );
+
+  Widget _primaryAction({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String actionLabel,
+    required VoidCallback onTap,
+    bool enabled = true,
+  }) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      gradient: enabled
+          ? const LinearGradient(colors: [AppColors.greenDark, AppColors.green])
+          : null,
+      color: enabled ? null : AppColors.mint,
+      borderRadius: BorderRadius.circular(24),
+      border: enabled ? null : Border.all(color: AppColors.line),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: enabled ? Colors.white.withValues(alpha: .16) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(icon, color: enabled ? Colors.white : AppColors.green),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                title,
+                style: TextStyle(
+                  color: enabled ? Colors.white : AppColors.greenDark,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: enabled ? Colors.white70 : AppColors.muted,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: enabled ? onTap : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.greenDark,
+                  disabledBackgroundColor: Colors.white,
+                  disabledForegroundColor: AppColors.muted,
+                ),
+                icon: Icon(
+                  enabled
+                      ? Icons.arrow_forward_rounded
+                      : Icons.admin_panel_settings_outlined,
+                ),
+                label: Text(actionLabel),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _quickAction(
     IconData icon,
