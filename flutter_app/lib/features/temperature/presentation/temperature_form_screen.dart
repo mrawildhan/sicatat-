@@ -342,6 +342,10 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
         ),
       );
     } finally {
+      // The dialog route keeps the TextField attached during its exit
+      // animation. Disposing its controller immediately after Navigator.pop
+      // triggers Flutter's `_dependents.isEmpty` assertion on Android.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
       note.dispose();
     }
   }

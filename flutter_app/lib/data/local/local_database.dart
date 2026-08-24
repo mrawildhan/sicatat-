@@ -24,6 +24,14 @@ class LocalDatabase {
   static const Uuid _uuid = Uuid();
   Database? _database;
 
+  // sqflite rejects null values in maps passed to insert/update. Nullable
+  // columns must be omitted locally; the queued JSON payload may still retain
+  // nulls when an explicit server-side update needs to clear a value.
+  static Map<String, Object?> _sqliteValues(Map<String, Object?> values) =>
+      Map<String, Object?>.fromEntries(
+        values.entries.where((entry) => entry.value != null),
+      );
+
   Future<Database> get database async {
     if (_database != null) return _database!;
     final databasesPath = await getDatabasesPath();
@@ -416,24 +424,42 @@ class LocalDatabase {
   ///
   /// A queued operation means the device has data that still needs to be sent
   /// to Supabase. This must not be displayed as synced.
-  Future<DashboardActivity> getDashboardActivity(DateTime day) async {
+  Future<DashboardActivity> getDashboardActivity(
+    DateTime day, {
+    String? createdBy,
+  }) async {
     final db = await database;
     final String date = _dateOnly(day);
     final rows = await db.rawQuery(
       '''
       SELECT
-        (SELECT COUNT(*) FROM sheet WHERE tanggal = ? AND status = 'draft') AS draft_count,
-        (SELECT COUNT(*) FROM sheet WHERE tanggal = ? AND sync_status = 'synced') AS synced_count,
+        (SELECT COUNT(*) FROM sheet
+          WHERE tanggal = ? AND status = 'draft'
+            AND (? IS NULL OR created_by = ?)) AS draft_count,
+        (SELECT COUNT(*) FROM sheet
+          WHERE tanggal = ? AND sync_status = 'synced'
+            AND (? IS NULL OR created_by = ?)) AS synced_count,
         (SELECT COUNT(*)
            FROM reading
            INNER JOIN round ON round.id = reading.round_id
            INNER JOIN sheet ON sheet.id = round.sheet_id
           WHERE sheet.tanggal = ?
+            AND (? IS NULL OR sheet.created_by = ?)
             AND reading.value_numeric >= 60) AS high_temperature_count,
         (SELECT COUNT(*) FROM sync_queue) AS pending_sync_count,
         (SELECT COUNT(*) FROM sheet WHERE sync_status = 'conflict') AS conflict_count
       ''',
-      <Object?>[date, date, date],
+      <Object?>[
+        date,
+        createdBy,
+        createdBy,
+        date,
+        createdBy,
+        createdBy,
+        date,
+        createdBy,
+        createdBy,
+      ],
     );
     final Map<String, Object?> row = rows.single;
     return DashboardActivity(
@@ -876,7 +902,10 @@ class LocalDatabase {
         };
         await transaction.update(
           'unit_status',
-          <String, Object?>{...payload, 'sync_status': 'pending'},
+          _sqliteValues(<String, Object?>{
+            ...payload,
+            'sync_status': 'pending',
+          }),
           where: 'id = ?',
           whereArgs: <Object?>[id],
         );
@@ -913,7 +942,7 @@ class LocalDatabase {
         'answered_at': timestamp,
       };
       await transaction.insert('unit_status', <String, Object?>{
-        ...payload,
+        ..._sqliteValues(payload),
         'sync_status': 'pending',
       });
       await _enqueue(
@@ -985,7 +1014,10 @@ class LocalDatabase {
         };
         await transaction.update(
           'reading',
-          <String, Object?>{...payload, 'sync_status': 'pending'},
+          _sqliteValues(<String, Object?>{
+            ...payload,
+            'sync_status': 'pending',
+          }),
           where: 'id = ?',
           whereArgs: <Object?>[id],
         );
@@ -1018,7 +1050,7 @@ class LocalDatabase {
         'anomaly_note': command.anomalyNote,
       };
       await transaction.insert('reading', <String, Object?>{
-        ...payload,
+        ..._sqliteValues(payload),
         'sync_status': 'pending',
       });
       await _enqueue(

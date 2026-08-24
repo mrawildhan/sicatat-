@@ -5,7 +5,7 @@
 | Produk | SICATAT — Sistem Inspeksi dan Catatan Temperatur |
 | Status | Acuan implementasi saat ini / recovery specification |
 | Tanggal | 20 Agustus 2026 |
-| Versi aplikasi | `2.1.4+214` |
+| Versi aplikasi | `2.1.5+215` |
 | Menggantikan | PRD-SICATAT-v0.4.md |
 | Fokus rilis saat ini | Daily Temperature Check: Gearbox Breaker dan Gearbox Sizer |
 
@@ -368,4 +368,4 @@ APK untuk mayoritas perangkat Android modern adalah `build/app/outputs/flutter-a
 - Pembaruan implementasi `2.1.1+211`: perbaikan Add User, penanda suhu tinggi PDF/CSV, serta Sheet Summary ringkas berbasis empat kartu.
 - Pembaruan implementasi `2.1.2+212`: optimasi tinggi halaman Sheet Summary untuk review cepat di perangkat ponsel.
 - Pembaruan implementasi `2.1.3+213`: navigasi Back Android tetap di dalam aplikasi dan submit final langsung tanpa Verify/Return pada alur baru.
-- Pembaruan implementasi `2.1.4+214`: filter My sheets, input sheet oleh admin untuk crew terpilih, visibilitas foreman satu tim, normalisasi label shift Inggris, dan pembatasan Oil Level. Migrasi `20260824_normalize_shifts_and_oil_level.sql` sudah diterapkan pada Supabase production.
+- Pembaruan implementasi `2.1.5+215`: filter My sheets, input sheet oleh admin untuk crew terpilih, visibilitas foreman satu tim, normalisasi label shift Inggris, pembatasan Oil Level, dan pemuatan nama shift otomatis pada perangkat baru. Migrasi `20260824_normalize_shifts_and_oil_level.sql` sudah diterapkan pada Supabase production.

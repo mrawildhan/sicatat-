@@ -44,8 +44,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Future<void> _loadActivity() async {
     try {
+      final user = ref.read(currentUserProvider);
       final DashboardActivity activity = await LocalDatabase.instance
-          .getDashboardActivity(DateTime.now());
+          .getDashboardActivity(
+            DateTime.now(),
+            createdBy:
+                user?.role == UserRole.admin ||
+                    user?.role == UserRole.supervisor
+                ? null
+                : user?.id,
+          );
       if (!mounted) return;
       setState(() => _activity = activity);
     } on Object {

@@ -43,12 +43,19 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
     try {
       final user = ref.read(currentUserProvider);
       if (user != null) {
-        final shared = await ref
-            .read(sicatatRepositoryProvider)
-            .listSharedSheets(
-              teamId: user.role == UserRole.foreman ? user.teamId : null,
-              createdBy: user.role == UserRole.crew ? user.id : null,
-            );
+        final repository = ref.read(sicatatRepositoryProvider);
+        // A freshly installed app has no locally cached shift names yet. Refresh
+        // them with the sheet list so cards never fall back to "Saved shift".
+        try {
+          final shifts = await repository.getActiveShifts();
+          await LocalDatabase.instance.cacheShifts(shifts);
+        } catch (_) {
+          // The already-cached names remain usable if master data is unavailable.
+        }
+        final shared = await repository.listSharedSheets(
+          teamId: user.role == UserRole.foreman ? user.teamId : null,
+          createdBy: user.role == UserRole.crew ? user.id : null,
+        );
         await LocalDatabase.instance.cacheRemoteSheets(shared);
       }
       final localSheets = await LocalDatabase.instance.listSheets();
@@ -252,82 +259,81 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
     DateTime? from = _fromDate;
     DateTime? to = _toDate;
     _SheetListStatusFilter status = _statusFilter;
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      isScrollControlled: true,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setModalState) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Wrap(
-              runSpacing: 12,
-              children: <Widget>[
-                const Text(
-                  'Filter sheets',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-                ),
-                _filterDateTile(
-                  context,
-                  'From date',
-                  from,
-                  (value) => setModalState(() => from = value),
-                ),
-                _filterDateTile(
-                  context,
-                  'To date',
-                  to,
-                  (value) => setModalState(() => to = value),
-                ),
-                DropdownButtonFormField<_SheetListStatusFilter>(
-                  initialValue: status,
-                  decoration: const InputDecoration(labelText: 'Sheet status'),
-                  items: const <DropdownMenuItem<_SheetListStatusFilter>>[
-                    DropdownMenuItem(
-                      value: _SheetListStatusFilter.all,
-                      child: Text('All statuses'),
+        builder: (context, setModalState) => AlertDialog(
+          title: const Text('Filter sheets'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _filterDateTile(
+                    context,
+                    'From date',
+                    from,
+                    (value) => setModalState(() => from = value),
+                  ),
+                  const SizedBox(height: 12),
+                  _filterDateTile(
+                    context,
+                    'To date',
+                    to,
+                    (value) => setModalState(() => to = value),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<_SheetListStatusFilter>(
+                    initialValue: status,
+                    decoration: const InputDecoration(
+                      labelText: 'Sheet status',
                     ),
-                    DropdownMenuItem(
-                      value: _SheetListStatusFilter.draft,
-                      child: Text('Draft / not submitted'),
-                    ),
-                    DropdownMenuItem(
-                      value: _SheetListStatusFilter.submitted,
-                      child: Text('Submitted'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setModalState(() => status = value ?? status),
-                ),
-                Row(
-                  children: <Widget>[
-                    TextButton(
-                      onPressed: () => setModalState(() {
-                        from = null;
-                        to = null;
-                        status = _SheetListStatusFilter.all;
-                      }),
-                      child: const Text('Clear'),
-                    ),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed:
-                          from != null && to != null && from!.isAfter(to!)
-                          ? null
-                          : () {
-                              setState(() {
-                                _fromDate = from;
-                                _toDate = to;
-                                _statusFilter = status;
-                              });
-                              Navigator.pop(dialogContext);
-                            },
-                      child: const Text('Apply filters'),
-                    ),
-                  ],
-                ),
-              ],
+                    items: const <DropdownMenuItem<_SheetListStatusFilter>>[
+                      DropdownMenuItem(
+                        value: _SheetListStatusFilter.all,
+                        child: Text('All statuses'),
+                      ),
+                      DropdownMenuItem(
+                        value: _SheetListStatusFilter.draft,
+                        child: Text('Draft / not submitted'),
+                      ),
+                      DropdownMenuItem(
+                        value: _SheetListStatusFilter.submitted,
+                        child: Text('Submitted'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setModalState(() => status = value ?? status),
+                  ),
+                ],
+              ),
             ),
           ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => setModalState(() {
+                from = null;
+                to = null;
+                status = _SheetListStatusFilter.all;
+              }),
+              child: const Text('Clear'),
+            ),
+            ElevatedButton(
+              onPressed: from != null && to != null && from!.isAfter(to!)
+                  ? null
+                  : () {
+                      setState(() {
+                        _fromDate = from;
+                        _toDate = to;
+                        _statusFilter = status;
+                      });
+                      Navigator.pop(dialogContext);
+                    },
+              child: const Text('Apply'),
+            ),
+          ],
         ),
       ),
     );
