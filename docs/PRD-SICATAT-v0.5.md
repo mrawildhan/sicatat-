@@ -13,11 +13,13 @@
 
 ## 1. Ringkasan produk
 
-SICATAT adalah aplikasi Flutter berbasis Supabase untuk mencatat inspeksi temperatur peralatan oleh crew lapangan. Rilis saat ini menangani pemeriksaan harian Gearbox Breaker dan Gearbox Sizer dalam dua round pada setiap shift, menyimpan draft ke server, menghindari duplikasi sheet, memberikan ringkasan kelengkapan, dan menghasilkan laporan PDF/CSV.
+SICATAT adalah aplikasi Flutter berbasis Supabase untuk inspeksi dan pencatatan operasional oleh crew lapangan. Rilis saat ini menangani pemeriksaan harian temperatur Gearbox Breaker dan Gearbox Sizer dalam dua round pada setiap shift, menyimpan draft ke server, menghindari duplikasi sheet, memberikan ringkasan kelengkapan, dan menghasilkan laporan PDF/CSV. Pengingat operasional juga tersedia sebagai area produk tersendiri untuk admin.
 
 Aplikasi bersifat **online-only**. Data penting harus dikirim ke Supabase; SQLite lokal dipakai sebagai cache dan antrian sinkronisasi yang tahan terhadap gangguan singkat, bukan sebagai mode kerja offline yang dijanjikan kepada pengguna. Halaman Sheet Summary memakai matriks empat kartu ringkas (Breaker/Sizer × Round 1/2) agar status utama dan tombol Submit dapat terlihat pada satu layar ponsel normal; detail tetap tersedia saat kartu diketuk.
 
 Tujuan operasionalnya adalah memastikan pembacaan temperatur kritis tidak terlewat, dapat ditelusuri berdasarkan tanggal/shift/crew, serta mudah dibaca oleh supervisor atau boss melalui laporan yang rapi.
+
+Setelah login, dashboard harus menampilkan dua fokus yang setara: **Temperature inspections** dan **Operational reminders**. Temperature inspections adalah pintu masuk yang dapat berkembang untuk equipment/section temperatur lain; saat ini isinya Gearbox Breaker dan Gearbox Sizer. Operational reminders tetap dapat dilihat sebagai kapabilitas produk, tetapi pengelolaan jadwalnya sementara hanya dapat dilakukan oleh admin.
 
 ## 2. Cara memakai dokumen ini untuk membangun ulang
 
