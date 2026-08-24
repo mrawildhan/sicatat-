@@ -68,81 +68,89 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final crewName = user?.name ?? 'Crew';
-    return Scaffold(
-      extendBody: false,
-      extendBodyBehindAppBar: false,
-      appBar: AppBar(
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'sicatat',
-              style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
-            ),
-            Text(
-              'Field data recording application',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.muted,
-                fontWeight: FontWeight.w500,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _index != 0) {
+          setState(() => _index = 0);
+        }
+      },
+      child: Scaffold(
+        extendBody: false,
+        extendBodyBehindAppBar: false,
+        appBar: AppBar(
+          title: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'sicatat',
+                style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
               ),
+              Text(
+                'Field data recording application',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.muted,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              onPressed: _loadActivity,
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Refresh activity',
             ),
+            IconButton(
+              onPressed: _signOut,
+              icon: const Icon(Icons.logout_rounded),
+              tooltip: 'Logout',
+            ),
+            const SizedBox(width: 8),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: _loadActivity,
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh activity',
+        body: SafeArea(
+          top: false,
+          bottom: false,
+          child: IndexedStack(
+            index: _index,
+            children: [
+              _home(context, crewName, user),
+              const SizedBox(),
+              _profile(context, user),
+            ],
           ),
-          IconButton(
-            onPressed: _signOut,
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Logout',
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: IndexedStack(
-          index: _index,
-          children: [
-            _home(context, crewName, user),
-            const SizedBox(),
-            _profile(context, user),
-          ],
         ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: (value) {
-            if (value == 1) {
-              context.go('/sheets');
-              return;
-            }
-            setState(() => _index = value);
-          },
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded),
-              label: 'Home',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.description_outlined),
-              selectedIcon: Icon(Icons.description_rounded),
-              label: 'Sheets',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline_rounded),
-              selectedIcon: Icon(Icons.person_rounded),
-              label: 'Profile',
-            ),
-          ],
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: (value) {
+              if (value == 1) {
+                context.go('/sheets');
+                return;
+              }
+              setState(() => _index = value);
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded),
+                label: 'Home',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.description_outlined),
+                selectedIcon: Icon(Icons.description_rounded),
+                label: 'Sheets',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: 'Profile',
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -432,6 +440,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             () => context.go('/high-temperature'),
           ),
           const SizedBox(height: 10),
+          _quickAction(
+            Icons.picture_as_pdf_outlined,
+            'Period reports',
+            user.role == UserRole.foreman
+                ? 'Export readings for your team by date range'
+                : 'Export readings and PDF reports by date range',
+            () => context.go('/reports'),
+          ),
+          const SizedBox(height: 10),
         ],
         if (user?.role == UserRole.admin) ...<Widget>[
           _quickAction(
@@ -439,13 +456,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             'Reminders',
             'Vehicle documents, servicing, and other due dates',
             () => context.go('/reminders'),
-          ),
-          const SizedBox(height: 10),
-          _quickAction(
-            Icons.picture_as_pdf_outlined,
-            'Period reports',
-            'Export data and PDF reports by date range',
-            () => context.go('/reports'),
           ),
           const SizedBox(height: 10),
           _quickAction(

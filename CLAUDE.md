@@ -11,7 +11,7 @@ This is the active handoff file for Claude Code. Follow it before editing.
 - Preserve the duplicate-sheet rule: one `module + date + shift` sheet globally, enforced in Flutter and the Supabase trigger.
 - Keep Android Back navigation inside the app; use `AppBackScope` / `AppBackButton` for new top-level pages.
 - Temperature safety: 60–69°C is warning/orange, >=70°C critical/red. Values outside -50..250°C require explicit anomaly confirmation and note.
-- Verified sheets must remain locked; use the Verify/Return/revision workflow and audit trail.
+- New submissions are final immediately; the sheet creator may explicitly reopen a submitted sheet for revision and resubmit it. Legacy verified sheets remain locked and auditable.
 
 ## Fast start
 
@@ -23,7 +23,7 @@ flutter test
 flutter build apk --release --split-per-abi
 ```
 
-For this workspace, the latest Android artifact is `flutter_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` (v2.1.2+212). Build output is intentionally ignored by Git.
+For this workspace, the latest Android artifact is `flutter_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` (v2.1.4+214). Build output is intentionally ignored by Git.
 
 ## Source map
 
@@ -54,7 +54,7 @@ For this workspace, the latest Android artifact is `flutter_app/build/app/output
 ## Supabase deployment checklist
 
 1. Apply `supabase/schema.sql` to a new project, then every migration in chronological order.
-2. Confirm these migrations are present in production: `20260819_prevent_duplicate_shift_sheets.sql` and `20260820_verified_sheet_lock.sql`.
+2. Confirm these migrations are present in production: `20260819_prevent_duplicate_shift_sheets.sql`, `20260820_verified_sheet_lock.sql`, and `20260824_normalize_shifts_and_oil_level.sql`.
 3. Deploy the user-creation function when needed:
 
 ```powershell
@@ -72,7 +72,7 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 2. Create a dated Shift Pagi or Malam sheet; make draft input, reopen it, and fill Round 2.
 3. Leave entries missing; confirm red summary card returns to the missing input.
 4. Check duplicate date+shift+module creation is rejected from a second account.
-5. Submit, reopen before verification, then verify/return as a reviewer.
+5. Submit, confirm the sheet is final immediately, then reopen and resubmit it as its creator to test the revision path.
 6. Export values 59, 60, 69, 70°C; inspect PDF colours and CSV `Temperature Alert` values.
 7. As admin, open User Management, tap Add User, create a test account, and confirm its login.
 

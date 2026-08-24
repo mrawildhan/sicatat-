@@ -311,43 +311,46 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      leading: const AppBackButton(fallbackRoute: '/admin'),
-      title: const Text('Thresholds'),
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _loading ? null : () => _edit(null),
-      icon: const Icon(Icons.add),
-      label: const Text('Add threshold'),
-    ),
-    body: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _load,
-            child: ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: _items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, int index) {
-                final _Threshold item = _items[index];
-                return Card(
-                  child: ListTile(
-                    onTap: () => _edit(item),
-                    title: Text(
-                      item.pointName,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+  Widget build(BuildContext context) => AppBackScope(
+    fallbackRoute: '/admin',
+    child: Scaffold(
+      appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: '/admin'),
+        title: const Text('Thresholds'),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _loading ? null : () => _edit(null),
+        icon: const Icon(Icons.add),
+        label: const Text('Add threshold'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(20),
+                itemCount: _items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, int index) {
+                  final _Threshold item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      onTap: () => _edit(item),
+                      title: Text(
+                        item.pointName,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text(
+                        'Warning ${_value(item.warningMin)}-${_value(item.warningMax)} · Alarm ${_value(item.alarmMin)}-${_value(item.alarmMax)}${item.delta == null ? '' : ' · Δ ${_value(item.delta)}'}',
+                      ),
+                      trailing: Chip(
+                        label: Text(item.isActive ? 'Active' : 'Inactive'),
+                      ),
                     ),
-                    subtitle: Text(
-                      'Warning ${_value(item.warningMin)}-${_value(item.warningMax)} · Alarm ${_value(item.alarmMin)}-${_value(item.alarmMax)}${item.delta == null ? '' : ' · Δ ${_value(item.delta)}'}',
-                    ),
-                    trailing: Chip(
-                      label: Text(item.isActive ? 'Active' : 'Inactive'),
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
+    ),
   );
 }

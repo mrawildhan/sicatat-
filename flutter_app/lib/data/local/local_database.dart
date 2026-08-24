@@ -1155,7 +1155,7 @@ class LocalDatabase {
     });
   }
 
-  /// Reopens a submitted sheet before verification, so the originating crew
+  /// Reopens a submitted sheet, so the originating crew
   /// can correct a reading and submit it again.
   Future<void> reopenSheetForCorrection({
     required String sheetId,
@@ -1390,9 +1390,7 @@ class LocalDatabase {
       whereArgs: <Object?>[sheetId],
       orderBy: 'changed_at DESC',
     );
-    return rows
-        .map(SheetAuditEvent.fromLocalRow)
-        .toList(growable: false);
+    return rows.map(SheetAuditEvent.fromLocalRow).toList(growable: false);
   }
 
   /// Deletes a local sheet tree only after callers have removed an already

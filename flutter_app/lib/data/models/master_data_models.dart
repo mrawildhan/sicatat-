@@ -17,6 +17,25 @@ class ShiftOption {
   JsonMap toJson() => <String, Object?>{'id': id, 'code': code, 'name': name};
 }
 
+/// Keeps legacy Indonesian shift names in the database while presenting a
+/// consistent English operational UI.
+String displayShiftName(String value) {
+  switch (value.trim().toLowerCase()) {
+    case 'pagi':
+    case 'shift pagi':
+    case 'day':
+    case 'day shift':
+      return 'Day shift';
+    case 'malam':
+    case 'shift malam':
+    case 'night':
+    case 'night shift':
+      return 'Night shift';
+    default:
+      return value;
+  }
+}
+
 class TemperatureTemplate {
   const TemperatureTemplate({
     required this.moduleId,
@@ -59,10 +78,7 @@ class ThresholdRule {
 enum TemperatureAlertLevel { normal, warning, critical, invalid }
 
 class TemperatureAssessment {
-  const TemperatureAssessment({
-    required this.level,
-    required this.message,
-  });
+  const TemperatureAssessment({required this.level, required this.message});
 
   final TemperatureAlertLevel level;
   final String message;
@@ -182,6 +198,29 @@ class InspectionFormConfig {
         .toList(growable: false);
     points.sort((left, right) => left.sortOrder.compareTo(right.sortOrder));
     return points;
+  }
+
+  /// Oil level is an operational check only for the feeder breaker and the
+  /// sizer motor. Hide accidental legacy oil points on pumps or other units
+  /// even before the server migration deactivates them.
+  List<MeasurementPoint> visiblePointsForEquipment(
+    InspectionEquipment equipment,
+  ) {
+    return pointsForEquipment(equipment.id)
+        .where((point) => !_isOilLevel(point) || _allowsOilLevel(equipment))
+        .toList(growable: false);
+  }
+
+  bool _isOilLevel(MeasurementPoint point) =>
+      point.code.trim().toLowerCase().contains('oil') ||
+      point.label.trim().toLowerCase().contains('oil level');
+
+  bool _allowsOilLevel(InspectionEquipment equipment) {
+    final code = equipment.code.trim().toLowerCase();
+    final name = equipment.name.trim().toLowerCase();
+    return code == 'feeder_breaker' ||
+        (equipment.section == 'gearbox_sizer' &&
+            (code == 'motor' || name == 'motor'));
   }
 
   List<MeasurementPoint> get gearboxPoints {

@@ -155,42 +155,45 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      leading: const AppBackButton(fallbackRoute: '/admin'),
-      title: const Text('Teams'),
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _loading ? null : () => _edit(null),
-      icon: const Icon(Icons.add),
-      label: const Text('Add team'),
-    ),
-    body: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _load,
-            child: ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: _items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, int index) {
-                final _TeamRecord item = _items[index];
-                return Card(
-                  child: ListTile(
-                    onTap: () => _edit(item),
-                    title: Text(
-                      item.name,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+  Widget build(BuildContext context) => AppBackScope(
+    fallbackRoute: '/admin',
+    child: Scaffold(
+      appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: '/admin'),
+        title: const Text('Teams'),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _loading ? null : () => _edit(null),
+        icon: const Icon(Icons.add),
+        label: const Text('Add team'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(20),
+                itemCount: _items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, int index) {
+                  final _TeamRecord item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      onTap: () => _edit(item),
+                      title: Text(
+                        item.name,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text('Code: ${item.code}'),
+                      trailing: Chip(
+                        label: Text(item.isActive ? 'Active' : 'Inactive'),
+                      ),
                     ),
-                    subtitle: Text('Code: ${item.code}'),
-                    trailing: Chip(
-                      label: Text(item.isActive ? 'Active' : 'Inactive'),
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
+    ),
   );
 }
 
@@ -388,44 +391,47 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
   bool _time(String value) =>
       RegExp(r'^([01]\\d|2[0-3]):[0-5]\\d$').hasMatch(value);
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      leading: const AppBackButton(fallbackRoute: '/admin'),
-      title: const Text('Shifts'),
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _loading ? null : () => _edit(null),
-      icon: const Icon(Icons.add),
-      label: const Text('Add shift'),
-    ),
-    body: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _load,
-            child: ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: _items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, int index) {
-                final _ShiftRecord item = _items[index];
-                return Card(
-                  child: ListTile(
-                    onTap: () => _edit(item),
-                    title: Text(
-                      item.name,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+  Widget build(BuildContext context) => AppBackScope(
+    fallbackRoute: '/admin',
+    child: Scaffold(
+      appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: '/admin'),
+        title: const Text('Shifts'),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _loading ? null : () => _edit(null),
+        icon: const Icon(Icons.add),
+        label: const Text('Add shift'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(20),
+                itemCount: _items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, int index) {
+                  final _ShiftRecord item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      onTap: () => _edit(item),
+                      title: Text(
+                        item.name,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text(
+                        '${item.code} · ${item.startTime.substring(0, 5)}-${item.endTime.substring(0, 5)}',
+                      ),
+                      trailing: Chip(
+                        label: Text(item.isActive ? 'Active' : 'Inactive'),
+                      ),
                     ),
-                    subtitle: Text(
-                      '${item.code} · ${item.startTime.substring(0, 5)}-${item.endTime.substring(0, 5)}',
-                    ),
-                    trailing: Chip(
-                      label: Text(item.isActive ? 'Active' : 'Inactive'),
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
+    ),
   );
 }
 
@@ -603,55 +609,58 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      leading: const AppBackButton(fallbackRoute: '/admin'),
-      title: const Text('Roster rotation'),
-    ),
-    body: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : ListView(
-            padding: const EdgeInsets.all(20),
-            children: <Widget>[
-              const Text(
-                'Set the reference used for the three-day Day - Night - Off rotation.',
-              ),
-              const SizedBox(height: 18),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: _anchor == null
-                      ? const Text(
-                          'No active roster rotation has been configured.',
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Cycle starts: ${_anchor!.startDate}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) => AppBackScope(
+    fallbackRoute: '/admin',
+    child: Scaffold(
+      appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: '/admin'),
+        title: const Text('Roster rotation'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(20),
+              children: <Widget>[
+                const Text(
+                  'Set the reference used for the three-day Day - Night - Off rotation.',
+                ),
+                const SizedBox(height: 18),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: _anchor == null
+                        ? const Text(
+                            'No active roster rotation has been configured.',
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'Cycle starts: ${_anchor!.startDate}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Team order: ${_anchor!.teamOrder.join(', ')}',
-                            ),
-                          ],
-                        ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Team order: ${_anchor!.teamOrder.join(', ')}',
+                              ),
+                            ],
+                          ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _edit,
-                icon: const Icon(Icons.edit_calendar_rounded),
-                label: Text(
-                  _anchor == null
-                      ? 'Set roster rotation'
-                      : 'Edit roster rotation',
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _edit,
+                  icon: const Icon(Icons.edit_calendar_rounded),
+                  label: Text(
+                    _anchor == null
+                        ? 'Set roster rotation'
+                        : 'Edit roster rotation',
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+    ),
   );
 }

@@ -6,13 +6,13 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first. This short file is for a new agent/se
 
 - Repository: `https://github.com/mrawildhan/sicatat-`
 - Active implementation: `flutter_app/`
-- Current application release: `2.1.2+212`
+- Current application release: `2.1.4+214`
 - Android trial artifact (not committed): `flutter_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
 
 ## Latest completed work
 
 1. Kept Supabase login and online-only gate, while reducing repeated connection false alarms.
-2. Completed Breaker/Sizer R1/R2 draft flow, automatic round timestamps, duplicate sheet protection, Verify/Return/audit lock, and threshold/anomaly confirmation.
+2. Completed Breaker/Sizer R1/R2 draft flow, automatic round timestamps, duplicate sheet protection, final submission with creator revision/audit trail, and threshold/anomaly confirmation.
 3. Added admin user creation UI; it requires the `create-crew-user` Supabase Edge Function.
 4. Reworked PDF report and CSV safety notices for temperatures at/above 60°C.
 5. Changed Sheet Summary default view to a compact four-card matrix. Incomplete cards route to missing input; detailed entries and review/audit actions are on demand.

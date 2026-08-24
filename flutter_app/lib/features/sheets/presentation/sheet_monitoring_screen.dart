@@ -152,7 +152,7 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
 
   String _statusLabel(SheetStatus status) => switch (status) {
     SheetStatus.draft => 'Crew draft',
-    SheetStatus.submitted => 'Submitted - waiting for verification',
+    SheetStatus.submitted => 'Submitted',
     SheetStatus.submittedIncomplete => 'Submitted as incomplete',
     SheetStatus.verified => 'Verified',
     SheetStatus.returned => 'Returned',

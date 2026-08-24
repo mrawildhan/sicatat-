@@ -228,81 +228,84 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
       ? 'Gearbox Sizer'
       : value;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      leading: const AppBackButton(fallbackRoute: '/admin'),
-      title: const Text('Equipment & measurement points'),
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _loading ? null : () => _edit(null),
-      icon: const Icon(Icons.add),
-      label: const Text('Add equipment'),
-    ),
-    body: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _load,
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: <Widget>[
-                const Text(
-                  'Equipment controls the measurement points visible in field entry.',
-                ),
-                const SizedBox(height: 12),
-                ..._items.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Card(
-                      child: ListTile(
-                        onTap: () => _edit(item),
-                        title: Text(
-                          item.name,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        subtitle: Text(
-                          '${_section(item.section)} · ${item.code} · order ${item.sortOrder}',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Chip(
-                              label: Text(
-                                item.isActive ? 'Active' : 'Inactive',
+  Widget build(BuildContext context) => AppBackScope(
+    fallbackRoute: '/admin',
+    child: Scaffold(
+      appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: '/admin'),
+        title: const Text('Equipment & measurement points'),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _loading ? null : () => _edit(null),
+        icon: const Icon(Icons.add),
+        label: const Text('Add equipment'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: <Widget>[
+                  const Text(
+                    'Equipment controls the measurement points visible in field entry.',
+                  ),
+                  const SizedBox(height: 12),
+                  ..._items.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Card(
+                        child: ListTile(
+                          onTap: () => _edit(item),
+                          title: Text(
+                            item.name,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          subtitle: Text(
+                            '${_section(item.section)} · ${item.code} · order ${item.sortOrder}',
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Chip(
+                                label: Text(
+                                  item.isActive ? 'Active' : 'Inactive',
+                                ),
                               ),
-                            ),
-                            IconButton(
-                              onPressed: () => context.go(
-                                '/admin/measurement-points?equipmentId=${item.id}&equipmentName=${Uri.encodeComponent(item.name)}',
+                              IconButton(
+                                onPressed: () => context.go(
+                                  '/admin/measurement-points?equipmentId=${item.id}&equipmentName=${Uri.encodeComponent(item.name)}',
+                                ),
+                                icon: const Icon(Icons.list_alt_rounded),
+                                tooltip: 'Measurement points',
                               ),
-                              icon: const Icon(Icons.list_alt_rounded),
-                              tooltip: 'Measurement points',
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Card(
-                  child: ListTile(
-                    onTap: () => context.go(
-                      '/admin/measurement-points?equipmentName=${Uri.encodeComponent('Shared gearbox points')}',
+                  const SizedBox(height: 10),
+                  Card(
+                    child: ListTile(
+                      onTap: () => context.go(
+                        '/admin/measurement-points?equipmentName=${Uri.encodeComponent('Shared gearbox points')}',
+                      ),
+                      leading: const Icon(Icons.hub_outlined),
+                      title: const Text(
+                        'Shared gearbox measurement points',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: const Text(
+                        'Points not assigned to a specific equipment',
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
                     ),
-                    leading: const Icon(Icons.hub_outlined),
-                    title: const Text(
-                      'Shared gearbox measurement points',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    subtitle: const Text(
-                      'Points not assigned to a specific equipment',
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+    ),
   );
 }
 
@@ -558,40 +561,46 @@ class _MeasurementPointManagementScreenState
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.equipmentName)),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _loading ? null : () => _edit(null),
-      icon: const Icon(Icons.add),
-      label: const Text('Add point'),
-    ),
-    body: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _load,
-            child: ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: _items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, int index) {
-                final _MeasurementPoint item = _items[index];
-                return Card(
-                  child: ListTile(
-                    onTap: () => _edit(item),
-                    title: Text(
-                      item.label,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+  Widget build(BuildContext context) => AppBackScope(
+    fallbackRoute: '/admin/equipment',
+    child: Scaffold(
+      appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: '/admin/equipment'),
+        title: Text(widget.equipmentName),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _loading ? null : () => _edit(null),
+        icon: const Icon(Icons.add),
+        label: const Text('Add point'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(20),
+                itemCount: _items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, int index) {
+                  final _MeasurementPoint item = _items[index];
+                  return Card(
+                    child: ListTile(
+                      onTap: () => _edit(item),
+                      title: Text(
+                        item.label,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text(
+                        '${item.code} · ${item.dataType}${item.unit == null ? '' : ' · ${item.unit}'}${item.required ? '' : ' · optional'}',
+                      ),
+                      trailing: Chip(
+                        label: Text(item.isActive ? 'Active' : 'Inactive'),
+                      ),
                     ),
-                    subtitle: Text(
-                      '${item.code} · ${item.dataType}${item.unit == null ? '' : ' · ${item.unit}'}${item.required ? '' : ' · optional'}',
-                    ),
-                    trailing: Chip(
-                      label: Text(item.isActive ? 'Active' : 'Inactive'),
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
+    ),
   );
 }

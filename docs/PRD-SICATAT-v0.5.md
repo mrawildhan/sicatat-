@@ -5,7 +5,7 @@
 | Produk | SICATAT — Sistem Inspeksi dan Catatan Temperatur |
 | Status | Acuan implementasi saat ini / recovery specification |
 | Tanggal | 20 Agustus 2026 |
-| Versi aplikasi | `2.1.2+212` |
+| Versi aplikasi | `2.1.4+214` |
 | Menggantikan | PRD-SICATAT-v0.4.md |
 | Fokus rilis saat ini | Daily Temperature Check: Gearbox Breaker dan Gearbox Sizer |
 
@@ -93,10 +93,10 @@ Alur modul temperatur saat ini memiliki empat langkah tetap:
 - Item belum lengkap memiliki tombol merah/tegas yang dapat diketuk dan mengarahkan pengguna tepat ke langkah/input yang belum lengkap.
 - Bila ada input yang belum lengkap, submit normal tidak boleh menyatakan sheet lengkap. Ringkasan harus menjelaskan bagian yang masih tertinggal.
 - Admin/role berwenang dapat melakukan override submit incomplete bila diperlukan. Status harus jelas sebagai `submitted_incomplete`, bukan tersamarkan sebagai data lengkap.
-- Status sheet yang digunakan: `draft`, `submitted`, `submitted_incomplete`, `verified`, dan `returned`.
-- Pembuat sheet dapat membuka kembali `submitted` atau `submitted_incomplete` untuk koreksi sebelum verifikasi. Aksi ini mengembalikan sheet ke draft dan mengosongkan `submitted_at`.
-- Foreman, supervisor, atau admin dapat memilih **Verify** atau **Return** pada sheet yang telah dikirim. Return wajib beralasan dan dicatat dalam audit trail.
-- Sheet `verified` terkunci bagi crew dan di tingkat database. Perubahan setelah verifikasi harus melalui proses return/revision yang berjejak audit, bukan mengubah data diam-diam.
+- Status sheet yang digunakan: `draft`, `submitted`, `submitted_incomplete`, serta status legacy `verified` dan `returned` untuk data lama.
+- Submit normal adalah status final langsung, tanpa antrean verifikasi. Pembuat sheet dapat membuka kembali `submitted` atau `submitted_incomplete` untuk koreksi; aksi ini mengembalikan sheet ke draft dan mengosongkan `submitted_at`, lalu dapat disubmit lagi.
+- Semua submit, reopen, dan resubmit tetap dicatat dalam audit trail.
+- Sheet legacy `verified` tetap terkunci bagi crew dan di tingkat database; aplikasi tidak lagi menampilkan aksi Verify/Return pada alur baru.
 
 ### 4.4 Status unit dan pembacaan temperatur
 
@@ -250,8 +250,8 @@ Halaman harus terisi proporsional dan tidak menyisakan area kosong besar. Jika d
 - [x] Input terpisah untuk equipment dan gearbox West/East dengan Operating, Not operating, Not accessible.
 - [x] Next tetap dapat dipakai untuk draft yang belum lengkap.
 - [x] Sheet Summary ringkas: empat kartu Breaker/Sizer × Round 1/2, status lengkap/belum lengkap, kartu merah menuju input yang tertinggal, detail per bagian saat diketuk, submit normal, dan override incomplete untuk role berwenang.
-- [x] Revisi oleh pembuat sebelum sheet verified.
-- [x] Aksi Verify/Return untuk foreman, supervisor, dan admin; return beralasan serta audit trail lokal/server.
+- [x] Submit final langsung serta revisi oleh pembuat melalui reopen draft dan resubmit, dengan audit trail lokal/server.
+- [x] Aksi Verify/Return tidak ditampilkan lagi pada alur baru; status tersebut tetap didukung untuk data legacy.
 - [x] Penguncian database untuk sheet verified melalui migrasi `20260820_verified_sheet_lock.sql`.
 - [x] Validasi temperatur per point dari master threshold, konfirmasi nilai warning/critical/tidak masuk akal, serta flag/note anomali pada reading dan CSV.
 - [x] Form membaca equipment/measurement point aktif tanpa whitelist kode; admin dapat mengatur urutan round 1–2 lewat Temperature form template.
@@ -262,7 +262,7 @@ Halaman harus terisi proporsional dan tidak menyisakan area kosong besar. Jika d
 - [x] Desain PDF satu halaman dengan penanda suhu 60°C+ dan 70°C+ pada ekspor sheet maupun laporan periode; CSV memuat kolom `Temperature Alert` karena format CSV tidak menyimpan warna sel.
 - [x] Pemeriksaan versi aplikasi dari Supabase.
 - [x] Branding icon SICATAT dan build APK Android release per ABI.
-- [x] `flutter analyze` bersih dan `flutter test` lulus pada rilis `2.1.2+212`.
+- [x] `flutter analyze` bersih dan `flutter test` lulus pada rilis `2.1.3+213`.
 
 ### Ada fondasi, tetapi belum selesai sebagai produk penuh
 
@@ -318,8 +318,8 @@ APK untuk mayoritas perangkat Android modern adalah `build/app/outputs/flutter-a
 6. Ketuk item merah di summary; harus menuju langkah/input yang sesuai.
 7. Buat sheet yang sama dari akun lain untuk module/tanggal/shift sama; harus ditolak dengan pesan duplikasi yang jelas.
 8. Buat sheet tanggal kemarin untuk Shift Malam; harus diizinkan bila kombinasi belum ada.
-9. Submit lengkap, buka kembali sebagai pembuat, revisi sebelum verified; pastikan status kembali draft dan data tersinkron.
-10. Pastikan sheet verified tidak dapat diedit crew.
+9. Submit lengkap, pastikan status final langsung, lalu buka kembali sebagai pembuat dan revisi; pastikan status kembali draft dan data tersinkron setelah resubmit.
+10. Pastikan sheet legacy verified tidak dapat diedit crew.
 11. Cek My sheets: crew hanya melihat miliknya, admin melihat semua, foreman sesuai team.
 12. Uji tombol Back halaman list, new sheet, form, incomplete, users, dan admin memakai tombol Back Android.
 13. Isi nilai 59, 60, 69, dan 70°C; ekspor PDF dan periksa warna hijau, oranye, oranye, merah.
@@ -330,7 +330,7 @@ APK untuk mayoritas perangkat Android modern adalah `build/app/outputs/flutter-a
 ### Prioritas 0 — keselamatan data dan kesiapan operasi
 
 1. **Validasi angka abnormal dan alert per point.** Batasi format angka (misalnya tidak menerima `6363` tanpa konfirmasi), definisikan rentang normal per measurement point, wajibkan alasan untuk outlier, dan beri indikator critical sebelum submit.
-2. **Workflow verifikasi yang lengkap.** Tambahkan inbox supervisor/admin untuk Verify atau Return, alasan return, siapa/kapan melakukan aksi, serta riwayat audit yang terlihat. Setelah verified, data harus immutable kecuali melalui return terkontrol.
+2. **Persetujuan opsional di masa depan.** Bila proses bisnis nantinya memerlukan approval, tambahkan inbox supervisor/admin sebagai fitur terpisah tanpa mengubah submit standar yang saat ini final langsung.
 3. **Hardening Supabase.** Audit RLS untuk semua peran, tes akses lintas crew/team, backup terjadwal, pemulihan data, dan pengelolaan keystore/signing rilis.
 
 ### Prioritas 1 — perluasan yang paling bernilai
@@ -367,3 +367,5 @@ APK untuk mayoritas perangkat Android modern adalah `build/app/outputs/flutter-a
 - Pembaruan implementasi `2.1.0+210`: validasi anomali, Verify/Return/audit trail, template round, dan database lock verified.
 - Pembaruan implementasi `2.1.1+211`: perbaikan Add User, penanda suhu tinggi PDF/CSV, serta Sheet Summary ringkas berbasis empat kartu.
 - Pembaruan implementasi `2.1.2+212`: optimasi tinggi halaman Sheet Summary untuk review cepat di perangkat ponsel.
+- Pembaruan implementasi `2.1.3+213`: navigasi Back Android tetap di dalam aplikasi dan submit final langsung tanpa Verify/Return pada alur baru.
+- Pembaruan implementasi `2.1.4+214`: filter My sheets, input sheet oleh admin untuk crew terpilih, visibilitas foreman satu tim, normalisasi label shift Inggris, dan pembatasan Oil Level. Migrasi `20260824_normalize_shifts_and_oil_level.sql` sudah diterapkan pada Supabase production.

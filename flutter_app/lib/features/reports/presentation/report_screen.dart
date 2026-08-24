@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -10,7 +11,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../data/models/sicatat_types.dart';
+import '../../../data/models/app_user.dart';
 import '../../../data/reports/report_export_service.dart';
+import '../../auth/application/current_user_provider.dart';
 
 class _TeamOption {
   const _TeamOption({required this.id, required this.name});
@@ -22,24 +25,27 @@ class _TeamOption {
   );
 }
 
-class ReportScreen extends StatefulWidget {
+class ReportScreen extends ConsumerStatefulWidget {
   const ReportScreen({super.key});
   @override
-  State<ReportScreen> createState() => _ReportScreenState();
+  ConsumerState<ReportScreen> createState() => _ReportScreenState();
 }
 
-class _ReportScreenState extends State<ReportScreen> {
+class _ReportScreenState extends ConsumerState<ReportScreen> {
   late DateTime _from;
   late DateTime _to;
   List<_TeamOption> _teams = const <_TeamOption>[];
   String? _teamId;
   bool _loading = false;
+  bool get _teamLocked =>
+      ref.read(currentUserProvider)?.role == UserRole.foreman;
   @override
   void initState() {
     super.initState();
     final DateTime now = DateTime.now();
     _from = DateTime(now.year, now.month, 1);
     _to = now;
+    if (_teamLocked) _teamId = ref.read(currentUserProvider)?.teamId;
     _loadTeams();
   }
 
@@ -86,6 +92,12 @@ class _ReportScreenState extends State<ReportScreen> {
   Future<void> _export() async {
     if (_from.isAfter(_to)) {
       _message('Start date cannot be after end date.');
+      return;
+    }
+    if (_teamLocked && _teamId == null) {
+      _message(
+        'Your foreman account needs a team assignment before exporting.',
+      );
       return;
     }
     setState(() => _loading = true);
@@ -236,6 +248,12 @@ class _ReportScreenState extends State<ReportScreen> {
       _message('Start date cannot be after end date.');
       return;
     }
+    if (_teamLocked && _teamId == null) {
+      _message(
+        'Your foreman account needs a team assignment before exporting.',
+      );
+      return;
+    }
     setState(() => _loading = true);
     try {
       final ReportExportService service = ReportExportService(
@@ -283,24 +301,39 @@ class _ReportScreenState extends State<ReportScreen> {
           const SizedBox(height: 10),
           _dateTile('To date', _to, () => _pick(false)),
           const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            key: const ValueKey<String>('report-team'),
-            initialValue: _teamId,
-            items: <DropdownMenuItem<String>>[
-              const DropdownMenuItem<String>(
-                value: null,
-                child: Text('All teams'),
+          if (_teamLocked)
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Team scope',
+                prefixIcon: Icon(Icons.groups_rounded),
               ),
-              ..._teams.map(
-                (team) => DropdownMenuItem<String>(
-                  value: team.id,
-                  child: Text(team.name),
+              child: Text(
+                _teams
+                        .where((team) => team.id == _teamId)
+                        .map((team) => team.name)
+                        .firstOrNull ??
+                    'Your assigned team',
+              ),
+            )
+          else
+            DropdownButtonFormField<String>(
+              key: const ValueKey<String>('report-team'),
+              initialValue: _teamId,
+              items: <DropdownMenuItem<String>>[
+                const DropdownMenuItem<String>(
+                  value: null,
+                  child: Text('All teams'),
                 ),
-              ),
-            ],
-            onChanged: (String? value) => setState(() => _teamId = value),
-            decoration: const InputDecoration(labelText: 'Team'),
-          ),
+                ..._teams.map(
+                  (team) => DropdownMenuItem<String>(
+                    value: team.id,
+                    child: Text(team.name),
+                  ),
+                ),
+              ],
+              onChanged: (String? value) => setState(() => _teamId = value),
+              decoration: const InputDecoration(labelText: 'Team'),
+            ),
           const SizedBox(height: 22),
           ElevatedButton.icon(
             onPressed: _loading ? null : _export,

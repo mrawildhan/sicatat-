@@ -131,7 +131,11 @@ final _router = GoRouter(
     GoRoute(
       path: '/reports',
       builder: (_, __) => const RoleGuard(
-        allowed: <UserRole>{UserRole.admin},
+        allowed: <UserRole>{
+          UserRole.foreman,
+          UserRole.supervisor,
+          UserRole.admin,
+        },
         child: ReportScreen(),
       ),
     ),

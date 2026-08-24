@@ -143,7 +143,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
       );
       final equipmentPoints = <MeasurementPoint>[
         for (final equipment in config.equipmentFor(section.storageValue))
-          ...config.pointsForEquipment(equipment.id),
+          ...config.visiblePointsForEquipment(equipment),
       ].where(config.isRequired).toList(growable: false);
       if (equipmentPoints.isNotEmpty) {
         final values = round == null
@@ -285,7 +285,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Revise submitted sheet?'),
         content: const Text(
-          'This sheet will return to draft status so you can correct it and submit it again. It cannot be reopened after verification.',
+          'This sheet will return to draft status so you can correct it and submit it again.',
         ),
         actions: <Widget>[
           TextButton(
@@ -316,105 +316,6 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         setState(
           () => _errorMessage = 'The sheet could not be reopened: $error',
         );
-      }
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
-
-  Future<void> _verify() async {
-    final sheet = _sheet;
-    final user = ref.read(currentUserProvider);
-    if (sheet == null || user == null) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Verify sheet?'),
-        content: const Text(
-          'Verification locks this sheet for crew editing. Return it instead if correction is required.',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Verify & lock'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await _applyReviewAction(
-      () => LocalDatabase.instance.verifySheet(
-        sheetId: sheet.id,
-        verifiedBy: user.id,
-      ),
-      successRoute: '/sheets',
-    );
-  }
-
-  Future<void> _returnForCorrection() async {
-    final sheet = _sheet;
-    final user = ref.read(currentUserProvider);
-    if (sheet == null || user == null) return;
-    final reason = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Return for correction'),
-          content: TextField(
-            controller: reason,
-            autofocus: true,
-            maxLines: 3,
-            onChanged: (_) => setDialogState(() {}),
-            decoration: const InputDecoration(labelText: 'Return reason *'),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: reason.text.trim().isEmpty
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
-              child: const Text('Return sheet'),
-            ),
-          ],
-        ),
-      ),
-    );
-    final cleanReason = reason.text.trim();
-    reason.dispose();
-    if (confirmed != true) return;
-    await _applyReviewAction(
-      () => LocalDatabase.instance.returnSheetForCorrection(
-        sheetId: sheet.id,
-        returnedBy: user.id,
-        reason: cleanReason,
-      ),
-      successRoute: '/sheets',
-    );
-  }
-
-  Future<void> _applyReviewAction(
-    Future<void> Function() action, {
-    required String successRoute,
-  }) async {
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-    try {
-      await action();
-      await ref.read(sicatatRepositoryProvider).syncPending();
-      if (mounted) context.go(successRoute);
-    } on Object catch (error) {
-      if (mounted) {
-        setState(() => _errorMessage = 'Review action failed: $error');
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -507,13 +408,21 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const AppBackScope(
+        fallbackRoute: '/sheets',
+        child: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
     }
     if (_sheet == null) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: Center(
-          child: Text(_errorMessage ?? 'Inspection sheet not found.'),
+      return AppBackScope(
+        fallbackRoute: '/sheets',
+        child: Scaffold(
+          appBar: AppBar(
+            leading: const AppBackButton(fallbackRoute: '/sheets'),
+          ),
+          body: Center(
+            child: Text(_errorMessage ?? 'Inspection sheet not found.'),
+          ),
         ),
       );
     }
@@ -535,12 +444,6 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         (_sheet!.status == SheetStatus.submitted ||
             _sheet!.status == SheetStatus.submittedIncomplete) &&
         user?.id == _sheet!.createdBy;
-    final canReview =
-        (_sheet!.status == SheetStatus.submitted ||
-            _sheet!.status == SheetStatus.submittedIncomplete) &&
-        (user?.role == UserRole.foreman ||
-            user?.role == UserRole.supervisor ||
-            user?.role == UserRole.admin);
     final canDelete =
         _sheet!.status != SheetStatus.verified &&
         (user?.role == UserRole.admin ||
@@ -567,15 +470,10 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
               _summaryGrid(),
               const SizedBox(height: 10),
               _quickActions(),
-              if (canRevise ||
-                  canReview ||
-                  canOverride ||
-                  _audit.isNotEmpty ||
-                  canDelete)
+              if (canRevise || canOverride || _audit.isNotEmpty || canDelete)
                 _moreOptions(
                   user: user,
                   canRevise: canRevise,
-                  canReview: canReview,
                   canOverride: canOverride,
                   canDelete: canDelete,
                 ),
@@ -643,7 +541,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         Expanded(
           child: Text(
             submitted
-                ? 'Submitted for verification'
+                ? 'Submitted successfully'
                 : canSubmit
                 ? 'All required readings are complete'
                 : '${incomplete.length} item(s) need attention. Tap a red card to continue.',
@@ -754,7 +652,6 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
   Widget _moreOptions({
     required AppUser? user,
     required bool canRevise,
-    required bool canReview,
     required bool canOverride,
     required bool canDelete,
   }) => ExpansionTile(
@@ -769,29 +666,6 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
           onPressed: _isSubmitting ? null : _reopenForCorrection,
           icon: const Icon(Icons.edit_note_rounded),
           label: const Text('Revise submitted sheet'),
-        ),
-      if (canReview)
-        Padding(
-          padding: const EdgeInsets.only(top: 10),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isSubmitting ? null : _returnForCorrection,
-                  icon: const Icon(Icons.assignment_return_outlined),
-                  label: const Text('Return'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _isSubmitting ? null : _verify,
-                  icon: const Icon(Icons.verified_rounded),
-                  label: const Text('Verify'),
-                ),
-              ),
-            ],
-          ),
         ),
       if (canOverride && user != null) _overrideCard(user),
       if (_audit.isNotEmpty) ...<Widget>[

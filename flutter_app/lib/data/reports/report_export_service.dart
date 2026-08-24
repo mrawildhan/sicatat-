@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/sicatat_types.dart';
+import '../models/master_data_models.dart';
 
 class ReportRow {
   const ReportRow({
@@ -222,7 +223,7 @@ class ReportExportService {
         ReportRow(
           date: sheet.requiredString('tanggal'),
           team: team?.optionalString('name') ?? 'Unassigned',
-          shift: shift?.optionalString('name') ?? '—',
+          shift: displayShiftName(shift?.optionalString('name') ?? '—'),
           section: _section(round.requiredString('section')),
           round: round.requiredInt('round_number'),
           time: _time(round.optionalString('jam')),
@@ -260,7 +261,7 @@ class ReportExportService {
         ReportRow(
           date: sheet.requiredString('tanggal'),
           team: team?.optionalString('name') ?? 'Unassigned',
-          shift: shift?.optionalString('name') ?? '—',
+          shift: displayShiftName(shift?.optionalString('name') ?? '—'),
           section: _section(round.requiredString('section')),
           round: round.requiredInt('round_number'),
           time: _time(round.optionalString('jam')),

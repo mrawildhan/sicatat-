@@ -83,7 +83,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
       _config?.gearboxPoints ?? const [];
   List<MeasurementPoint> get _equipmentPoints => <MeasurementPoint>[
     for (final equipment in _equipment)
-      ...(_config?.pointsForEquipment(equipment.id) ?? const []),
+      ...(_config?.visiblePointsForEquipment(equipment) ?? const []),
   ];
   List<MeasurementPoint> get _activePoints =>
       _showEquipment ? _equipmentPoints : _gearboxPoints;
@@ -289,7 +289,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   const Text(
-                    'These readings will be marked as anomalies and included in the verification trail.',
+                    'These readings will be marked as anomalies and included in the audit trail.',
                   ),
                   const SizedBox(height: 12),
                   ...flagged.map(
@@ -298,10 +298,11 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                       child: Text(
                         '${item.point.label}: ${item.value.toStringAsFixed(1)} ${item.point.unit ?? '°C'} — ${item.assessment.message}',
                         style: TextStyle(
-                          color: item.assessment.level ==
-                                  TemperatureAlertLevel.critical ||
+                          color:
                               item.assessment.level ==
-                                  TemperatureAlertLevel.invalid
+                                      TemperatureAlertLevel.critical ||
+                                  item.assessment.level ==
+                                      TemperatureAlertLevel.invalid
                               ? AppColors.danger
                               : AppColors.warning,
                           fontWeight: FontWeight.w700,
@@ -331,9 +332,9 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                 onPressed: note.text.trim().isEmpty
                     ? null
                     : () => Navigator.pop(
-                      dialogContext,
-                      _AnomalyDecision(note: note.text.trim()),
-                    ),
+                        dialogContext,
+                        _AnomalyDecision(note: note.text.trim()),
+                      ),
                 child: const Text('Save & flag'),
               ),
             ],
@@ -458,10 +459,10 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                   recordedBy: command.recordedBy,
                   valueNumeric: command.valueNumeric,
                   valueBoolean: command.valueBoolean,
-              valueText: command.valueText,
-              measuredAt: recordedAt,
-              isAnomaly: command.isAnomaly,
-              anomalyNote: command.anomalyNote,
+                  valueText: command.valueText,
+                  measuredAt: recordedAt,
+                  isAnomaly: command.isAnomaly,
+                  anomalyNote: command.anomalyNote,
                 ),
               );
             }
@@ -501,18 +502,26 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const AppBackScope(
+        fallbackRoute: '/sheets',
+        child: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
     }
     if (_sheet == null || _config == null) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              _errorMessage ?? 'Inspection sheet not found.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.danger),
+      return AppBackScope(
+        fallbackRoute: '/sheets',
+        child: Scaffold(
+          appBar: AppBar(
+            leading: const AppBackButton(fallbackRoute: '/sheets'),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                _errorMessage ?? 'Inspection sheet not found.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.danger),
+              ),
             ),
           ),
         ),
@@ -661,7 +670,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
   );
 
   Widget _equipmentCard(InspectionEquipment equipment) {
-    final points = _config!.pointsForEquipment(equipment.id);
+    final points = _config!.visiblePointsForEquipment(equipment);
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
       child: Padding(

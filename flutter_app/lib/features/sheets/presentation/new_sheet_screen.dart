@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../data/local/local_database.dart';
 import '../../../data/models/master_data_models.dart';
+import '../../../data/models/app_user.dart';
 import '../../../data/models/sheet_model.dart';
+import '../../../data/models/sicatat_types.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../auth/application/current_user_provider.dart';
 
@@ -23,6 +26,8 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
   ShiftOption? _selectedShift;
   TemperatureTemplate? _template;
   Set<String> _occupiedShiftIds = <String>{};
+  List<_TeamOption> _teams = const <_TeamOption>[];
+  String? _selectedTeamId;
   bool _isLoading = true;
   bool _isSaving = false;
   String? _errorMessage;
@@ -54,6 +59,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         _template = template;
         _selectedShift = _initialShift(shifts);
       });
+      await _loadAdminTeams();
       await _refreshShiftAvailability();
     } catch (_) {
       final cachedResults = await Future.wait<Object?>(<Future<Object?>>[
@@ -74,6 +80,26 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _loadAdminTeams() async {
+    if (ref.read(currentUserProvider)?.role != UserRole.admin) return;
+    final Object response = await Supabase.instance.client
+        .from('team')
+        .select('id,name')
+        .eq('is_active', true)
+        .order('code');
+    if (response is! List) {
+      throw const FormatException('Invalid team response.');
+    }
+    final teams = response
+        .map((row) => _TeamOption.fromJson(requireJsonMap(row, source: 'team')))
+        .toList(growable: false);
+    if (!mounted) return;
+    setState(() {
+      _teams = teams;
+      _selectedTeamId ??= teams.firstOrNull?.id;
+    });
   }
 
   ShiftOption? _initialShift(List<ShiftOption> shifts) {
@@ -144,9 +170,12 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
       );
       return;
     }
-    if (user.teamId == null) {
+    final teamId = user.role == UserRole.admin ? _selectedTeamId : user.teamId;
+    if (teamId == null) {
       setState(
-        () => _errorMessage = 'Your account has no active crew assignment. Ask an admin to assign your crew before creating a sheet.',
+        () => _errorMessage = user.role == UserRole.admin
+            ? 'Select a crew before creating this sheet.'
+            : 'Your account has no active crew assignment. Ask an admin to assign your crew before creating a sheet.',
       );
       return;
     }
@@ -197,7 +226,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         CreateSheetCommand(
           date: _date,
           shiftId: shift.id,
-          teamId: user.teamId!,
+          teamId: teamId,
           moduleId: template.moduleId,
           templateVersion: template.version,
           createdBy: user.id,
@@ -228,6 +257,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
     final dateText =
         '${_date.day.toString().padLeft(2, '0')}/${_date.month.toString().padLeft(2, '0')}/${_date.year}';
     return AppBackScope(
@@ -282,6 +312,31 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
               ),
             ),
             const SizedBox(height: 22),
+            if (user?.role == UserRole.admin) ...<Widget>[
+              const Text(
+                'Record for crew',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 9),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedTeamId,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.groups_rounded),
+                ),
+                items: _teams
+                    .map(
+                      (team) => DropdownMenuItem<String>(
+                        value: team.id,
+                        child: Text(team.name),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: _isSaving
+                    ? null
+                    : (value) => setState(() => _selectedTeamId = value),
+              ),
+              const SizedBox(height: 22),
+            ],
             const Text('Shift', style: TextStyle(fontWeight: FontWeight.w800)),
             const SizedBox(height: 9),
             if (_isLoading)
@@ -303,7 +358,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
                       (shift) => ButtonSegment(
                         value: shift.id,
                         enabled: !_occupiedShiftIds.contains(shift.id),
-                        label: Text(shift.name),
+                        label: Text(displayShiftName(shift.name)),
                         icon: Icon(
                           shift.code == 'PAGI'
                               ? Icons.wb_sunny_outlined
@@ -381,4 +436,16 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
       ),
     );
   }
+}
+
+class _TeamOption {
+  const _TeamOption({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  factory _TeamOption.fromJson(JsonMap json) => _TeamOption(
+    id: json.requiredString('id'),
+    name: json.requiredString('name'),
+  );
 }
