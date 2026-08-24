@@ -17,9 +17,7 @@ the saved reminder using [Resend](https://resend.com).
 
 The equivalent authenticated CLI command is:
 
-    npx supabase@latest secrets set --project-ref ofczleeyqrxyuuupzirq ^
-      RESEND_API_KEY="your-resend-key" ^
-      RESEND_FROM_EMAIL="SICATAT <reminder@your-verified-domain.com>"
+    npx supabase@latest secrets set --project-ref ofczleeyqrxyuuupzirq RESEND_API_KEY="your-resend-key" RESEND_FROM_EMAIL="SICATAT <reminder@your-verified-domain.com>"
 
 Do not paste either value into Flutter source, an APK, Git, or chat.
 
