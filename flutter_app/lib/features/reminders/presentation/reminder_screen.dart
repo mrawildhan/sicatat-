@@ -1,12 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
-import '../../../data/local/local_database.dart';
 import '../../../data/models/sicatat_types.dart';
 
 class ReminderItem {
@@ -16,55 +14,59 @@ class ReminderItem {
     required this.dueDate,
     required this.emails,
   });
+
   final String id;
   final String title;
   final DateTime dueDate;
   final List<String> emails;
+
   factory ReminderItem.fromJson(JsonMap json) {
-    final Object? rawEmails = json['emails'];
-    final List<String> emails;
-    if (rawEmails is String) {
-      emails = rawEmails
-          .split(RegExp(r'[,;\s]+'))
-          .where((String email) => email.contains('@'))
-          .toList(growable: false);
-    } else if (rawEmails is List) {
-      emails = rawEmails
-          .map((Object? item) {
-            if (item is! String) {
-              throw const FormatException('Reminder email must be text.');
-            }
-            return item;
-          })
-          .where((String email) => email.contains('@'))
-          .toList(growable: false);
-    } else {
+    final Object? rawEmails = json['recipient_emails'];
+    if (rawEmails is! List) {
       throw const FormatException('Reminder recipients are invalid.');
     }
+    final List<String> emails = rawEmails
+        .map((Object? email) {
+          if (email is! String) {
+            throw const FormatException('Reminder email must be text.');
+          }
+          return email.trim().toLowerCase();
+        })
+        .where((String email) => email.contains('@'))
+        .toSet()
+        .toList(growable: false);
     return ReminderItem(
       id: json.requiredString('id'),
       title: json.requiredString('title'),
-      dueDate: DateTime.parse(json.requiredString('date')),
+      dueDate: DateTime.parse(json.requiredString('due_date')),
       emails: emails,
     );
   }
-  JsonMap toJson() => <String, Object?>{
-    'id': id,
+
+  Map<String, Object?> toPayload() => <String, Object?>{
     'title': title,
-    'date': dueDate.toIso8601String(),
-    'emails': emails,
+    'due_date': _dateOnly(dueDate),
+    'recipient_emails': emails,
   };
 }
 
 class ReminderScreen extends StatefulWidget {
   const ReminderScreen({super.key});
+
   @override
   State<ReminderScreen> createState() => _ReminderScreenState();
 }
 
 class _ReminderScreenState extends State<ReminderScreen> {
+  static const String _initialRecipient = 'mcasamasam@arutmin.com';
+
   List<ReminderItem> _items = const <ReminderItem>[];
+  List<String> _recipientDirectory = const <String>[];
+  final Set<String> _sendingIds = <String>{};
   bool _loading = true;
+
+  SupabaseClient get _client => Supabase.instance.client;
+
   @override
   void initState() {
     super.initState();
@@ -73,37 +75,50 @@ class _ReminderScreenState extends State<ReminderScreen> {
 
   void _message(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+
   Future<void> _load() async {
+    setState(() => _loading = true);
     try {
-      final Database db = await LocalDatabase.instance.database;
-      final List<Map<String, Object?>> rows = await db.query(
-        'cache_app_config',
-        columns: const <String>['data'],
-        where: 'id = ?',
-        whereArgs: const <Object?>['reminders'],
-      );
-      if (rows.isEmpty) return;
-      final Object? rawData = rows.single['data'];
-      if (rawData is! String) {
-        throw const FormatException('Saved reminder data is invalid.');
+      final List<Object> responses = await Future.wait<Object>(<Future<Object>>[
+        _client
+            .from('operational_reminder')
+            .select('id,title,due_date,recipient_emails')
+            .order('due_date'),
+        _client
+            .from('reminder_recipient')
+            .select('email')
+            .eq('is_active', true)
+            .order('email'),
+      ]);
+      final Object reminderResponse = responses[0];
+      final Object recipientResponse = responses[1];
+      if (reminderResponse is! List || recipientResponse is! List) {
+        throw const FormatException(
+          'The server returned invalid reminder data.',
+        );
       }
-      final Object? rawItems = jsonDecode(rawData);
-      if (rawItems is! List) {
-        throw const FormatException('Saved reminder list is invalid.');
+      final List<ReminderItem> reminders = reminderResponse
+          .map(
+            (Object? row) =>
+                ReminderItem.fromJson(requireJsonMap(row, source: 'reminder')),
+          )
+          .toList(growable: false);
+      final List<String> recipients = <String>{
+        _initialRecipient,
+        ...recipientResponse.map((Object? row) {
+          final String email = requireJsonMap(
+            row,
+            source: 'reminder recipient',
+          ).requiredString('email');
+          return email.trim().toLowerCase();
+        }),
+      }.toList()..sort();
+      if (mounted) {
+        setState(() {
+          _items = reminders;
+          _recipientDirectory = recipients;
+        });
       }
-      final List<ReminderItem> items =
-          rawItems
-              .map(
-                (Object? rawItem) => ReminderItem.fromJson(
-                  requireJsonMap(rawItem, source: 'reminder'),
-                ),
-              )
-              .toList(growable: false)
-            ..sort(
-              (ReminderItem left, ReminderItem right) =>
-                  left.dueDate.compareTo(right.dueDate),
-            );
-      if (mounted) setState(() => _items = items);
     } on Object catch (error) {
       if (mounted) _message('Unable to load reminders: $error');
     } finally {
@@ -111,26 +126,40 @@ class _ReminderScreenState extends State<ReminderScreen> {
     }
   }
 
-  Future<void> _save() async {
-    final Database db = await LocalDatabase.instance.database;
-    await db.insert('cache_app_config', <String, Object?>{
-      'id': 'reminders',
-      'data': jsonEncode(
-        _items
-            .map((ReminderItem item) => item.toJson())
-            .toList(growable: false),
-      ),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  bool _isValidEmail(String value) =>
+      RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+
+  String _emailFailure(Object error) {
+    if (error is FunctionException) {
+      final Object? details = error.details;
+      if (details is Map && details['error'] is String) {
+        return details['error']! as String;
+      }
+      if (details is! String) return error.toString();
+      try {
+        final dynamic decoded = jsonDecode(details);
+        if (decoded is Map && decoded['error'] is String) {
+          return decoded['error']! as String;
+        }
+      } on FormatException {
+        return details;
+      }
+    }
+    return error.toString();
   }
 
   Future<void> _edit(ReminderItem? existing) async {
     final TextEditingController title = TextEditingController(
       text: existing?.title ?? '',
     );
-    final TextEditingController emails = TextEditingController(
-      text: existing?.emails.join(', ') ?? '',
-    );
+    final TextEditingController addEmail = TextEditingController();
     DateTime dueDate = existing?.dueDate ?? DateTime.now();
+    final Set<String> selected = <String>{...?existing?.emails};
+    final List<String> available = <String>{
+      ..._recipientDirectory,
+    }.toList(growable: true)..sort();
+    String? addEmailError;
+
     final bool? saved = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => StatefulBuilder(
@@ -140,41 +169,112 @@ class _ReminderScreenState extends State<ReminderScreen> {
               void Function(void Function()) setModalState,
             ) => AlertDialog(
               title: Text(existing == null ? 'Add reminder' : 'Edit reminder'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    TextField(
-                      controller: title,
-                      decoration: const InputDecoration(labelText: 'Title'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: emails,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Recipient emails (separate with commas)',
+              content: SizedBox(
+                width: 440,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      TextField(
+                        controller: title,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Reminder title',
+                          hintText: 'e.g. Renew vehicle registration',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Due date'),
-                      subtitle: Text(_date(dueDate)),
-                      trailing: const Icon(Icons.calendar_month_rounded),
-                      onTap: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: context,
-                          firstDate: DateTime(2024),
-                          lastDate: DateTime(2040),
-                          initialDate: dueDate,
-                        );
-                        if (picked != null) {
-                          setModalState(() => dueDate = picked);
-                        }
-                      },
-                    ),
-                  ],
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Email recipients',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Tick every person who should receive this reminder.',
+                      ),
+                      const SizedBox(height: 8),
+                      if (available.isEmpty)
+                        const Text(
+                          'Add an email address below to create a recipient.',
+                        ),
+                      ...available.map(
+                        (String email) => CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          dense: true,
+                          value: selected.contains(email),
+                          title: Text(email),
+                          onChanged: (bool? checked) => setModalState(() {
+                            if (checked ?? false) {
+                              selected.add(email);
+                            } else {
+                              selected.remove(email);
+                            }
+                          }),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: TextField(
+                              controller: addEmail,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: InputDecoration(
+                                labelText: 'Add another email',
+                                errorText: addEmailError,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
+                            tooltip: 'Add and select email',
+                            icon: const Icon(Icons.person_add_alt_1_rounded),
+                            onPressed: () {
+                              final String email = addEmail.text
+                                  .trim()
+                                  .toLowerCase();
+                              if (!_isValidEmail(email)) {
+                                setModalState(
+                                  () => addEmailError = 'Enter a valid email.',
+                                );
+                                return;
+                              }
+                              setModalState(() {
+                                if (!available.contains(email)) {
+                                  available.add(email);
+                                  available.sort();
+                                }
+                                selected.add(email);
+                                addEmail.clear();
+                                addEmailError = null;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.event_rounded),
+                        title: const Text('Due date'),
+                        subtitle: Text(_dateOnly(dueDate)),
+                        trailing: const Icon(Icons.calendar_month_rounded),
+                        onTap: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            firstDate: DateTime(2024),
+                            lastDate: DateTime(2040),
+                            initialDate: dueDate,
+                          );
+                          if (picked != null) {
+                            setModalState(() => dueDate = picked);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
               actions: <Widget>[
@@ -182,9 +282,10 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   onPressed: () => Navigator.pop(dialogContext, false),
                   child: const Text('Cancel'),
                 ),
-                FilledButton(
+                FilledButton.icon(
                   onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Save'),
+                  icon: const Icon(Icons.save_rounded),
+                  label: const Text('Save'),
                 ),
               ],
             ),
@@ -192,44 +293,59 @@ class _ReminderScreenState extends State<ReminderScreen> {
     );
     if (saved != true) {
       title.dispose();
-      emails.dispose();
+      addEmail.dispose();
       return;
     }
     try {
       final String cleanTitle = title.text.trim();
-      final List<String> recipients = emails.text
-          .split(RegExp(r'[,;\s]+'))
-          .map((String value) => value.trim())
-          .where((String value) => value.contains('@'))
-          .toSet()
-          .toList(growable: false);
+      final List<String> recipients = selected.toList()..sort();
       if (cleanTitle.isEmpty || recipients.isEmpty) {
         throw const FormatException(
-          'A title and at least one valid email are required.',
+          'Enter a title and tick at least one email recipient.',
         );
       }
       final ReminderItem item = ReminderItem(
-        id: existing?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        id: existing?.id ?? '',
         title: cleanTitle,
         dueDate: dueDate,
         emails: recipients,
       );
-      final List<ReminderItem> updated =
-          <ReminderItem>[
-            for (final ReminderItem current in _items)
-              if (current.id != item.id) current,
-            item,
-          ]..sort(
-            (ReminderItem left, ReminderItem right) =>
-                left.dueDate.compareTo(right.dueDate),
-          );
-      setState(() => _items = updated);
-      await _save();
+      final List<String> newDirectoryEmails = available
+          .where((String email) => !_recipientDirectory.contains(email))
+          .toList(growable: false);
+      if (newDirectoryEmails.isNotEmpty) {
+        await _client
+            .from('reminder_recipient')
+            .upsert(
+              newDirectoryEmails
+                  .map(
+                    (String email) => <String, Object?>{
+                      'email': email,
+                      'label': email,
+                      'is_active': true,
+                    },
+                  )
+                  .toList(growable: false),
+              onConflict: 'email',
+            );
+      }
+      if (existing == null) {
+        await _client.from('operational_reminder').insert(item.toPayload());
+      } else {
+        await _client
+            .from('operational_reminder')
+            .update(item.toPayload())
+            .eq('id', existing.id);
+      }
+      await _load();
+      if (mounted) {
+        _message('Reminder saved. Tap Send email to deliver it now.');
+      }
     } on Object catch (error) {
       if (mounted) _message('Unable to save reminder: $error');
     } finally {
       title.dispose();
-      emails.dispose();
+      addEmail.dispose();
     }
   }
 
@@ -252,30 +368,47 @@ class _ReminderScreenState extends State<ReminderScreen> {
       ),
     );
     if (confirmed != true) return;
-    setState(
-      () => _items = _items
-          .where((ReminderItem current) => current.id != item.id)
-          .toList(growable: false),
-    );
-    await _save();
-  }
-
-  Future<void> _mail(ReminderItem item) async {
-    final Uri uri = Uri(
-      scheme: 'mailto',
-      path: item.emails.join(','),
-      queryParameters: <String, String>{
-        'subject': 'SICATAT reminder: ${item.title}',
-        'body': '${item.title} is due on ${_date(item.dueDate)}.',
-      },
-    );
-    if (!await launchUrl(uri) && mounted) {
-      _message('No email application is available.');
+    try {
+      await _client.from('operational_reminder').delete().eq('id', item.id);
+      await _load();
+      if (mounted) _message('Reminder deleted.');
+    } on Object catch (error) {
+      if (mounted) _message('Unable to delete reminder: $error');
     }
   }
 
-  String _date(DateTime date) =>
-      '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  Future<void> _sendEmail(ReminderItem item) async {
+    setState(() => _sendingIds.add(item.id));
+    try {
+      final FunctionResponse response = await _client.functions.invoke(
+        'send-reminder-email',
+        body: <String, Object?>{
+          'reminder_id': item.id,
+          'title': item.title,
+          'due_date': _dateOnly(item.dueDate),
+          'recipients': item.emails,
+        },
+      );
+      final JsonMap data = requireJsonMap(
+        response.data,
+        source: 'send reminder email response',
+      );
+      if (data['ok'] != true) {
+        throw FormatException(
+          data.optionalString('error') ??
+              'The email service rejected the request.',
+        );
+      }
+      if (mounted) {
+        _message('Email sent to ${item.emails.length} recipient(s).');
+      }
+    } on Object catch (error) {
+      if (mounted) _message('Email was not sent: ${_emailFailure(error)}');
+    } finally {
+      if (mounted) setState(() => _sendingIds.remove(item.id));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => AppBackScope(
     fallbackRoute: '/dashboard',
@@ -293,8 +426,12 @@ class _ReminderScreenState extends State<ReminderScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
           ? const Center(
-              child: Text(
-                'No reminders yet. Add a due date for vehicle documents, servicing, or any other item.',
+              child: Padding(
+                padding: EdgeInsets.all(28),
+                child: Text(
+                  'No reminders yet. Add a due date for vehicle documents, servicing, or any other item.',
+                  textAlign: TextAlign.center,
+                ),
               ),
             )
           : ListView.separated(
@@ -303,32 +440,71 @@ class _ReminderScreenState extends State<ReminderScreen> {
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (_, int index) {
                 final ReminderItem item = _items[index];
+                final bool sending = _sendingIds.contains(item.id);
                 return Card(
-                  child: ListTile(
-                    onTap: () => _edit(item),
-                    leading: const Icon(
-                      Icons.notifications_active_rounded,
-                      color: AppColors.green,
-                    ),
-                    title: Text(
-                      item.title,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    subtitle: Text(
-                      '${_date(item.dueDate)} · ${item.emails.join(', ')}',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        IconButton(
-                          icon: const Icon(Icons.email_outlined),
-                          tooltip: 'Compose email',
-                          onPressed: () => _mail(item),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            const Padding(
+                              padding: EdgeInsets.only(right: 12, top: 2),
+                              child: Icon(
+                                Icons.notifications_active_rounded,
+                                color: AppColors.green,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                item.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined),
+                              tooltip: 'Edit reminder',
+                              onPressed: () => _edit(item),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded),
+                              tooltip: 'Delete reminder',
+                              onPressed: () => _delete(item),
+                            ),
+                          ],
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded),
-                          tooltip: 'Delete reminder',
-                          onPressed: () => _delete(item),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Due date · ${_dateOnly(item.dueDate)}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${item.emails.length} selected recipient(s): ${item.emails.join(', ')}',
+                        ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: sending ? null : () => _sendEmail(item),
+                            icon: sending
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.send_rounded),
+                            label: Text(
+                              sending ? 'Sending email...' : 'Send email now',
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -339,3 +515,6 @@ class _ReminderScreenState extends State<ReminderScreen> {
     ),
   );
 }
+
+String _dateOnly(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
