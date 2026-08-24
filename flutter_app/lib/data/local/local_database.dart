@@ -1124,8 +1124,19 @@ class LocalDatabase {
     final db = await database;
     return Sqflite.firstIntValue(
           await db.rawQuery(
-            'select count(*) from sheet_contributor where sheet_id = ?',
-            <Object?>[sheetId],
+            '''
+            select count(*) from (
+              select user_id
+              from sheet_contributor
+              where sheet_id = ?
+              union
+              select distinct reading.recorded_by
+              from reading
+              join round on round.id = reading.round_id
+              where round.sheet_id = ? and reading.recorded_by is not null
+            )
+            ''',
+            <Object?>[sheetId, sheetId],
           ),
         ) ??
         0;
