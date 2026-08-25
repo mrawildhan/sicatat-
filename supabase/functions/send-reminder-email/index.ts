@@ -1,5 +1,6 @@
-// Manual reminder delivery is admin-only. Mail credentials remain in Edge
-// Function secrets; Flutter only supplies a reminder ID.
+// Manual reminder delivery is available to admin, Supervisor SMG, and the
+// site-scoped Foreman LV. Mail credentials remain in Edge Function secrets;
+// Flutter only supplies a reminder ID.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -41,11 +42,12 @@ Deno.serve(async (req) => {
     const callerNik = authUser.email.replace('@sicatat.local', '');
     const { data: callerProfile, error: callerError } = await admin
       .from('app_user')
-      .select('id,role,is_active')
+      .select('id,role,site_id,is_active')
       .eq('nik', callerNik)
       .single();
-    if (callerError || !callerProfile || callerProfile.role !== 'admin' || !callerProfile.is_active) {
-      return json({ ok: false, error: 'Only active admins can send reminder emails.' }, 403);
+    const reminderRoles = new Set(['admin', 'supervisor_smg', 'foreman_lv']);
+    if (callerError || !callerProfile || !callerProfile.is_active || !reminderRoles.has(callerProfile.role)) {
+      return json({ ok: false, error: 'Your role is not allowed to send reminder emails.' }, 403);
     }
 
     const body = await req.json().catch(() => ({}));
@@ -54,10 +56,13 @@ Deno.serve(async (req) => {
 
     const { data: reminder, error: reminderError } = await admin
       .from('operational_reminder')
-      .select('id,title,due_date,recipient_emails,category,asset_code,description,priority,assigned_to,location,status')
+      .select('id,site_id,title,due_date,recipient_emails,category,asset_code,description,priority,assigned_to,location,status')
       .eq('id', reminderId)
       .single();
     if (reminderError || !reminder) return json({ ok: false, error: 'Reminder was not found.' }, 404);
+    if (callerProfile.role === 'foreman_lv' && callerProfile.site_id !== reminder.site_id) {
+      return json({ ok: false, error: 'This reminder belongs to another site.' }, 403);
+    }
     if (reminder.status !== 'open') {
       return json({ ok: false, error: 'Only open reminders can be emailed.' }, 409);
     }

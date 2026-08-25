@@ -37,7 +37,7 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
       _errorMessage = null;
     });
     try {
-      final teamId = user.role == UserRole.foreman ? user.teamId : null;
+      final teamId = user.role.isTeamScopedTemperature ? user.teamId : null;
       final sheets = await ref
           .read(sicatatRepositoryProvider)
           .listSharedSheets(teamId: teamId);
@@ -58,7 +58,7 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final title = user?.role == UserRole.foreman
+    final title = user?.role.isTeamScopedTemperature == true
         ? 'Team sheets'
         : 'Sheet monitoring';
     final errorMessage = _errorMessage;

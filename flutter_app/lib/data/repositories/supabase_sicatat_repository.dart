@@ -32,7 +32,9 @@ class SupabaseSicatatRepository implements SicatatRepository {
       );
       final Object row = await client
           .from('app_user')
-          .select('id, nik, name, role, team_id, phone, is_active')
+          .select(
+            'id, nik, name, role, team_id, site_id, phone, is_active, site:site_id(name)',
+          )
           .eq('nik', normalizedNik)
           .eq('is_active', true)
           .single();
@@ -53,7 +55,9 @@ class SupabaseSicatatRepository implements SicatatRepository {
     try {
       final Object row = await client
           .from('app_user')
-          .select('id, nik, name, role, team_id, phone, is_active')
+          .select(
+            'id, nik, name, role, team_id, site_id, phone, is_active, site:site_id(name)',
+          )
           .eq('nik', nik)
           .eq('is_active', true)
           .single();
@@ -189,7 +193,9 @@ class SupabaseSicatatRepository implements SicatatRepository {
           .order('sort_order'),
       _loadActiveThresholdRows(),
     ]);
-    if (responses[0] is! List || responses[1] is! List || responses[2] is! List) {
+    if (responses[0] is! List ||
+        responses[1] is! List ||
+        responses[2] is! List) {
       throw const FormatException(
         'The server returned invalid form master data.',
       );
@@ -215,7 +221,10 @@ class SupabaseSicatatRepository implements SicatatRepository {
       );
       // The newest active threshold is authoritative when historical rows are
       // retained on the server.
-      thresholdByPoint.putIfAbsent(threshold.measurementPointId, () => threshold);
+      thresholdByPoint.putIfAbsent(
+        threshold.measurementPointId,
+        () => threshold,
+      );
     }
     return InspectionFormConfig(
       equipment: equipment,

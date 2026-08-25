@@ -9,17 +9,36 @@ class _TeamRecord {
     required this.id,
     required this.code,
     required this.name,
+    required this.siteId,
+    required this.siteName,
     required this.isActive,
   });
   final String id;
   final String code;
   final String name;
+  final String siteId;
+  final String siteName;
   final bool isActive;
-  factory _TeamRecord.fromJson(JsonMap json) => _TeamRecord(
+  factory _TeamRecord.fromJson(JsonMap json) {
+    final JsonMap site = requireJsonMap(json['site'], source: 'team site');
+    return _TeamRecord(
+      id: json.requiredString('id'),
+      code: json.requiredString('code'),
+      name: json.requiredString('name'),
+      siteId: json.requiredString('site_id'),
+      siteName: site.requiredString('name'),
+      isActive: json.requiredBool('is_active'),
+    );
+  }
+}
+
+class _SiteChoice {
+  const _SiteChoice({required this.id, required this.name});
+  final String id;
+  final String name;
+  factory _SiteChoice.fromJson(JsonMap json) => _SiteChoice(
     id: json.requiredString('id'),
-    code: json.requiredString('code'),
     name: json.requiredString('name'),
-    isActive: json.requiredBool('is_active'),
   );
 }
 
@@ -31,6 +50,7 @@ class TeamManagementScreen extends StatefulWidget {
 
 class _TeamManagementScreenState extends State<TeamManagementScreen> {
   List<_TeamRecord> _items = const <_TeamRecord>[];
+  List<_SiteChoice> _sites = const <_SiteChoice>[];
   bool _loading = true;
   @override
   void initState() {
@@ -41,11 +61,20 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final Object response = await Supabase.instance.client
-          .from('team')
-          .select('id,code,name,is_active')
-          .order('code');
-      if (response is! List) {
+      final List<Object> responses = await Future.wait<Object>(<Future<Object>>[
+        Supabase.instance.client
+            .from('team')
+            .select('id,code,name,site_id,is_active,site:site_id(name)')
+            .order('code'),
+        Supabase.instance.client
+            .from('site')
+            .select('id,name')
+            .eq('is_active', true)
+            .order('name'),
+      ]);
+      final Object response = responses[0];
+      final Object siteResponse = responses[1];
+      if (response is! List || siteResponse is! List) {
         throw const FormatException('Invalid team response.');
       }
       final List<_TeamRecord> items = response
@@ -54,7 +83,18 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                 _TeamRecord.fromJson(requireJsonMap(row, source: 'team')),
           )
           .toList(growable: false);
-      if (mounted) setState(() => _items = items);
+      final List<_SiteChoice> sites = siteResponse
+          .map(
+            (Object? row) =>
+                _SiteChoice.fromJson(requireJsonMap(row, source: 'site')),
+          )
+          .toList(growable: false);
+      if (mounted) {
+        setState(() {
+          _items = items;
+          _sites = sites;
+        });
+      }
     } on Object catch (error) {
       if (mounted) _notice('Unable to load teams: $error');
     } finally {
@@ -72,6 +112,8 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
     final TextEditingController name = TextEditingController(
       text: record?.name ?? '',
     );
+    String? siteId =
+        record?.siteId ?? (_sites.isEmpty ? null : _sites.first.id);
     bool active = record?.isActive ?? true;
     final bool? saved = await showDialog<bool>(
       context: context,
@@ -94,6 +136,21 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                     TextField(
                       controller: name,
                       decoration: const InputDecoration(labelText: 'Name'),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: siteId,
+                      decoration: const InputDecoration(labelText: 'Site'),
+                      items: _sites
+                          .map(
+                            (item) => DropdownMenuItem<String>(
+                              value: item.id,
+                              child: Text(item.name),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: (String? value) =>
+                          setModalState(() => siteId = value),
                     ),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
@@ -126,12 +183,13 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
     try {
       final String cleanCode = code.text.trim();
       final String cleanName = name.text.trim();
-      if (cleanCode.isEmpty || cleanName.isEmpty) {
-        throw const FormatException('Code and name are required.');
+      if (cleanCode.isEmpty || cleanName.isEmpty || siteId == null) {
+        throw const FormatException('Code, name, and site are required.');
       }
       final Map<String, Object?> payload = <String, Object?>{
         'code': cleanCode,
         'name': cleanName,
+        'site_id': siteId,
         'is_active': active,
       };
       if (record == null) {
@@ -184,7 +242,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                         item.name,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      subtitle: Text('Code: ${item.code}'),
+                      subtitle: Text('${item.siteName} · Code: ${item.code}'),
                       trailing: Chip(
                         label: Text(item.isActive ? 'Active' : 'Inactive'),
                       ),

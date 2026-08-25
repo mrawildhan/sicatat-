@@ -11,6 +11,7 @@ import 'features/admin/presentation/basic_master_screens.dart';
 import 'features/admin/presentation/equipment_management_screen.dart';
 import 'features/admin/presentation/form_template_management_screen.dart';
 import 'features/admin/presentation/master_data_hub_screen.dart';
+import 'features/admin/presentation/site_management_screen.dart';
 import 'features/admin/presentation/threshold_management_screen.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/guide/presentation/crew_guide_screen.dart';
@@ -34,56 +35,63 @@ final _router = GoRouter(
     GoRoute(
       path: '/admin',
       builder: (_, __) => const RoleGuard(
-        allowed: <UserRole>{UserRole.admin},
+        allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
         child: MasterDataHubScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/admin/sites',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
+        child: SiteManagementScreen(),
       ),
     ),
     GoRoute(
       path: '/admin/shifts',
       builder: (_, __) => const RoleGuard(
-        allowed: <UserRole>{UserRole.admin},
+        allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
         child: ShiftManagementScreen(),
       ),
     ),
     GoRoute(
       path: '/admin/teams',
       builder: (_, __) => const RoleGuard(
-        allowed: <UserRole>{UserRole.admin},
+        allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
         child: TeamManagementScreen(),
       ),
     ),
     GoRoute(
       path: '/admin/roster',
       builder: (_, __) => const RoleGuard(
-        allowed: <UserRole>{UserRole.admin},
+        allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
         child: RosterManagementScreen(),
       ),
     ),
     GoRoute(
       path: '/admin/equipment',
       builder: (_, __) => const RoleGuard(
-        allowed: <UserRole>{UserRole.admin},
+        allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
         child: EquipmentManagementScreen(),
       ),
     ),
     GoRoute(
       path: '/admin/thresholds',
       builder: (_, __) => const RoleGuard(
-        allowed: <UserRole>{UserRole.admin},
+        allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
         child: ThresholdManagementScreen(),
       ),
     ),
     GoRoute(
       path: '/admin/form-template',
       builder: (_, __) => const RoleGuard(
-        allowed: <UserRole>{UserRole.admin},
+        allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
         child: FormTemplateManagementScreen(),
       ),
     ),
     GoRoute(
       path: '/admin/measurement-points',
       builder: (_, state) => RoleGuard(
-        allowed: const <UserRole>{UserRole.admin},
+        allowed: const <UserRole>{UserRole.admin, UserRole.supervisorSmg},
         child: MeasurementPointManagementScreen(
           equipmentId: state.uri.queryParameters['equipmentId'],
           equipmentName:
@@ -92,14 +100,37 @@ final _router = GoRouter(
         ),
       ),
     ),
-    GoRoute(path: '/sheets', builder: (_, __) => const SheetListScreen()),
-    GoRoute(path: '/sheets/new', builder: (_, __) => const NewSheetScreen()),
+    GoRoute(
+      path: '/sheets',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.admin,
+        },
+        child: SheetListScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/sheets/new',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.supervisorSmg,
+          UserRole.admin,
+        },
+        child: NewSheetScreen(),
+      ),
+    ),
     GoRoute(
       path: '/monitoring',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{
           UserRole.foreman,
-          UserRole.supervisor,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
           UserRole.admin,
         },
         child: SheetMonitoringScreen(),
@@ -107,24 +138,45 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/temperature',
-      builder: (_, state) => TemperatureFormScreen(
-        sheetId: state.uri.queryParameters['sheetId'],
-        initialSection: state.uri.queryParameters['section'],
-        initialRound: state.uri.queryParameters['round'],
-        initialSide: state.uri.queryParameters['side'],
-        initialEntry: state.uri.queryParameters['entry'],
+      builder: (_, state) => RoleGuard(
+        allowed: const <UserRole>{
+          UserRole.crew,
+          UserRole.supervisorSmg,
+          UserRole.admin,
+        },
+        child: TemperatureFormScreen(
+          sheetId: state.uri.queryParameters['sheetId'],
+          initialSection: state.uri.queryParameters['section'],
+          initialRound: state.uri.queryParameters['round'],
+          initialSide: state.uri.queryParameters['side'],
+          initialEntry: state.uri.queryParameters['entry'],
+        ),
       ),
     ),
     GoRoute(
       path: '/summary',
-      builder: (_, state) =>
-          SheetSummaryScreen(sheetId: state.uri.queryParameters['sheetId']),
+      builder: (_, state) => RoleGuard(
+        allowed: const <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.admin,
+        },
+        child: SheetSummaryScreen(
+          sheetId: state.uri.queryParameters['sheetId'],
+        ),
+      ),
     ),
     GoRoute(path: '/guide', builder: (_, __) => const CrewGuideScreen()),
     GoRoute(
       path: '/reminders',
       builder: (_, __) => const RoleGuard(
-        allowed: <UserRole>{UserRole.admin},
+        allowed: <UserRole>{
+          UserRole.admin,
+          UserRole.supervisorSmg,
+          UserRole.foremanLv,
+        },
         child: ReminderScreen(),
       ),
     ),
@@ -133,7 +185,8 @@ final _router = GoRouter(
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{
           UserRole.foreman,
-          UserRole.supervisor,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
           UserRole.admin,
         },
         child: ReportScreen(),
@@ -145,7 +198,8 @@ final _router = GoRouter(
         allowed: const <UserRole>{
           UserRole.crew,
           UserRole.foreman,
-          UserRole.supervisor,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
           UserRole.admin,
         },
         child: SheetExportScreen(sheetId: state.uri.queryParameters['sheetId']),
@@ -156,7 +210,8 @@ final _router = GoRouter(
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{
           UserRole.foreman,
-          UserRole.supervisor,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
           UserRole.admin,
         },
         child: HighTemperatureReportScreen(),
@@ -167,7 +222,8 @@ final _router = GoRouter(
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{
           UserRole.foreman,
-          UserRole.supervisor,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
           UserRole.admin,
         },
         child: IncompleteSheetScreen(),

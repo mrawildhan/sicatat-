@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../data/models/app_user.dart';
 import '../../../data/models/sicatat_types.dart';
 
 const List<String> _categories = <String>[
@@ -30,6 +31,7 @@ enum _ReminderMenuAction { delete }
 class ReminderItem {
   const ReminderItem({
     required this.id,
+    required this.siteId,
     required this.title,
     required this.dueDate,
     required this.emails,
@@ -48,6 +50,7 @@ class ReminderItem {
   });
 
   final String id;
+  final String siteId;
   final String title;
   final DateTime dueDate;
   final List<String> emails;
@@ -91,6 +94,7 @@ class ReminderItem {
     final Object? rawRecurrence = json['recurrence_months'];
     return ReminderItem(
       id: json.requiredString('id'),
+      siteId: json.requiredString('site_id'),
       title: json.requiredString('title'),
       dueDate: DateTime.parse(json.requiredString('due_date')),
       emails: emails,
@@ -110,6 +114,7 @@ class ReminderItem {
   }
 
   Map<String, Object?> toPayload() => <String, Object?>{
+    'site_id': siteId,
     'title': title,
     'due_date': _dateOnly(dueDate),
     'recipient_emails': emails,
@@ -124,6 +129,18 @@ class ReminderItem {
   };
 }
 
+class _ReminderSite {
+  const _ReminderSite({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  factory _ReminderSite.fromJson(JsonMap json) => _ReminderSite(
+    id: json.requiredString('id'),
+    name: json.requiredString('name'),
+  );
+}
+
 class ReminderScreen extends StatefulWidget {
   const ReminderScreen({super.key});
 
@@ -136,11 +153,15 @@ class _ReminderScreenState extends State<ReminderScreen> {
 
   List<ReminderItem> _items = const <ReminderItem>[];
   List<String> _recipientDirectory = const <String>[];
+  List<_ReminderSite> _sites = const <_ReminderSite>[];
+  AppUser? _actor;
   final Set<String> _sendingIds = <String>{};
   _ReminderFilter _filter = _ReminderFilter.all;
   bool _loading = true;
 
   SupabaseClient get _client => Supabase.instance.client;
+
+  bool get _canSelectSite => _actor?.role.isGlobalTemperatureManager == true;
 
   @override
   void initState() {
@@ -154,11 +175,14 @@ class _ReminderScreenState extends State<ReminderScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      final String? email = _client.auth.currentUser?.email;
+      if (email == null) throw const FormatException('No active user session.');
+      final String nik = email.split('@').first;
       final List<Object> responses = await Future.wait<Object>(<Future<Object>>[
         _client
             .from('operational_reminder')
             .select(
-              'id,title,due_date,recipient_emails,category,asset_code,description,priority,assigned_to,location,status,reminder_offsets_days,recurrence_months,completed_at,completed_note,last_sent_at',
+              'id,site_id,title,due_date,recipient_emails,category,asset_code,description,priority,assigned_to,location,status,reminder_offsets_days,recurrence_months,completed_at,completed_note,last_sent_at',
             )
             .order('due_date'),
         _client
@@ -166,10 +190,24 @@ class _ReminderScreenState extends State<ReminderScreen> {
             .select('email')
             .eq('is_active', true)
             .order('email'),
+        _client
+            .from('site')
+            .select('id,name')
+            .eq('is_active', true)
+            .order('name'),
+        _client
+            .from('app_user')
+            .select('id,nik,name,role,team_id,site_id,phone,is_active')
+            .eq('nik', nik)
+            .single(),
       ]);
       final Object reminderResponse = responses[0];
       final Object recipientResponse = responses[1];
-      if (reminderResponse is! List || recipientResponse is! List) {
+      final Object siteResponse = responses[2];
+      final Object profileResponse = responses[3];
+      if (reminderResponse is! List ||
+          recipientResponse is! List ||
+          siteResponse is! List) {
         throw const FormatException(
           'The server returned invalid reminder data.',
         );
@@ -190,10 +228,21 @@ class _ReminderScreenState extends State<ReminderScreen> {
           return email.trim().toLowerCase();
         }),
       }.toList()..sort();
+      final List<_ReminderSite> sites = siteResponse
+          .map(
+            (Object? row) =>
+                _ReminderSite.fromJson(requireJsonMap(row, source: 'site')),
+          )
+          .toList(growable: false);
+      final AppUser actor = AppUser.fromJson(
+        requireJsonMap(profileResponse, source: 'current user'),
+      );
       if (mounted) {
         setState(() {
           _items = reminders;
           _recipientDirectory = recipients;
+          _sites = sites;
+          _actor = actor;
         });
       }
     } on Object catch (error) {
@@ -243,6 +292,8 @@ class _ReminderScreenState extends State<ReminderScreen> {
     );
     final TextEditingController addEmail = TextEditingController();
     DateTime dueDate = existing?.dueDate ?? DateTime.now();
+    String? siteId = existing?.siteId ?? _actor?.siteId;
+    if (siteId == null && _sites.isNotEmpty) siteId = _sites.first.id;
     String category = existing?.category ?? 'General';
     if (!_categories.contains(category)) category = 'Other';
     String priority = existing?.priority ?? 'normal';
@@ -281,6 +332,30 @@ class _ReminderScreenState extends State<ReminderScreen> {
                           hintText: 'e.g. Renew vehicle registration',
                         ),
                       ),
+                      if (_canSelectSite) ...<Widget>[
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: siteId,
+                          decoration: const InputDecoration(labelText: 'Site'),
+                          items: _sites
+                              .map(
+                                (_ReminderSite site) =>
+                                    DropdownMenuItem<String>(
+                                      value: site.id,
+                                      child: Text(site.name),
+                                    ),
+                              )
+                              .toList(growable: false),
+                          onChanged: (String? value) =>
+                              setModalState(() => siteId = value),
+                        ),
+                      ] else if (_actor?.siteId != null) ...<Widget>[
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Site reminder mengikuti cakupan akun Anda.',
+                          style: TextStyle(color: AppColors.muted),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: category,
@@ -531,13 +606,17 @@ class _ReminderScreenState extends State<ReminderScreen> {
     try {
       final String cleanTitle = title.text.trim();
       final List<String> recipients = selected.toList()..sort();
-      if (cleanTitle.isEmpty || recipients.isEmpty || selectedOffsets.isEmpty) {
+      if (cleanTitle.isEmpty ||
+          recipients.isEmpty ||
+          selectedOffsets.isEmpty ||
+          siteId == null) {
         throw const FormatException(
-          'Enter a title, tick at least one recipient, and choose an automatic email day.',
+          'Enter a title, choose a site, tick at least one recipient, and choose an automatic email day.',
         );
       }
       final ReminderItem item = ReminderItem(
         id: existing?.id ?? '',
+        siteId: siteId!,
         title: cleanTitle,
         dueDate: dueDate,
         emails: recipients,

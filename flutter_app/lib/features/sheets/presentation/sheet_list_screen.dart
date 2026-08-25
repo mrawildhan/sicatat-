@@ -42,6 +42,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
     });
     try {
       final user = ref.read(currentUserProvider);
+      List<SheetModel>? serverSheets;
       if (user != null) {
         final repository = ref.read(sicatatRepositoryProvider);
         // A freshly installed app has no locally cached shift names yet. Refresh
@@ -52,15 +53,21 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
         } catch (_) {
           // The already-cached names remain usable if master data is unavailable.
         }
-        final shared = await repository.listSharedSheets(
-          teamId: user.role == UserRole.foreman ? user.teamId : null,
+        serverSheets = await repository.listSharedSheets(
+          teamId: user.role.isTeamScopedTemperature ? user.teamId : null,
           createdBy: user.role == UserRole.crew ? user.id : null,
         );
-        await LocalDatabase.instance.cacheRemoteSheets(shared);
+        await LocalDatabase.instance.cacheRemoteSheets(serverSheets);
       }
-      final localSheets = await LocalDatabase.instance.listSheets();
+      // Temperature sheets are online-only. Prefer the RLS-scoped server
+      // response so a user who changes role/site never sees a stale sheet
+      // cached under a broader previous scope.
+      final localSheets =
+          serverSheets ?? await LocalDatabase.instance.listSheets();
       final sheets = switch (user?.role) {
-        UserRole.admin || UserRole.supervisor => localSheets,
+        UserRole.admin ||
+        UserRole.supervisorSmg ||
+        UserRole.supervisorCop => localSheets,
         UserRole.foreman =>
           localSheets
               .where((sheet) => sheet.teamId == user?.teamId)
@@ -94,7 +101,8 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final title =
-        user?.role == UserRole.admin || user?.role == UserRole.supervisor
+        user?.role.isGlobalTemperatureManager == true ||
+            user?.role.isSiteScopedTemperature == true
         ? 'All sheets'
         : user?.role == UserRole.foreman
         ? 'Team sheets'
@@ -123,11 +131,13 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => context.go('/sheets/new'),
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('New sheet'),
-        ),
+        floatingActionButton: user?.role.canCreateTemperatureSheet == true
+            ? FloatingActionButton.extended(
+                onPressed: () => context.go('/sheets/new'),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('New sheet'),
+              )
+            : null,
         body: RefreshIndicator(
           onRefresh: _loadSheets,
           child: _buildBody(context),

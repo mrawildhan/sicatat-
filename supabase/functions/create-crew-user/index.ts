@@ -1,4 +1,4 @@
-// create-crew-user — bikin akun crew/foreman/supervisor/admin baru SEKALIGUS:
+// create-crew-user — bikin akun SICATAT baru SEKALIGUS:
 // akun Supabase Auth (login) + baris app_user (profil), dalam satu panggilan
 // dari app (Admin -> Crew -> Tambah Crew), tanpa buka Supabase Dashboard.
 //
@@ -27,7 +27,14 @@ function json(body: unknown, status = 200) {
   });
 }
 
-const VALID_ROLES = ['crew', 'foreman', 'supervisor', 'admin'];
+const VALID_ROLES = [
+  'crew',
+  'foreman',
+  'supervisor_cop',
+  'supervisor_smg',
+  'foreman_lv',
+  'admin',
+];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -68,6 +75,7 @@ Deno.serve(async (req) => {
     const name = String(body.name ?? '').trim();
     const role = String(body.role ?? '').trim();
     const teamId = body.team_id || null;
+    const siteId = body.site_id || null;
     const phone = body.phone || null;
     const pin = String(body.pin ?? '').trim();
 
@@ -79,6 +87,9 @@ Deno.serve(async (req) => {
     }
     if ((role === 'crew' || role === 'foreman') && !teamId) {
       return json({ ok: false, error: 'Crew is required for the crew/foreman role.' }, 400);
+    }
+    if ((role === 'supervisor_cop' || role === 'foreman_lv') && !siteId) {
+      return json({ ok: false, error: 'A site is required for Supervisor COP and Foreman LV.' }, 400);
     }
     if (pin.length < 6) {
       return json({ ok: false, error: 'PIN must be at least 6 digits.' }, 400);
@@ -101,7 +112,7 @@ Deno.serve(async (req) => {
     // ---- 4. Bikin baris profil app_user ----
     const { data: newProfile, error: insertErr } = await admin
       .from('app_user')
-      .insert({ nik, name, role, team_id: teamId, phone, is_active: true })
+      .insert({ nik, name, role, team_id: teamId, site_id: siteId, phone, is_active: true })
       .select('id')
       .single();
 

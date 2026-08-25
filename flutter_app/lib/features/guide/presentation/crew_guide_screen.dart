@@ -14,7 +14,7 @@ class CrewGuideScreen extends StatelessWidget {
         appBar: AppBar(
           leading: const AppBackButton(fallbackRoute: '/dashboard'),
           title: const Text(
-            'Crew guide',
+            'Buku panduan SICATAT',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
@@ -22,28 +22,36 @@ class CrewGuideScreen extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           children: const <Widget>[
             _GuideSection(
-              '1. Create a sheet',
-              'Select the correct date and shift. One team uses one sheet for each date and shift combination.',
+              'A. Pencatatan temperature',
+              'Buka tab Temperature, lalu pilih New sheet. Tentukan tanggal pemeriksaan dan shift yang sesuai. Satu sheet hanya digunakan untuk satu kombinasi tanggal, shift, dan site.',
             ),
             _GuideSection(
-              '2. Enter each round',
-              'Complete Breaker Round 1, Sizer Round 1, Breaker Round 2, then Sizer Round 2. Complete West and East for every round.',
+              'B. Isi Round 1 dan Round 2',
+              'Pilih unit serta sisi Barat atau Timur, lalu simpan setiap sisi. Waktu round akan tercatat otomatis saat data pertama disimpan. Sheet boleh dibiarkan sebagai draft dan dilanjutkan sebelum shift berakhir.',
             ),
             _GuideSection(
-              '3. Select a status',
-              'Operating: enter all four gearbox temperatures. Not operating or not accessible: enter a reason without temperature values.',
+              'C. Pilih kondisi unit',
+              'Pilih Operating untuk mengisi seluruh titik temperature. Jika Not operating atau Not accessible, isi alasan kondisi tersebut. Jangan menggunakan nilai suhu sebagai pengganti alasan.',
             ),
             _GuideSection(
-              '4. Review temperature',
-              'Green is below 60°C, amber is 60-69.9°C, and red is 70°C or higher. Report red conditions under the operating procedure.',
+              'D. Perhatikan warna temperature',
+              'Hijau berarti di bawah 60°C. Oranye menunjukkan 60–69°C dan perlu perhatian. Merah menunjukkan 70°C atau lebih dan harus segera dilaporkan mengikuti prosedur operasi.',
             ),
             _GuideSection(
-              '5. Save and submit',
-              'Tap Save for each side. When internet is available, the app immediately tries to send drafts and progress so foremen and admins can see it. Data remains safe offline.',
+              'E. Ringkasan dan pengiriman sheet',
+              'Buka Sheet summary untuk melihat seluruh bagian yang sudah atau belum terisi. Kartu merah dapat ditekan untuk menuju data yang masih kosong. Submit dilakukan setelah data siap; sheet yang telah diverifikasi terkunci.',
             ),
             _GuideSection(
-              'If data is not synced',
-              'Do not delete the application. When internet returns, tap Sync data. Report Conflict status to a foreman or admin.',
+              'F. Reminder operasional',
+              'Pengguna yang mendapat akses Reminder dapat menambahkan judul, aset, tindakan, PIC, lokasi, tanggal jatuh tempo, prioritas, penerima, dan jadwal email. Pilih H-30, H-14, H-7, H-1, atau hari jatuh tempo sesuai kebutuhan.',
+            ),
+            _GuideSection(
+              'G. Menyelesaikan reminder',
+              'Setelah tindakan selesai, tekan Mark complete dan masukkan catatan bila diperlukan. Gunakan Reopen jika pekerjaan harus dibuka kembali. Riwayat pengiriman email dan perubahan dapat dilihat melalui ikon riwayat.',
+            ),
+            _GuideSection(
+              'H. Hak akses dan koneksi',
+              'SICATAT bekerja online-only. Menu yang tampil mengikuti peran akun dan site penugasan. Jika data tidak dapat dimuat, periksa koneksi internet lalu tekan Refresh; jangan menghapus aplikasi.',
             ),
           ],
         ),

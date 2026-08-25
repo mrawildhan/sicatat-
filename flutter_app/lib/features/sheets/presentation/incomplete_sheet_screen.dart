@@ -69,7 +69,7 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
     try {
       final AppUser? user = ref.read(currentUserProvider);
       final Object response;
-      if (user?.role == UserRole.foreman && user?.teamId != null) {
+      if (user?.role.isTeamScopedTemperature == true && user?.teamId != null) {
         response = await Supabase.instance.client
             .from('sheet')
             .select('id,tanggal,status,team:team_id(name),shift:shift_id(code)')
@@ -133,7 +133,7 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
   @override
   Widget build(BuildContext context) {
     final AppUser? user = ref.watch(currentUserProvider);
-    final bool teamOnly = user?.role == UserRole.foreman;
+    final bool teamOnly = user?.role.isTeamScopedTemperature == true;
     return AppBackScope(
       fallbackRoute: '/dashboard',
       child: Scaffold(

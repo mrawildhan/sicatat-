@@ -38,7 +38,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   String? _teamId;
   bool _loading = false;
   bool get _teamLocked =>
-      ref.read(currentUserProvider)?.role == UserRole.foreman;
+      ref.read(currentUserProvider)?.role.isTeamScopedTemperature == true;
   @override
   void initState() {
     super.initState();

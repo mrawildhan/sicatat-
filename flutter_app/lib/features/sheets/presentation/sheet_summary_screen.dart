@@ -245,10 +245,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
   Future<void> _forceSubmit() async {
     final sheetId = widget.sheetId;
     final user = ref.read(currentUserProvider);
-    final permitted =
-        user?.role == UserRole.foreman ||
-        user?.role == UserRole.supervisor ||
-        user?.role == UserRole.admin;
+    final permitted = user?.role.canReviewTemperature == true;
     if (sheetId == null ||
         !permitted ||
         _incomplete.isEmpty ||
@@ -437,18 +434,14 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         !isSubmitted &&
         incomplete.isNotEmpty &&
         _contributors > 0 &&
-        (user?.role == UserRole.foreman ||
-            user?.role == UserRole.supervisor ||
-            user?.role == UserRole.admin);
+        user?.role.canReviewTemperature == true;
     final canRevise =
         (_sheet!.status == SheetStatus.submitted ||
             _sheet!.status == SheetStatus.submittedIncomplete) &&
         user?.id == _sheet!.createdBy;
     final canDelete =
         _sheet!.status != SheetStatus.verified &&
-        (user?.role == UserRole.admin ||
-            user?.role == UserRole.supervisor ||
-            user?.role == UserRole.foreman ||
+        (user?.role.isGlobalTemperatureManager == true ||
             (user?.role == UserRole.crew && _sheet?.createdBy == user?.id));
     return AppBackScope(
       fallbackRoute: '/sheets',

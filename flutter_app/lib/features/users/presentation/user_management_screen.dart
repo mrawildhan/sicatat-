@@ -4,11 +4,31 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/models/sicatat_types.dart';
 
+String _roleLabel(String role) => switch (role) {
+  'crew' => 'Crew',
+  'foreman' => 'Foreman',
+  'supervisor_cop' => 'Supervisor COP',
+  'supervisor_smg' || 'supervisor' => 'Supervisor SMG',
+  'foreman_lv' => 'Foreman LV',
+  'admin' => 'Admin',
+  _ => role,
+};
+
 class _TeamOption {
   const _TeamOption({required this.id, required this.name});
   final String id;
   final String name;
   factory _TeamOption.fromJson(JsonMap json) => _TeamOption(
+    id: json.requiredString('id'),
+    name: json.requiredString('name'),
+  );
+}
+
+class _SiteOption {
+  const _SiteOption({required this.id, required this.name});
+  final String id;
+  final String name;
+  factory _SiteOption.fromJson(JsonMap json) => _SiteOption(
     id: json.requiredString('id'),
     name: json.requiredString('name'),
   );
@@ -23,6 +43,8 @@ class _ManagedUser {
     required this.isActive,
     this.teamId,
     this.teamName,
+    this.siteId,
+    this.siteName,
     this.phone,
   });
   final String id;
@@ -32,12 +54,18 @@ class _ManagedUser {
   final bool isActive;
   final String? teamId;
   final String? teamName;
+  final String? siteId;
+  final String? siteName;
   final String? phone;
   factory _ManagedUser.fromJson(JsonMap json) {
     final Object? rawTeam = json['team'];
     final JsonMap? team = rawTeam == null
         ? null
         : requireJsonMap(rawTeam, source: 'user team');
+    final Object? rawSite = json['site'];
+    final JsonMap? site = rawSite == null
+        ? null
+        : requireJsonMap(rawSite, source: 'user site');
     return _ManagedUser(
       id: json.requiredString('id'),
       nik: json.requiredString('nik'),
@@ -46,6 +74,8 @@ class _ManagedUser {
       isActive: json.requiredBool('is_active'),
       teamId: json.optionalString('team_id'),
       teamName: team?.optionalString('name'),
+      siteId: json.optionalString('site_id'),
+      siteName: site?.optionalString('name'),
       phone: json.optionalString('phone'),
     );
   }
@@ -65,12 +95,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   static const List<String> _roles = <String>[
     'crew',
     'foreman',
-    'supervisor',
+    'supervisor_cop',
+    'supervisor_smg',
+    'foreman_lv',
     'admin',
   ];
   List<_TeamOption> _teams = const <_TeamOption>[];
+  List<_SiteOption> _sites = const <_SiteOption>[];
   List<_ManagedUser> _users = const <_ManagedUser>[];
   String? _teamId;
+  String? _siteId;
   String _role = 'crew';
   bool _isActive = true;
   bool _loading = true;
@@ -98,16 +132,30 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final Object teamResponse = await Supabase.instance.client
-          .from('team')
-          .select('id,name')
-          .eq('is_active', true)
-          .order('code');
-      final Object userResponse = await Supabase.instance.client
-          .from('app_user')
-          .select('id,nik,name,role,team_id,phone,is_active,team:team_id(name)')
-          .order('name');
-      if (teamResponse is! List || userResponse is! List) {
+      final List<Object> responses = await Future.wait<Object>(<Future<Object>>[
+        Supabase.instance.client
+            .from('team')
+            .select('id,name')
+            .eq('is_active', true)
+            .order('code'),
+        Supabase.instance.client
+            .from('site')
+            .select('id,name')
+            .eq('is_active', true)
+            .order('name'),
+        Supabase.instance.client
+            .from('app_user')
+            .select(
+              'id,nik,name,role,team_id,site_id,phone,is_active,team:team_id(name),site:site_id(name)',
+            )
+            .order('name'),
+      ]);
+      final Object teamResponse = responses[0];
+      final Object siteResponse = responses[1];
+      final Object userResponse = responses[2];
+      if (teamResponse is! List ||
+          siteResponse is! List ||
+          userResponse is! List) {
         throw const FormatException(
           'The server returned an invalid user list.',
         );
@@ -115,12 +163,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       final List<_TeamOption> teams = teamResponse
           .map((Object? row) => _TeamOption.fromJson(requireJsonMap(row)))
           .toList(growable: false);
+      final List<_SiteOption> sites = siteResponse
+          .map((Object? row) => _SiteOption.fromJson(requireJsonMap(row)))
+          .toList(growable: false);
       final List<_ManagedUser> users = userResponse
           .map((Object? row) => _ManagedUser.fromJson(requireJsonMap(row)))
           .toList(growable: false);
       if (mounted) {
         setState(() {
           _teams = teams;
+          _sites = sites;
           _users = users;
         });
       }
@@ -132,6 +184,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   bool get _roleNeedsTeam => _role == 'crew' || _role == 'foreman';
+  bool get _roleNeedsSite => _role == 'supervisor_cop' || _role == 'foreman_lv';
   void _openCreate() {
     _creating = true;
     _editing = null;
@@ -141,6 +194,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     _pinController.clear();
     _role = 'crew';
     _teamId = _teams.isEmpty ? null : _teams.first.id;
+    _siteId = _sites.isEmpty ? null : _sites.first.id;
     _isActive = true;
     setState(() {});
   }
@@ -154,6 +208,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     _pinController.clear();
     _role = user.role;
     _teamId = user.teamId;
+    _siteId = user.siteId;
     _isActive = user.isActive;
     setState(() {});
   }
@@ -177,6 +232,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       _message('A team is required for crew and foreman users.');
       return;
     }
+    if (_roleNeedsSite && _siteId == null) {
+      _message('A site is required for Supervisor COP and Foreman LV users.');
+      return;
+    }
     if (_editing == null && _pinController.text.length < 6) {
       _message('PIN must contain at least 6 characters.');
       return;
@@ -195,6 +254,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 'name': name,
                 'role': _role,
                 'team_id': _roleNeedsTeam ? _teamId : null,
+                'site_id': _roleNeedsSite ? _siteId : null,
                 'phone': phone.isEmpty ? null : phone,
                 'pin': _pinController.text,
               },
@@ -218,6 +278,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               'name': name,
               'role': _role,
               'team_id': _roleNeedsTeam ? _teamId : null,
+              'site_id': _roleNeedsSite ? _siteId : null,
               'phone': phone.isEmpty ? null : phone,
               'is_active': _isActive,
             })
@@ -295,7 +356,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
-          '${user.nik} · ${user.role}${user.teamName == null ? '' : ' · ${user.teamName}'}',
+          '${user.nik} · ${_roleLabel(user.role)}${user.teamName == null ? '' : ' · ${user.teamName}'}${user.siteName == null ? '' : ' · ${user.siteName}'}',
         ),
         trailing: Chip(label: Text(user.isActive ? 'Active' : 'Inactive')),
       ),
@@ -333,8 +394,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         initialValue: _role,
         items: _roles
             .map(
-              (String role) =>
-                  DropdownMenuItem<String>(value: role, child: Text(role)),
+              (String role) => DropdownMenuItem<String>(
+                value: role,
+                child: Text(_roleLabel(role)),
+              ),
             )
             .toList(growable: false),
         onChanged: (String? value) => setState(() => _role = value ?? 'crew'),
@@ -355,6 +418,23 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               .toList(growable: false),
           onChanged: (String? value) => setState(() => _teamId = value),
           decoration: const InputDecoration(labelText: 'Team'),
+        ),
+      ],
+      if (_roleNeedsSite) ...<Widget>[
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          key: ValueKey<String>('site-${_editing?.id ?? 'new'}'),
+          initialValue: _siteId,
+          items: _sites
+              .map(
+                (site) => DropdownMenuItem<String>(
+                  value: site.id,
+                  child: Text(site.name),
+                ),
+              )
+              .toList(growable: false),
+          onChanged: (String? value) => setState(() => _siteId = value),
+          decoration: const InputDecoration(labelText: 'Site scope'),
         ),
       ],
       const SizedBox(height: 12),

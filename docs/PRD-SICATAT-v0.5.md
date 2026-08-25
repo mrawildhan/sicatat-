@@ -1,11 +1,13 @@
 # PRD SICATAT v0.5 — Kondisi Implementasi & Acuan Pemulihan
 
+> Pembaruan multi-site (v2.3): SICATAT mendukung Asam-Asam dan Kintap. Semua sheet, roster, team, dan reminder membawa identitas site. Hak akses temperature dan reminder mengikuti matriks pada [Buku Panduan SICATAT](MANUAL-BOOK-SICATAT.md).
+
 | Informasi | Nilai |
 |---|---|
 | Produk | SICATAT — Sistem Inspeksi dan Catatan Temperatur |
 | Status | Acuan implementasi saat ini / recovery specification |
-| Tanggal | 20 Agustus 2026 |
-| Versi aplikasi | `2.1.5+215` |
+| Tanggal | 25 Agustus 2026 |
+| Versi aplikasi | `2.3.0+4230` |
 | Menggantikan | PRD-SICATAT-v0.4.md |
 | Fokus rilis saat ini | Daily Temperature Check: Gearbox Breaker dan Gearbox Sizer |
 

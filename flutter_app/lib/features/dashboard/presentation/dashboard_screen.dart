@@ -48,9 +48,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final DashboardActivity activity = await LocalDatabase.instance
           .getDashboardActivity(
             DateTime.now(),
-            createdBy:
-                user?.role == UserRole.admin ||
-                    user?.role == UserRole.supervisor
+            createdBy: user?.role.isGlobalTemperatureManager == true
                 ? null
                 : user?.id,
           );
@@ -76,6 +74,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final crewName = user?.name ?? 'Crew';
+    final bool hasTemperatureTab = user?.role != UserRole.foremanLv;
+    final bool hasReminderTab = user?.role.canUseReminders == true;
+    final int? reminderIndex = hasReminderTab
+        ? (hasTemperatureTab ? 2 : 1)
+        : null;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -125,7 +128,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             index: _index,
             children: [
               _home(context, crewName, user),
-              const SizedBox(),
+              if (hasTemperatureTab) const SizedBox(),
+              if (hasReminderTab) const SizedBox(),
               _profile(context, user),
             ],
           ),
@@ -135,24 +139,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: NavigationBar(
             selectedIndex: _index,
             onDestinationSelected: (value) {
-              if (value == 1) {
+              if (hasTemperatureTab && value == 1) {
                 context.go('/sheets');
+                return;
+              }
+              if (value == reminderIndex) {
+                context.go('/reminders');
                 return;
               }
               setState(() => _index = value);
             },
-            destinations: const [
-              NavigationDestination(
+            destinations: <NavigationDestination>[
+              const NavigationDestination(
                 icon: Icon(Icons.home_outlined),
                 selectedIcon: Icon(Icons.home_rounded),
                 label: 'Home',
               ),
-              NavigationDestination(
-                icon: Icon(Icons.description_outlined),
-                selectedIcon: Icon(Icons.description_rounded),
-                label: 'Sheets',
-              ),
-              NavigationDestination(
+              if (hasTemperatureTab)
+                const NavigationDestination(
+                  icon: Icon(Icons.thermostat_outlined),
+                  selectedIcon: Icon(Icons.thermostat_rounded),
+                  label: 'Temperature',
+                ),
+              if (hasReminderTab)
+                const NavigationDestination(
+                  icon: Icon(Icons.notifications_none_rounded),
+                  selectedIcon: Icon(Icons.notifications_active_rounded),
+                  label: 'Reminders',
+                ),
+              const NavigationDestination(
                 icon: Icon(Icons.person_outline_rounded),
                 selectedIcon: Icon(Icons.person_rounded),
                 label: 'Profile',
@@ -192,9 +207,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _profile(BuildContext context, AppUser? user) {
     final name = user?.name ?? 'Account';
-    final role = user == null
-        ? 'Not signed in'
-        : '${user.role.name[0].toUpperCase()}${user.role.name.substring(1)}';
+    final role = user == null ? 'Not signed in' : user.role.label;
     final phone = user?.phone?.trim();
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
@@ -262,6 +275,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               const Divider(height: 1),
               _profileRow(
+                Icons.location_on_outlined,
+                'Site scope',
+                user?.siteId == null
+                    ? 'All sites'
+                    : (user?.siteName ?? 'Assigned site'),
+              ),
+              const Divider(height: 1),
+              _profileRow(
                 Icons.phone_outlined,
                 'Phone',
                 phone?.isNotEmpty == true ? phone! : 'Not provided',
@@ -270,6 +291,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
         const SizedBox(height: 22),
+        Card(
+          child: ListTile(
+            leading: const Icon(
+              Icons.menu_book_outlined,
+              color: AppColors.green,
+            ),
+            title: const Text('Buku panduan aplikasi'),
+            subtitle: const Text(
+              'Petunjuk pencatatan temperature dan reminder',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.go('/guide'),
+          ),
+        ),
+        const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: _signOut,
           style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
@@ -334,26 +370,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 12),
-        _primaryAction(
-          icon: Icons.thermostat_rounded,
-          title: 'Temperature inspections',
-          subtitle: 'Record Feeder Breaker and Sizer readings. More temperature modules can be added here.',
-          actionLabel: 'Open inspections',
-          onTap: () => context.go('/sheets/new'),
-        ),
-        const SizedBox(height: 12),
-        _primaryAction(
-          icon: Icons.notifications_active_rounded,
-          title: 'Operational reminders',
-          subtitle: user?.role == UserRole.admin
-              ? 'Manage due dates for servicing, documents, and other operational follow-ups.'
-              : 'Reminder schedules are currently managed by the administrator.',
-          actionLabel: user?.role == UserRole.admin
-              ? 'Open reminders'
-              : 'Admin-managed',
-          enabled: user?.role == UserRole.admin,
-          onTap: () => context.go('/reminders'),
-        ),
+        if (user?.role != UserRole.foremanLv) ...<Widget>[
+          _primaryAction(
+            icon: Icons.thermostat_rounded,
+            title: 'Temperature inspections',
+            subtitle: user?.role.canCreateTemperatureSheet == true
+                ? 'Record Feeder Breaker and Sizer readings. More temperature modules can be added here.'
+                : 'Review the temperature work assigned to your site or team.',
+            actionLabel: user?.role.canCreateTemperatureSheet == true
+                ? 'Start recording'
+                : 'View temperature',
+            onTap: () => context.go(
+              user?.role.canCreateTemperatureSheet == true
+                  ? '/sheets/new'
+                  : '/sheets',
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (user?.role.canUseReminders == true) ...<Widget>[
+          _primaryAction(
+            icon: Icons.notifications_active_rounded,
+            title: 'Operational reminders',
+            subtitle: 'Manage due dates, action owners, email schedules, and completion history.',
+            actionLabel: 'Open reminders',
+            onTap: () => context.go('/reminders'),
+          ),
+          const SizedBox(height: 12),
+        ],
         const SizedBox(height: 28),
         SectionTitle(
           'Today’s activity',
@@ -412,11 +456,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           },
         ),
         const SizedBox(height: 10),
-        if (user != null && user.role != UserRole.crew) ...<Widget>[
+        if (user?.role.canReviewTemperature == true) ...<Widget>[
           _quickAction(
             Icons.assignment_late_outlined,
             'Incomplete sheets',
-            user.role == UserRole.foreman
+            user?.role.isTeamScopedTemperature == true
                 ? 'Review incomplete sheets for your team'
                 : 'Review incomplete sheets across teams',
             () => context.go('/incomplete'),
@@ -424,7 +468,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           const SizedBox(height: 10),
           _quickAction(
             Icons.monitor_heart_outlined,
-            user.role == UserRole.foreman ? 'Team sheets' : 'Sheet monitoring',
+            user?.role.isTeamScopedTemperature == true
+                ? 'Team sheets'
+                : 'Sheet monitoring',
             'View synced crew sheets and drafts',
             () => context.go('/monitoring'),
           ),
@@ -439,14 +485,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _quickAction(
             Icons.picture_as_pdf_outlined,
             'Period reports',
-            user.role == UserRole.foreman
+            user?.role.isTeamScopedTemperature == true
                 ? 'Export readings for your team by date range'
                 : 'Export readings and PDF reports by date range',
             () => context.go('/reports'),
           ),
           const SizedBox(height: 10),
         ],
-        if (user?.role == UserRole.admin) ...<Widget>[
+        if (user?.role.canManageMasterData == true) ...<Widget>[
           _quickAction(
             Icons.manage_accounts_outlined,
             'Master data & users',
@@ -457,8 +503,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ],
         _quickAction(
           Icons.help_outline_rounded,
-          'Crew guide',
-          'How to complete a field sheet',
+          'Buku panduan',
+          'Cara menggunakan pencatatan temperature dan reminder',
           () => context.go('/guide'),
         ),
       ],

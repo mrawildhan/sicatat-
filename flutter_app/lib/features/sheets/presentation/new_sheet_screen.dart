@@ -83,10 +83,13 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
   }
 
   Future<void> _loadAdminTeams() async {
-    if (ref.read(currentUserProvider)?.role != UserRole.admin) return;
+    if (ref.read(currentUserProvider)?.role.isGlobalTemperatureManager !=
+        true) {
+      return;
+    }
     final Object response = await Supabase.instance.client
         .from('team')
-        .select('id,name')
+        .select('id,name,site_id')
         .eq('is_active', true)
         .order('code');
     if (response is! List) {
@@ -120,16 +123,26 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     final template = _template;
     if (user == null || template == null) return;
     try {
-      final existing = await ref
-          .read(sicatatRepositoryProvider)
-          .listSharedSheets();
-      final occupied = existing
-          .where(
-            (sheet) =>
-                sheet.moduleId == template.moduleId &&
-                DateUtils.isSameDay(sheet.date, _date),
+      final siteId = _siteIdForSelectedTeam(user);
+      if (siteId == null) return;
+      final Object response = await Supabase.instance.client.rpc(
+        'occupied_temperature_shift_ids',
+        params: <String, Object?>{
+          'p_module_id': template.moduleId,
+          'p_tanggal': _dateOnly(_date),
+          'p_site_id': siteId,
+        },
+      );
+      if (response is! List) {
+        throw const FormatException('Invalid occupied shift response.');
+      }
+      final occupied = response
+          .map(
+            (Object? row) => requireJsonMap(
+              row,
+              source: 'occupied shift',
+            ).requiredString('shift_id'),
           )
-          .map((sheet) => sheet.shiftId)
           .toSet();
       if (!mounted) return;
       setState(() {
@@ -143,6 +156,16 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
       // sheet. Do not discard usable master data while the list refreshes.
     }
   }
+
+  String? _siteIdForSelectedTeam(AppUser user) {
+    if (!user.role.isGlobalTemperatureManager) return user.siteId;
+    final String? teamId = _selectedTeamId;
+    if (teamId == null) return null;
+    return _teams.where((team) => team.id == teamId).firstOrNull?.siteId;
+  }
+
+  String _dateOnly(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 
   Future<void> _changeDate() async {
     final picked = await showDatePicker(
@@ -170,12 +193,21 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
       );
       return;
     }
-    final teamId = user.role == UserRole.admin ? _selectedTeamId : user.teamId;
+    final teamId = user.role.isGlobalTemperatureManager
+        ? _selectedTeamId
+        : user.teamId;
+    final siteId = _siteIdForSelectedTeam(user);
     if (teamId == null) {
       setState(
-        () => _errorMessage = user.role == UserRole.admin
+        () => _errorMessage = user.role.isGlobalTemperatureManager
             ? 'Select a crew before creating this sheet.'
             : 'Your account has no active crew assignment. Ask an admin to assign your crew before creating a sheet.',
+      );
+      return;
+    }
+    if (siteId == null) {
+      setState(
+        () => _errorMessage = 'The selected team has no site assignment.',
       );
       return;
     }
@@ -205,14 +237,24 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
       // Recheck the shared server list immediately before writing. This stops
       // a second crew from opening the same date/shift after the form screen
       // has been left open for a while.
-      final existing = await ref
-          .read(sicatatRepositoryProvider)
-          .listSharedSheets();
-      final duplicate = existing.any(
-        (sheet) =>
-            sheet.moduleId == template.moduleId &&
-            sheet.shiftId == shift.id &&
-            DateUtils.isSameDay(sheet.date, _date),
+      final Object response = await Supabase.instance.client.rpc(
+        'occupied_temperature_shift_ids',
+        params: <String, Object?>{
+          'p_module_id': template.moduleId,
+          'p_tanggal': _dateOnly(_date),
+          'p_site_id': siteId,
+        },
+      );
+      if (response is! List) {
+        throw const FormatException('Invalid occupied shift response.');
+      }
+      final duplicate = response.any(
+        (Object? row) =>
+            requireJsonMap(
+              row,
+              source: 'occupied shift',
+            ).requiredString('shift_id') ==
+            shift.id,
       );
       if (duplicate) {
         setState(() {
@@ -312,7 +354,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            if (user?.role == UserRole.admin) ...<Widget>[
+            if (user?.role.isGlobalTemperatureManager == true) ...<Widget>[
               const Text(
                 'Record for crew',
                 style: TextStyle(fontWeight: FontWeight.w800),
@@ -333,7 +375,14 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
                     .toList(growable: false),
                 onChanged: _isSaving
                     ? null
-                    : (value) => setState(() => _selectedTeamId = value),
+                    : (String? value) async {
+                        setState(() {
+                          _selectedTeamId = value;
+                          _occupiedShiftIds = <String>{};
+                          _selectedShift = _initialShift(_shifts);
+                        });
+                        await _refreshShiftAvailability();
+                      },
               ),
               const SizedBox(height: 22),
             ],
@@ -439,13 +488,19 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
 }
 
 class _TeamOption {
-  const _TeamOption({required this.id, required this.name});
+  const _TeamOption({
+    required this.id,
+    required this.name,
+    required this.siteId,
+  });
 
   final String id;
   final String name;
+  final String siteId;
 
   factory _TeamOption.fromJson(JsonMap json) => _TeamOption(
     id: json.requiredString('id'),
     name: json.requiredString('name'),
+    siteId: json.requiredString('site_id'),
   );
 }

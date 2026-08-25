@@ -77,23 +77,34 @@ create table shift (
 -- Hanya 2 baris: shift itu sendiri tidak mengandung regu.
 -- Regu mana yang bertugas di shift mana pada tanggal tertentu ditentukan tabel `roster` di bawah, bukan kode shift.
 
+create table site (
+    id          uuid primary key default gen_random_uuid(),
+    code        text not null unique,   -- 'ASAMASAM' | 'KINTAP'
+    name        text not null,
+    is_active   boolean not null default true,
+    created_at  timestamptz not null default now()
+);
+
 create table team (
     id          uuid primary key default gen_random_uuid(),
-    code        text not null unique,   -- 'A', 'B', 'C'
+    site_id     uuid not null references site(id),
+    code        text not null,          -- 'A', 'B', 'C'; unique within a site
     name        text not null,          -- 'Regu A'
-    is_active   boolean not null default true
+    is_active   boolean not null default true,
+    unique (site_id, code)
 );
 -- Dibuat SEBELUM `roster` karena roster punya foreign key ke sini — urutan create table di
 -- SQL harus mengikuti urutan ketergantungan, bukan urutan cerita di dokumen ini.
 
 create table roster (
     id          uuid primary key default gen_random_uuid(),
+    site_id     uuid not null references site(id),
     tanggal     date not null,
     shift_id    uuid not null references shift(id),
     team_id     uuid not null references team(id),   -- regu yang bertugas
     is_exception boolean not null default false,        -- true jika ini pertukaran/override dari pola 3-3-3 normal
     note        text,
-    unique (tanggal, shift_id)   -- satu shift pada satu tanggal, satu regu bertugas (kasus tukar dicatat lewat is_exception, bukan baris ganda)
+    unique (site_id, tanggal, shift_id)   -- satu shift pada satu tanggal/site, satu regu bertugas
 );
 -- Pola dasar: rotasi 3 hari Pagi → 3 hari Malam → 3 hari Off, bergiliran antar Regu A/B/C,
 -- sehingga selalu ada satu regu standby. **[TERKONFIRMASI] Pola ini selalu konsisten, tidak
@@ -115,8 +126,9 @@ create table app_user (
     id          uuid primary key default gen_random_uuid(),
     nik         text unique,
     name        text not null,
-    role        text not null check (role in ('crew','foreman','supervisor','admin')),
-    team_id     uuid references team(id),   -- wajib untuk crew & foreman; null untuk supervisor/admin (lintas tim)
+    role        text not null check (role in ('crew','foreman','supervisor_cop','supervisor_smg','foreman_lv','admin')),
+    team_id     uuid references team(id),   -- wajib untuk crew & foreman
+    site_id     uuid references site(id),   -- wajib untuk Supervisor COP dan Foreman LV
     phone       text,
     is_active   boolean not null default true,
     created_at  timestamptz not null default now()
@@ -131,6 +143,7 @@ create table sheet (
     client_uuid       uuid not null unique,          -- dibuat di HP saat offline, untuk idempotency
     module_id         uuid not null references module(id),
     template_version  text not null,                  -- snapshot versi saat dibuat
+    site_id           uuid not null references site(id),
     tanggal           date not null,
     shift_id          uuid not null references shift(id),
     team_id           uuid not null references team(id),   -- snapshot regu pembuat lembar saat itu; disarankan otomatis dari tabel `roster` (tanggal+shift → regu bertugas), tapi tetap disimpan eksplisit di sini agar sejarah lembar tidak berubah walau roster kemudian dikoreksi
@@ -148,8 +161,7 @@ create table sheet (
     force_submitted_by uuid references app_user(id),   -- wajib diisi jika status = submitted_incomplete
     force_submitted_at timestamptz,
     force_reason        text,                           -- wajib diisi jika status = submitted_incomplete
-    unique (module_id, tanggal, shift_id, team_id),     -- audit snapshot per team
-    unique (module_id, tanggal, shift_id)               -- one sheet per actual shift
+    unique (module_id, tanggal, shift_id, site_id)      -- one sheet per actual shift at each site
 );
 
 create table sheet_contributor (
