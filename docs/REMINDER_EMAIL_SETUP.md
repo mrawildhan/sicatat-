@@ -33,11 +33,23 @@ implementation.
 ## Operational use
 
 1. Sign in as an active admin and open **Operational reminders**.
-2. Add/select email recipients by ticking the corresponding checkboxes. Use
-   **Add another email** to create a new reusable checkbox.
-3. Save the reminder, then select **Send email now**.
-4. SICATAT confirms delivery only after the email provider accepts the request.
+2. Add the category, asset/reference, action required, priority, responsible
+   person/team, location, due date, and selected recipients.
+3. Choose automatic email days: H-30, H-14, H-7, H-1, and/or due date. At
+   least one day is required; SICATAT sends selected automatic notices at
+   08:00 WITA.
+4. Optionally set a repeat interval. When the current task is marked complete,
+   SICATAT creates its next month/quarter/semester/year cycle.
+5. Select **Send email now** for an immediate, logged delivery; use **Mark
+   complete**, **Reopen**, and **History** to manage its lifecycle.
 
-The function is an explicit-send workflow. Automated reminders on the due date
-need a separate scheduled job and should be implemented after the team decides
-how many days before the due date a notice must be sent.
+## Automatic scheduler
+
+`dispatch-reminder-emails` is invoked by Supabase Cron every day at 08:00
+WITA. It only delivers open reminders whose selected offset matches the due
+date, records every delivery attempt, and prevents a duplicate automatic send
+for the same reminder, due date, and offset.
+
+The scheduler has a separate secret (`REMINDER_CRON_SECRET`) stored in both
+Supabase Edge Function Secrets and Supabase Vault. It is provisioned by the
+deployment workflow and must never be copied into Flutter, Git, or chat.

@@ -271,8 +271,10 @@ Halaman harus terisi proporsional dan tidak menyisakan area kosong besar. Jika d
 - [~] Form saat ini dinamis untuk equipment/point dan urutan Round 1–2 pada dua section Breaker/Sizer. Penambahan section atau module dengan perilaku yang berbeda masih memerlukan pengembangan form builder generik.
 - [~] PDF memakai warna fallback 60/70°C; pewarnaan PDF per point sepenuhnya dari master threshold belum diselesaikan.
 - [x] Reminder admin tersimpan online, dengan direktori penerima dan checkbox penerima yang dapat dipilih.
+- [x] Reminder menyimpan kategori, aset/referensi, tindakan, prioritas, PIC, lokasi, due date, status, pengulangan, dan jadwal email H-30/H-14/H-7/H-1/hari-H.
 - [x] Admin dapat mengirim email reminder secara eksplisit melalui Edge Function server-side (Gmail API); OAuth credential tidak pernah berada di aplikasi.
-- [~] Pengiriman terjadwal/push notification otomatis belum diaktifkan; tindakan **Send email now** mengirimkan email saat ditekan admin.
+- [x] Supabase Cron menjalankan pengiriman email otomatis pada 08:00 WITA sesuai jadwal yang dipilih dan mencatat history delivery tanpa duplikasi per offset/due date.
+- [x] Admin dapat filter reminder, menandai complete, reopen, reschedule melalui edit, melihat history aktivitas/email, serta membuat siklus pengulangan berikutnya saat task recurring selesai.
 - [~] Tabel `attachment` dan `audit_log` tersedia di schema, tetapi alur upload foto dan penelusuran audit UI belum lengkap.
 - [~] Target iOS Flutter tersedia, tetapi belum ada signing, IPA, TestFlight, dan uji perangkat iOS produksi.
 
