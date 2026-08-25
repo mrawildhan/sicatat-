@@ -271,7 +271,7 @@ Halaman harus terisi proporsional dan tidak menyisakan area kosong besar. Jika d
 - [~] Form saat ini dinamis untuk equipment/point dan urutan Round 1–2 pada dua section Breaker/Sizer. Penambahan section atau module dengan perilaku yang berbeda masih memerlukan pengembangan form builder generik.
 - [~] PDF memakai warna fallback 60/70°C; pewarnaan PDF per point sepenuhnya dari master threshold belum diselesaikan.
 - [x] Reminder admin tersimpan online, dengan direktori penerima dan checkbox penerima yang dapat dipilih.
-- [x] Admin dapat mengirim email reminder secara eksplisit melalui Edge Function server-side (Resend); kunci email tidak pernah berada di aplikasi.
+- [x] Admin dapat mengirim email reminder secara eksplisit melalui Edge Function server-side (Gmail API); OAuth credential tidak pernah berada di aplikasi.
 - [~] Pengiriman terjadwal/push notification otomatis belum diaktifkan; tindakan **Send email now** mengirimkan email saat ditekan admin.
 - [~] Tabel `attachment` dan `audit_log` tersedia di schema, tetapi alur upload foto dan penelusuran audit UI belum lengkap.
 - [~] Target iOS Flutter tersedia, tetapi belum ada signing, IPA, TestFlight, dan uji perangkat iOS produksi.

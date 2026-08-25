@@ -382,12 +382,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
     try {
       final FunctionResponse response = await _client.functions.invoke(
         'send-reminder-email',
-        body: <String, Object?>{
-          'reminder_id': item.id,
-          'title': item.title,
-          'due_date': _dateOnly(item.dueDate),
-          'recipients': item.emails,
-        },
+        body: <String, Object?>{'reminder_id': item.id},
       );
       final JsonMap data = requireJsonMap(
         response.data,
