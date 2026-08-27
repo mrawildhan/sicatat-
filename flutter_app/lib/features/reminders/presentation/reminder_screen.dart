@@ -1,9 +1,11 @@
 import 'dart:convert';
-import 'dart:math';
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
@@ -22,11 +24,13 @@ const List<String> _categories = <String>[
 
 const List<String> _priorities = <String>['low', 'normal', 'high', 'critical'];
 
-const List<int> _availableReminderOffsets = <int>[30, 14, 7, 1, 0];
-
 enum _ReminderFilter { all, actionRequired, completed }
 
+enum _DueDateFilter { all, nextThirtyDays, custom }
+
 enum _ReminderMenuAction { delete }
+
+enum ReminderSchedule { weekly, monthly, custom }
 
 class ReminderItem {
   const ReminderItem({
@@ -38,11 +42,13 @@ class ReminderItem {
     required this.category,
     required this.priority,
     required this.status,
-    required this.reminderOffsets,
+    required this.reminderSchedule,
+    required this.evidence,
     this.assetCode,
     this.description,
     this.assignedTo,
     this.location,
+    this.customReminderDays,
     this.recurrenceMonths,
     this.completedAt,
     this.completedNote,
@@ -61,7 +67,9 @@ class ReminderItem {
   final String? assignedTo;
   final String? location;
   final String status;
-  final List<int> reminderOffsets;
+  final ReminderSchedule reminderSchedule;
+  final List<ReminderEvidence> evidence;
+  final int? customReminderDays;
   final int? recurrenceMonths;
   final DateTime? completedAt;
   final String? completedNote;
@@ -81,17 +89,10 @@ class ReminderItem {
         .where((String email) => email.contains('@'))
         .toSet()
         .toList(growable: false);
-    final Object? rawOffsets = json['reminder_offsets_days'];
-    final List<int> offsets = rawOffsets is List
-        ? rawOffsets
-              .whereType<num>()
-              .map((num value) => value.toInt())
-              .where(_availableReminderOffsets.contains)
-              .toSet()
-              .toList(growable: false)
-        : _availableReminderOffsets;
-    offsets.sort((int a, int b) => b.compareTo(a));
+    final Object? rawCustomDays = json['custom_reminder_days'];
+    final int? customDays = rawCustomDays is num ? rawCustomDays.toInt() : null;
     final Object? rawRecurrence = json['recurrence_months'];
+    final Object? rawEvidence = json['operational_reminder_evidence'];
     return ReminderItem(
       id: json.requiredString('id'),
       siteId: json.requiredString('site_id'),
@@ -105,7 +106,19 @@ class ReminderItem {
       assignedTo: _cleanOptional(json.optionalString('assigned_to')),
       location: _cleanOptional(json.optionalString('location')),
       status: json.optionalString('status') ?? 'open',
-      reminderOffsets: offsets.isEmpty ? _availableReminderOffsets : offsets,
+      reminderSchedule: _reminderScheduleFromStorage(
+        json.optionalString('reminder_schedule'),
+      ),
+      evidence: rawEvidence is List
+          ? rawEvidence
+                .map(
+                  (Object? row) => ReminderEvidence.fromJson(
+                    requireJsonMap(row, source: 'reminder evidence'),
+                  ),
+                )
+                .toList(growable: false)
+          : const <ReminderEvidence>[],
+      customReminderDays: customDays,
       recurrenceMonths: rawRecurrence is num ? rawRecurrence.toInt() : null,
       completedAt: _parseOptionalDate(json.optionalString('completed_at')),
       completedNote: _cleanOptional(json.optionalString('completed_note')),
@@ -124,9 +137,51 @@ class ReminderItem {
     'priority': priority,
     'assigned_to': assignedTo,
     'location': location,
-    'reminder_offsets_days': reminderOffsets,
+    'reminder_schedule': _reminderScheduleStorageValue(reminderSchedule),
+    'custom_reminder_days': reminderSchedule == ReminderSchedule.custom
+        ? customReminderDays
+        : null,
     'recurrence_months': recurrenceMonths,
   };
+}
+
+class ReminderEvidence {
+  const ReminderEvidence({
+    required this.id,
+    required this.fileName,
+    required this.storagePath,
+    required this.mimeType,
+    required this.sizeBytes,
+    required this.uploadedAt,
+  });
+
+  final String id;
+  final String fileName;
+  final String storagePath;
+  final String mimeType;
+  final int sizeBytes;
+  final DateTime uploadedAt;
+
+  factory ReminderEvidence.fromJson(JsonMap json) => ReminderEvidence(
+    id: json.requiredString('id'),
+    fileName: json.requiredString('file_name'),
+    storagePath: json.requiredString('storage_path'),
+    mimeType: json.requiredString('mime_type'),
+    sizeBytes: (json['size_bytes'] as num?)?.toInt() ?? 0,
+    uploadedAt: DateTime.parse(json.requiredString('uploaded_at')).toLocal(),
+  );
+}
+
+class _PendingEvidence {
+  const _PendingEvidence({
+    required this.name,
+    required this.bytes,
+    required this.mimeType,
+  });
+
+  final String name;
+  final Uint8List bytes;
+  final String mimeType;
 }
 
 class _ReminderSite {
@@ -156,17 +211,37 @@ class _ReminderScreenState extends State<ReminderScreen> {
   List<_ReminderSite> _sites = const <_ReminderSite>[];
   AppUser? _actor;
   final Set<String> _sendingIds = <String>{};
+  final TextEditingController _searchController = TextEditingController();
   _ReminderFilter _filter = _ReminderFilter.all;
+  String _searchQuery = '';
+  String? _siteFilterId;
+  _DueDateFilter _dueDateFilter = _DueDateFilter.all;
+  DateTimeRange? _customDueRange;
   bool _loading = true;
 
   SupabaseClient get _client => Supabase.instance.client;
 
-  bool get _canSelectSite => _actor?.role.isGlobalTemperatureManager == true;
+  bool get _canSelectSite =>
+      _actor?.role == UserRole.admin ||
+      _actor?.role == UserRole.supervisorSmg ||
+      _actor?.role == UserRole.foremanLv;
+
+  bool get _hasAdvancedFilter =>
+      _siteFilterId != null || _dueDateFilter != _DueDateFilter.all;
+
+  bool get _hasActiveFilter =>
+      _hasAdvancedFilter || _searchQuery.trim().isNotEmpty;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _message(String text) =>
@@ -182,7 +257,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         _client
             .from('operational_reminder')
             .select(
-              'id,site_id,title,due_date,recipient_emails,category,asset_code,description,priority,assigned_to,location,status,reminder_offsets_days,recurrence_months,completed_at,completed_note,last_sent_at',
+              'id,site_id,title,due_date,recipient_emails,category,asset_code,description,priority,assigned_to,location,status,reminder_schedule,custom_reminder_days,recurrence_months,completed_at,completed_note,last_sent_at,operational_reminder_evidence(id,file_name,storage_path,mime_type,size_bytes,uploaded_at)',
             )
             .order('due_date'),
         _client
@@ -291,7 +366,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
       text: existing?.location ?? '',
     );
     final TextEditingController addEmail = TextEditingController();
-    DateTime dueDate = existing?.dueDate ?? DateTime.now();
+    DateTime dueDate =
+        existing?.dueDate ??
+        _dateOnlyDate(DateTime.now()).add(const Duration(days: 7));
     String? siteId = existing?.siteId ?? _actor?.siteId;
     if (siteId == null && _sites.isNotEmpty) siteId = _sites.first.id;
     String category = existing?.category ?? 'General';
@@ -299,10 +376,15 @@ class _ReminderScreenState extends State<ReminderScreen> {
     String priority = existing?.priority ?? 'normal';
     if (!_priorities.contains(priority)) priority = 'normal';
     int? recurrenceMonths = existing?.recurrenceMonths;
-    final Set<int> selectedOffsets = <int>{
-      ...(existing?.reminderOffsets ?? _availableReminderOffsets),
+    ReminderSchedule reminderSchedule =
+        existing?.reminderSchedule ?? ReminderSchedule.weekly;
+    final TextEditingController customReminderDays = TextEditingController(
+      text: existing?.customReminderDays?.toString() ?? '7',
+    );
+    final Set<String> selected = <String>{
+      ...?existing?.emails,
+      if (existing == null) _initialRecipient,
     };
-    final Set<String> selected = <String>{...?existing?.emails};
     final List<String> available = <String>{
       ..._recipientDirectory,
     }.toList(growable: true)..sort();
@@ -454,30 +536,46 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Emails are sent at 08:00 WITA on every selected day.',
+                        'Email is sent automatically at 08:00 WITA.',
                         style: TextStyle(color: AppColors.muted),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _availableReminderOffsets
-                            .map(
-                              (int offset) => FilterChip(
-                                label: Text(_offsetLabel(offset)),
-                                selected: selectedOffsets.contains(offset),
-                                onSelected: (bool selected) =>
-                                    setModalState(() {
-                                      if (selected) {
-                                        selectedOffsets.add(offset);
-                                      } else if (selectedOffsets.length > 1) {
-                                        selectedOffsets.remove(offset);
-                                      }
-                                    }),
-                              ),
-                            )
-                            .toList(growable: false),
+                      DropdownButtonFormField<ReminderSchedule>(
+                        initialValue: reminderSchedule,
+                        decoration: const InputDecoration(
+                          labelText: 'Reminder timing',
+                        ),
+                        items: const <DropdownMenuItem<ReminderSchedule>>[
+                          DropdownMenuItem<ReminderSchedule>(
+                            value: ReminderSchedule.weekly,
+                            child: Text('Weekly · 7 days before'),
+                          ),
+                          DropdownMenuItem<ReminderSchedule>(
+                            value: ReminderSchedule.monthly,
+                            child: Text('Monthly · 1 calendar month before'),
+                          ),
+                          DropdownMenuItem<ReminderSchedule>(
+                            value: ReminderSchedule.custom,
+                            child: Text('Custom · choose days before'),
+                          ),
+                        ],
+                        onChanged: (ReminderSchedule? value) => setModalState(
+                          () => reminderSchedule = value ?? reminderSchedule,
+                        ),
                       ),
+                      if (reminderSchedule ==
+                          ReminderSchedule.custom) ...<Widget>[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: customReminderDays,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Days before due date',
+                            hintText: 'e.g. 14',
+                            suffixText: 'days',
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       DropdownButtonFormField<int?>(
                         initialValue: recurrenceMonths,
@@ -517,6 +615,11 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       const SizedBox(height: 4),
                       const Text(
                         'Tick every person who should receive this reminder.',
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Testing mode: all outgoing email is routed to mcasamasam@arutmin.com.',
+                        style: TextStyle(color: AppColors.muted),
                       ),
                       const SizedBox(height: 8),
                       ...available.map(
@@ -599,6 +702,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         description,
         assignedTo,
         location,
+        customReminderDays,
         addEmail,
       ]);
       return;
@@ -606,12 +710,18 @@ class _ReminderScreenState extends State<ReminderScreen> {
     try {
       final String cleanTitle = title.text.trim();
       final List<String> recipients = selected.toList()..sort();
+      final int? parsedCustomDays = reminderSchedule == ReminderSchedule.custom
+          ? int.tryParse(customReminderDays.text.trim())
+          : null;
       if (cleanTitle.isEmpty ||
           recipients.isEmpty ||
-          selectedOffsets.isEmpty ||
-          siteId == null) {
+          siteId == null ||
+          (reminderSchedule == ReminderSchedule.custom &&
+              (parsedCustomDays == null ||
+                  parsedCustomDays < 0 ||
+                  parsedCustomDays > 365))) {
         throw const FormatException(
-          'Enter a title, choose a site, tick at least one recipient, and choose an automatic email day.',
+          'Enter a title, choose a site, tick at least one recipient, and enter custom days from 0 to 365 when needed.',
         );
       }
       final ReminderItem item = ReminderItem(
@@ -627,8 +737,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
         assignedTo: _cleanOptional(assignedTo.text),
         location: _cleanOptional(location.text),
         status: existing?.status ?? 'open',
-        reminderOffsets: selectedOffsets.toList()
-          ..sort((int a, int b) => b.compareTo(a)),
+        reminderSchedule: reminderSchedule,
+        evidence: existing?.evidence ?? const <ReminderEvidence>[],
+        customReminderDays: parsedCustomDays,
         recurrenceMonths: recurrenceMonths,
       );
       final List<String> newDirectoryEmails = available
@@ -671,6 +782,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         description,
         assignedTo,
         location,
+        customReminderDays,
         addEmail,
       ]);
     }
@@ -678,71 +790,145 @@ class _ReminderScreenState extends State<ReminderScreen> {
 
   Future<void> _complete(ReminderItem item) async {
     final TextEditingController note = TextEditingController();
+    final List<_PendingEvidence> pendingEvidence = <_PendingEvidence>[];
     final bool? confirmed = await showDialog<bool>(
       context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Mark reminder as complete?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text('Complete "${item.title}"?'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: note,
-              minLines: 2,
-              maxLines: 4,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Completion note (optional)',
+      builder: (BuildContext dialogContext) => StatefulBuilder(
+        builder:
+            (
+              BuildContext context,
+              void Function(void Function()) setModalState,
+            ) => AlertDialog(
+              title: const Text('Mark reminder as complete?'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text('Complete "${item.title}"?'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: note,
+                    minLines: 2,
+                    maxLines: 4,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Completion note (optional)',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Evidence files',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Upload at least one PDF, JPG, JPEG, or PNG (up to 10 MB each).',
+                    style: TextStyle(color: AppColors.muted),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: pendingEvidence.length >= 5
+                        ? null
+                        : () async {
+                            final List<_PendingEvidence> picked =
+                                await _pickCompletionEvidence();
+                            if (picked.isNotEmpty && context.mounted) {
+                              setModalState(
+                                () => pendingEvidence.addAll(
+                                  picked.take(5 - pendingEvidence.length),
+                                ),
+                              );
+                            }
+                          },
+                    icon: const Icon(Icons.upload_file_rounded),
+                    label: Text(
+                      pendingEvidence.isEmpty
+                          ? 'Select proof files'
+                          : 'Add proof files',
+                    ),
+                  ),
+                  if (pendingEvidence.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'A proof file is required before completion.',
+                        style: TextStyle(color: AppColors.orange),
+                      ),
+                    ),
+                  ...pendingEvidence.asMap().entries.map(
+                    (MapEntry<int, _PendingEvidence> entry) => ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(_evidenceIcon(entry.value.mimeType)),
+                      title: Text(entry.value.name),
+                      subtitle: Text(_prettyBytes(entry.value.bytes.length)),
+                      trailing: IconButton(
+                        tooltip: 'Remove file',
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => setModalState(
+                          () => pendingEvidence.removeAt(entry.key),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (item.recurrenceMonths != null) ...<Widget>[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'A new recurring reminder will be created automatically.',
+                      style: TextStyle(color: AppColors.muted),
+                    ),
+                  ],
+                ],
               ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: pendingEvidence.isEmpty
+                      ? null
+                      : () => Navigator.pop(dialogContext, true),
+                  icon: const Icon(Icons.task_alt_rounded),
+                  label: const Text('Mark complete'),
+                ),
+              ],
             ),
-            if (item.recurrenceMonths != null) ...<Widget>[
-              const SizedBox(height: 12),
-              const Text(
-                'A new recurring reminder will be created automatically.',
-                style: TextStyle(color: AppColors.muted),
-              ),
-            ],
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            icon: const Icon(Icons.task_alt_rounded),
-            label: const Text('Mark complete'),
-          ),
-        ],
       ),
     );
     if (confirmed != true) {
       note.dispose();
       return;
     }
+    final List<String> uploadedPaths = <String>[];
     try {
-      await _client
-          .from('operational_reminder')
-          .update(<String, Object?>{
-            'status': 'completed',
-            'completed_at': DateTime.now().toUtc().toIso8601String(),
-            'completed_note': _cleanOptional(note.text),
-          })
-          .eq('id', item.id);
-      if (item.recurrenceMonths case final int months) {
-        final Map<String, Object?> next = item.toPayload()
-          ..addAll(<String, Object?>{
-            'due_date': _dateOnly(_addMonths(item.dueDate, months)),
-            'status': 'open',
-            'parent_reminder_id': item.id,
-            'completed_at': null,
-            'completed_note': null,
-            'last_sent_at': null,
-          });
-        await _client.from('operational_reminder').insert(next);
+      final List<Map<String, Object?>> uploadedEvidence =
+          <Map<String, Object?>>[];
+      for (final _PendingEvidence evidence in pendingEvidence) {
+        final String storagePath =
+            '${item.id}/${DateTime.now().microsecondsSinceEpoch}_${_safeStorageFileName(evidence.name)}';
+        await _client.storage
+            .from('reminder-evidence')
+            .uploadBinary(
+              storagePath,
+              evidence.bytes,
+              fileOptions: FileOptions(contentType: evidence.mimeType),
+            );
+        uploadedPaths.add(storagePath);
+        uploadedEvidence.add(<String, Object?>{
+          'storage_path': storagePath,
+          'file_name': evidence.name,
+          'mime_type': evidence.mimeType,
+          'size_bytes': evidence.bytes.length,
+        });
       }
+      await _client.rpc<dynamic>(
+        'complete_operational_reminder',
+        params: <String, Object?>{
+          'p_reminder_id': item.id,
+          'p_completed_note': _cleanOptional(note.text),
+          'p_evidence': uploadedEvidence,
+        },
+      );
       await _load();
       if (mounted) {
         _message(
@@ -752,6 +938,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
         );
       }
     } on Object catch (error) {
+      if (uploadedPaths.isNotEmpty) {
+        await _client.storage.from('reminder-evidence').remove(uploadedPaths);
+      }
       if (mounted) _message('Unable to complete reminder: $error');
     } finally {
       note.dispose();
@@ -772,6 +961,46 @@ class _ReminderScreenState extends State<ReminderScreen> {
       if (mounted) _message('Reminder reopened.');
     } on Object catch (error) {
       if (mounted) _message('Unable to reopen reminder: $error');
+    }
+  }
+
+  Future<List<_PendingEvidence>> _pickCompletionEvidence() async {
+    final FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const <String>['pdf', 'jpg', 'jpeg', 'png'],
+      allowMultiple: true,
+      withData: true,
+    );
+    if (result == null) return const <_PendingEvidence>[];
+    final List<_PendingEvidence> evidence = <_PendingEvidence>[];
+    for (final PlatformFile file in result.files) {
+      final Uint8List? bytes = file.bytes;
+      if (bytes == null || bytes.isEmpty) continue;
+      if (bytes.length > 10 * 1024 * 1024) {
+        _message('${file.name} is larger than 10 MB.');
+        continue;
+      }
+      final String? mimeType = _evidenceMimeType(file.name);
+      if (mimeType == null) continue;
+      evidence.add(
+        _PendingEvidence(name: file.name, bytes: bytes, mimeType: mimeType),
+      );
+    }
+    return evidence;
+  }
+
+  Future<void> _openEvidence(ReminderEvidence evidence) async {
+    try {
+      final String url = await _client.storage
+          .from('reminder-evidence')
+          .createSignedUrl(evidence.storagePath, 300);
+      final bool opened = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) _message('Unable to open the evidence file.');
+    } on Object catch (error) {
+      if (mounted) _message('Unable to open evidence: $error');
     }
   }
 
@@ -831,6 +1060,120 @@ class _ReminderScreenState extends State<ReminderScreen> {
     }
   }
 
+  Future<void> _showAdvancedFilter() async {
+    String? siteId = _siteFilterId;
+    _DueDateFilter dueDateFilter = _dueDateFilter;
+    DateTimeRange? customRange = _customDueRange;
+    final bool? apply = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => StatefulBuilder(
+        builder:
+            (
+              BuildContext context,
+              void Function(void Function()) setModalState,
+            ) => AlertDialog(
+              title: const Text('Filter reminders'),
+              content: SizedBox(
+                width: 460,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    DropdownButtonFormField<String?>(
+                      initialValue: siteId,
+                      decoration: const InputDecoration(labelText: 'Site'),
+                      items: <DropdownMenuItem<String?>>[
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('All accessible sites'),
+                        ),
+                        ..._sites.map(
+                          (_ReminderSite site) => DropdownMenuItem<String?>(
+                            value: site.id,
+                            child: Text(site.name),
+                          ),
+                        ),
+                      ],
+                      onChanged: (String? value) =>
+                          setModalState(() => siteId = value),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<_DueDateFilter>(
+                      initialValue: dueDateFilter,
+                      decoration: const InputDecoration(labelText: 'Due date'),
+                      items: const <DropdownMenuItem<_DueDateFilter>>[
+                        DropdownMenuItem<_DueDateFilter>(
+                          value: _DueDateFilter.all,
+                          child: Text('All dates'),
+                        ),
+                        DropdownMenuItem<_DueDateFilter>(
+                          value: _DueDateFilter.nextThirtyDays,
+                          child: Text('Due in the next 30 days'),
+                        ),
+                        DropdownMenuItem<_DueDateFilter>(
+                          value: _DueDateFilter.custom,
+                          child: Text('Custom date range'),
+                        ),
+                      ],
+                      onChanged: (_DueDateFilter? value) => setModalState(
+                        () => dueDateFilter = value ?? dueDateFilter,
+                      ),
+                    ),
+                    if (dueDateFilter == _DueDateFilter.custom) ...<Widget>[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.date_range_rounded),
+                        label: Text(
+                          customRange == null
+                              ? 'Choose date range'
+                              : '${_prettyDate(customRange!.start)} – ${_prettyDate(customRange!.end)}',
+                        ),
+                        onPressed: () async {
+                          final DateTimeRange? selected =
+                              await showDateRangePicker(
+                                context: context,
+                                firstDate: DateTime(2024),
+                                lastDate: DateTime(2040),
+                                initialDateRange: customRange,
+                              );
+                          if (selected != null) {
+                            setModalState(() => customRange = selected);
+                          }
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    siteId = null;
+                    dueDateFilter = _DueDateFilter.all;
+                    customRange = null;
+                    Navigator.pop(dialogContext, true);
+                  },
+                  child: const Text('Clear filters'),
+                ),
+                FilledButton(
+                  onPressed:
+                      dueDateFilter == _DueDateFilter.custom &&
+                          customRange == null
+                      ? null
+                      : () => Navigator.pop(dialogContext, true),
+                  child: const Text('Apply'),
+                ),
+              ],
+            ),
+      ),
+    );
+    if (apply != true || !mounted) return;
+    setState(() {
+      _siteFilterId = siteId;
+      _dueDateFilter = dueDateFilter;
+      _customDueRange = customRange;
+    });
+  }
+
   Future<void> _showHistory(ReminderItem item) async {
     try {
       final List<Object> responses = await Future.wait<Object>(<Future<Object>>[
@@ -842,7 +1185,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         _client
             .from('operational_reminder_delivery')
             .select(
-              'delivery_type,scheduled_offset_days,status,recipients,sent_at,error_message,created_at',
+              'delivery_type,scheduled_offset_days,scheduled_schedule_type,status,recipients,sent_at,error_message,created_at',
             )
             .eq('reminder_id', item.id)
             .order('created_at', ascending: false),
@@ -945,7 +1288,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     ),
                     title: Text(
                       type == 'scheduled'
-                          ? 'Automatic email · ${_offsetLabel(offset ?? 0)}'
+                          ? 'Automatic email · ${_deliveryScheduleLabel(row.optionalString('scheduled_schedule_type'), offset ?? 0)}'
                           : 'Manual email',
                     ),
                     subtitle: Text(
@@ -965,6 +1308,39 @@ class _ReminderScreenState extends State<ReminderScreen> {
 
   List<ReminderItem> get _visibleItems => _items
       .where((ReminderItem item) {
+        final String query = _searchQuery.trim().toLowerCase();
+        if (query.isNotEmpty) {
+          final String searchableText = <String>[
+            item.title,
+            item.category,
+            item.assetCode ?? '',
+            item.description ?? '',
+            item.assignedTo ?? '',
+            item.location ?? '',
+          ].join(' ').toLowerCase();
+          if (!searchableText.contains(query)) return false;
+        }
+        if (_siteFilterId != null && item.siteId != _siteFilterId) {
+          return false;
+        }
+        final DateTime dueDate = _dateOnlyDate(item.dueDate);
+        switch (_dueDateFilter) {
+          case _DueDateFilter.all:
+            break;
+          case _DueDateFilter.nextThirtyDays:
+            final DateTime today = _dateOnlyDate(DateTime.now());
+            if (dueDate.isBefore(today) ||
+                dueDate.isAfter(today.add(const Duration(days: 30)))) {
+              return false;
+            }
+          case _DueDateFilter.custom:
+            final DateTimeRange? range = _customDueRange;
+            if (range == null ||
+                dueDate.isBefore(_dateOnlyDate(range.start)) ||
+                dueDate.isAfter(_dateOnlyDate(range.end))) {
+              return false;
+            }
+        }
         switch (_filter) {
           case _ReminderFilter.all:
             return true;
@@ -975,6 +1351,23 @@ class _ReminderScreenState extends State<ReminderScreen> {
         }
       })
       .toList(growable: false);
+
+  String _siteFilterLabel() {
+    if (_siteFilterId == null) return 'All accessible sites';
+    for (final _ReminderSite site in _sites) {
+      if (site.id == _siteFilterId) return site.name;
+    }
+    return 'Selected site';
+  }
+
+  String _dueDateFilterLabel() => switch (_dueDateFilter) {
+    _DueDateFilter.all => 'All dates',
+    _DueDateFilter.nextThirtyDays => 'Next 30 days',
+    _DueDateFilter.custom =>
+      _customDueRange == null
+          ? 'Custom dates'
+          : '${_prettyDate(_customDueRange!.start)} – ${_prettyDate(_customDueRange!.end)}',
+  };
 
   int get _overdueCount => _items
       .where((ReminderItem item) => item.isOpen && _daysUntil(item.dueDate) < 0)
@@ -995,6 +1388,14 @@ class _ReminderScreenState extends State<ReminderScreen> {
         leading: const AppBackButton(fallbackRoute: '/dashboard'),
         title: const Text('Reminders'),
         actions: <Widget>[
+          IconButton(
+            tooltip: 'Filter reminders',
+            icon: Badge(
+              isLabelVisible: _hasAdvancedFilter,
+              child: const Icon(Icons.filter_alt_outlined),
+            ),
+            onPressed: _loading ? null : _showAdvancedFilter,
+          ),
           IconButton(
             tooltip: 'Refresh reminders',
             icon: const Icon(Icons.refresh_rounded),
@@ -1031,6 +1432,68 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   const SizedBox(height: 16),
                   _summaryGrid(context),
                   const SizedBox(height: 18),
+                  TextField(
+                    controller: _searchController,
+                    textInputAction: TextInputAction.search,
+                    onChanged: (String value) =>
+                        setState(() => _searchQuery = value),
+                    decoration: InputDecoration(
+                      labelText: 'Search reminders',
+                      hintText: 'Type a title, asset, category, or location',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: _searchQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Clear search',
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_hasActiveFilter) ...<Widget>[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.greenSurface,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.filter_alt_rounded, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _searchQuery.trim().isEmpty
+                                  ? '${_siteFilterLabel()} · ${_dueDateFilterLabel()}'
+                                  : 'Search: “${_searchQuery.trim()}” · ${_visibleItems.length} result${_visibleItems.length == 1 ? '' : 's'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Clear filters',
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => setState(() {
+                              _siteFilterId = null;
+                              _dueDateFilter = _DueDateFilter.all;
+                              _customDueRange = null;
+                              _searchController.clear();
+                              _searchQuery = '';
+                            }),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -1048,12 +1511,14 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   ),
                   const SizedBox(height: 14),
                   if (_visibleItems.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 50),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 50),
                       child: Text(
-                        'No reminders in this view. Add a due date for servicing, documents, or any operational follow-up.',
+                        _searchQuery.trim().isEmpty
+                            ? 'No reminders in this view. Add a due date for servicing, documents, or any operational follow-up.'
+                            : 'No reminders match “${_searchQuery.trim()}”. Try another title, asset, category, or location.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.muted),
+                        style: const TextStyle(color: AppColors.muted),
                       ),
                     ),
                   ..._visibleItems.map(
@@ -1289,7 +1754,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              'Automatic email · ${item.reminderOffsets.map(_offsetLabel).join(', ')} · 08:00 WITA',
+              'Automatic email · ${_reminderScheduleLabel(item.reminderSchedule, item.customReminderDays)} · 08:00 WITA',
               style: const TextStyle(fontSize: 12, color: AppColors.muted),
             ),
             if (item.lastSentAt != null) ...<Widget>[
@@ -1304,6 +1769,30 @@ class _ReminderScreenState extends State<ReminderScreen> {
               Text(
                 'Completion note · ${item.completedNote}',
                 style: const TextStyle(fontSize: 12, color: AppColors.muted),
+              ),
+            ],
+            if (item.evidence.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 10),
+              Text(
+                'Completion proof · ${item.evidence.length} file(s)',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: item.evidence
+                    .map(
+                      (ReminderEvidence evidence) => ActionChip(
+                        avatar: Icon(
+                          _evidenceIcon(evidence.mimeType),
+                          size: 18,
+                        ),
+                        label: Text(evidence.fileName),
+                        onPressed: () => _openEvidence(evidence),
+                      ),
+                    )
+                    .toList(growable: false),
               ),
             ],
             const SizedBox(height: 14),
@@ -1399,12 +1888,6 @@ DateTime _dateOnlyDate(DateTime date) =>
 int _daysUntil(DateTime dueDate) =>
     _dateOnlyDate(dueDate).difference(_dateOnlyDate(DateTime.now())).inDays;
 
-DateTime _addMonths(DateTime date, int months) {
-  final int targetMonth = date.month + months;
-  final DateTime lastDay = DateTime(date.year, targetMonth + 1, 0);
-  return DateTime(date.year, targetMonth, min(date.day, lastDay.day));
-}
-
 String _dateOnly(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
 String _prettyDate(DateTime date) => DateFormat('dd MMM yyyy').format(date);
@@ -1429,10 +1912,27 @@ Color _priorityColor(String priority) => switch (priority) {
   _ => AppColors.green,
 };
 
-String _offsetLabel(int days) => switch (days) {
-  0 => 'Due date',
-  1 => 'H-1',
-  _ => 'H-$days',
+ReminderSchedule _reminderScheduleFromStorage(String? value) => switch (value) {
+  'monthly' => ReminderSchedule.monthly,
+  'custom' => ReminderSchedule.custom,
+  _ => ReminderSchedule.weekly,
+};
+
+String _reminderScheduleStorageValue(ReminderSchedule schedule) =>
+    schedule.name;
+
+String _reminderScheduleLabel(ReminderSchedule schedule, int? customDays) =>
+    switch (schedule) {
+      ReminderSchedule.weekly => 'Weekly · H-7',
+      ReminderSchedule.monthly => 'Monthly · 1 month before',
+      ReminderSchedule.custom => 'Custom · H-${customDays ?? 0}',
+    };
+
+String _deliveryScheduleLabel(String? schedule, int days) => switch (schedule) {
+  'weekly' => 'Weekly · H-7',
+  'monthly' => 'Monthly · 1 month before',
+  'custom' => 'Custom · H-$days',
+  _ => days == 0 ? 'Due date' : 'H-$days',
 };
 
 Color _statusColor(ReminderItem item, int days) {
@@ -1458,4 +1958,27 @@ String _dueLabel(ReminderItem item, int days) {
   if (days == 0) return 'Due today';
   if (days == 1) return 'Due tomorrow';
   return 'Due in $days days';
+}
+
+String? _evidenceMimeType(String fileName) =>
+    switch (fileName.split('.').last.toLowerCase()) {
+      'pdf' => 'application/pdf',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      _ => null,
+    };
+
+IconData _evidenceIcon(String mimeType) => mimeType == 'application/pdf'
+    ? Icons.picture_as_pdf_rounded
+    : Icons.image_rounded;
+
+String _safeStorageFileName(String value) => value
+    .trim()
+    .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
+    .replaceAll(RegExp(r'_+'), '_');
+
+String _prettyBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 }

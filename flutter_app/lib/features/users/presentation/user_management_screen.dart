@@ -184,7 +184,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   bool get _roleNeedsTeam => _role == 'crew' || _role == 'foreman';
-  bool get _roleNeedsSite => _role == 'supervisor_cop' || _role == 'foreman_lv';
+  bool get _roleNeedsSite => _role == 'supervisor_cop';
   void _openCreate() {
     _creating = true;
     _editing = null;
@@ -233,7 +233,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       return;
     }
     if (_roleNeedsSite && _siteId == null) {
-      _message('A site is required for Supervisor COP and Foreman LV users.');
+      _message('A site is required for Supervisor COP users.');
       return;
     }
     if (_editing == null && _pinController.text.length < 6) {

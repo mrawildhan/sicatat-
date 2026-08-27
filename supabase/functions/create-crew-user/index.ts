@@ -88,8 +88,8 @@ Deno.serve(async (req) => {
     if ((role === 'crew' || role === 'foreman') && !teamId) {
       return json({ ok: false, error: 'Crew is required for the crew/foreman role.' }, 400);
     }
-    if ((role === 'supervisor_cop' || role === 'foreman_lv') && !siteId) {
-      return json({ ok: false, error: 'A site is required for Supervisor COP and Foreman LV.' }, 400);
+    if (role === 'supervisor_cop' && !siteId) {
+      return json({ ok: false, error: 'A site is required for Supervisor COP.' }, 400);
     }
     if (pin.length < 6) {
       return json({ ok: false, error: 'PIN must be at least 6 digits.' }, 400);

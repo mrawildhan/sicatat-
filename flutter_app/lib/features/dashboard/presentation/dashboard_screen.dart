@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/app_update_service.dart';
 import '../../../core/widgets/section_title.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../../data/models/app_user.dart';
@@ -25,6 +26,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _index = 0;
   DashboardActivity? _activity;
   Timer? _activityRefreshTimer;
+  bool _checkingForUpdate = false;
 
   @override
   void initState() {
@@ -74,7 +76,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final crewName = user?.name ?? 'Crew';
-    final bool hasTemperatureTab = user?.role != UserRole.foremanLv;
+    final bool hasTemperatureTab = user?.role.canCreateTemperatureSheet == true;
     final bool hasReminderTab = user?.role.canUseReminders == true;
     final int? reminderIndex = hasReminderTab
         ? (hasTemperatureTab ? 2 : 1)
@@ -205,6 +207,159 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (mounted) context.go('/login');
   }
 
+  Future<void> _checkForUpdates() async {
+    if (_checkingForUpdate) return;
+    setState(() => _checkingForUpdate = true);
+    try {
+      final AppUpdateCheck update = await AppUpdateService().checkForUpdate();
+      if (!mounted) return;
+      final AppRelease? release = update.release;
+      if (release == null) {
+        await _showUpdateMessage(
+          title: 'Updates are not available yet',
+          message:
+              'No Android release has been published for this update channel.',
+          icon: Icons.cloud_off_rounded,
+        );
+        return;
+      }
+      if (!update.isUpdateAvailable) {
+        await _showUpdateMessage(
+          title: 'SICATAT is up to date',
+          message:
+              'You are using version ${update.currentVersion}, the latest available version.',
+          icon: Icons.verified_rounded,
+        );
+        return;
+      }
+      final bool? shouldInstall = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext dialogContext) => AlertDialog(
+          title: const Text('Update available'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('SICATAT ${release.versionName} is ready to install.'),
+              if (release.releaseNotes.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.greenSurface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text(
+                        "What's new",
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(release.releaseNotes),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              const Text(
+                'Android will ask you to approve the installation. Your SICATAT data and login are kept.',
+                style: TextStyle(color: AppColors.muted),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Not now'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.system_update_alt_rounded),
+              label: const Text('Download update'),
+            ),
+          ],
+        ),
+      );
+      if (shouldInstall == true && mounted) {
+        await _downloadAndInstall(release);
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        await _showUpdateMessage(
+          title: 'Unable to check for updates',
+          message: '$error',
+          icon: Icons.error_outline_rounded,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _checkingForUpdate = false);
+    }
+  }
+
+  Future<void> _downloadAndInstall(AppRelease release) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: <Widget>[
+            CircularProgressIndicator(),
+            SizedBox(width: 18),
+            Expanded(child: Text('Downloading the update...')),
+          ],
+        ),
+      ),
+    );
+    try {
+      final AppInstallerResult result = await AppUpdateService()
+          .downloadAndInstall(release);
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      if (result == AppInstallerResult.permissionRequired) {
+        await _showUpdateMessage(
+          title: 'Allow app installs first',
+          message: 'Android opened its permission page. Allow installations from SICATAT, then return here and tap Check for updates again.',
+          icon: Icons.security_rounded,
+        );
+      }
+    } on Object catch (error) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      await _showUpdateMessage(
+        title: 'Update download failed',
+        message: '$error',
+        icon: Icons.error_outline_rounded,
+      );
+    }
+  }
+
+  Future<void> _showUpdateMessage({
+    required String title,
+    required String message,
+    required IconData icon,
+  }) => showDialog<void>(
+    context: context,
+    builder: (BuildContext dialogContext) => AlertDialog(
+      title: Row(
+        children: <Widget>[
+          Icon(icon, color: AppColors.green),
+          const SizedBox(width: 10),
+          Expanded(child: Text(title)),
+        ],
+      ),
+      content: Text(message),
+      actions: <Widget>[
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+
   Widget _profile(BuildContext context, AppUser? user) {
     final name = user?.name ?? 'Account';
     final role = user == null ? 'Not signed in' : user.role.label;
@@ -294,13 +449,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Card(
           child: ListTile(
             leading: const Icon(
+              Icons.system_update_alt_rounded,
+              color: AppColors.green,
+            ),
+            title: const Text('App updates'),
+            subtitle: const Text(
+              'Check and install the latest SICATAT version',
+            ),
+            trailing: _checkingForUpdate
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  )
+                : const Icon(Icons.chevron_right_rounded),
+            onTap: _checkingForUpdate ? null : _checkForUpdates,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: ListTile(
+            leading: const Icon(
               Icons.menu_book_outlined,
               color: AppColors.green,
             ),
-            title: const Text('Buku panduan aplikasi'),
-            subtitle: const Text(
-              'Petunjuk pencatatan temperature dan reminder',
-            ),
+            title: const Text('User guide'),
+            subtitle: const Text('Temperature and reminder instructions'),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => context.go('/guide'),
           ),
@@ -398,115 +572,125 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           const SizedBox(height: 12),
         ],
-        const SizedBox(height: 28),
-        SectionTitle(
-          'Today’s activity',
-          action: TextButton(
-            onPressed: () => context.go('/sheets'),
-            child: const Text('View all'),
+        if (user?.role == UserRole.foremanLv) ...<Widget>[
+          const SizedBox(height: 12),
+          _quickAction(
+            Icons.help_outline_rounded,
+            'User guide',
+            'Read how to use SICATAT reminders',
+            () => context.go('/guide'),
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _stat(
-              'Draft',
-              _activity?.draftCount.toString() ?? '—',
-              AppColors.warning,
-              Icons.edit_note_rounded,
+        ] else ...<Widget>[
+          const SizedBox(height: 28),
+          SectionTitle(
+            'Today’s activity',
+            action: TextButton(
+              onPressed: () => context.go('/sheets'),
+              child: const Text('View all'),
             ),
-            const SizedBox(width: 10),
-            _stat(
-              'Synced',
-              _activity?.syncedCount.toString() ?? '—',
-              AppColors.green,
-              Icons.cloud_done_rounded,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _stat(
+                'Draft',
+                _activity?.draftCount.toString() ?? '—',
+                AppColors.warning,
+                Icons.edit_note_rounded,
+              ),
+              const SizedBox(width: 10),
+              _stat(
+                'Synced',
+                _activity?.syncedCount.toString() ?? '—',
+                AppColors.green,
+                Icons.cloud_done_rounded,
+              ),
+              const SizedBox(width: 10),
+              _stat(
+                'High temp',
+                _activity?.highTemperatureCount.toString() ?? '—',
+                AppColors.danger,
+                Icons.device_thermostat_rounded,
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          const SectionTitle('Quick access'),
+          const SizedBox(height: 12),
+          _quickAction(
+            Icons.description_rounded,
+            'My sheets',
+            'View and continue field entries',
+            () => context.go('/sheets'),
+          ),
+          const SizedBox(height: 10),
+          _quickAction(
+            Icons.sync_rounded,
+            'Sync data',
+            'Send data queued on this device to the server',
+            () async {
+              await ref.read(sicatatRepositoryProvider).syncPending();
+              await _loadActivity();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Sync queue checked.')),
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          if (user?.role.canReviewTemperature == true) ...<Widget>[
+            _quickAction(
+              Icons.assignment_late_outlined,
+              'Incomplete sheets',
+              user?.role.isTeamScopedTemperature == true
+                  ? 'Review incomplete sheets for your team'
+                  : 'Review incomplete sheets across teams',
+              () => context.go('/incomplete'),
             ),
-            const SizedBox(width: 10),
-            _stat(
-              'High temp',
-              _activity?.highTemperatureCount.toString() ?? '—',
-              AppColors.danger,
-              Icons.device_thermostat_rounded,
+            const SizedBox(height: 10),
+            _quickAction(
+              Icons.monitor_heart_outlined,
+              user?.role.isTeamScopedTemperature == true
+                  ? 'Team sheets'
+                  : 'Sheet monitoring',
+              'View synced crew sheets and drafts',
+              () => context.go('/monitoring'),
             ),
+            const SizedBox(height: 10),
+            _quickAction(
+              Icons.thermostat_auto_rounded,
+              'High temperature report',
+              'Review all temperatures at or above 60°C',
+              () => context.go('/high-temperature'),
+            ),
+            const SizedBox(height: 10),
+            _quickAction(
+              Icons.picture_as_pdf_outlined,
+              'Period reports',
+              user?.role.isTeamScopedTemperature == true
+                  ? 'Export readings for your team by date range'
+                  : 'Export readings and PDF reports by date range',
+              () => context.go('/reports'),
+            ),
+            const SizedBox(height: 10),
           ],
-        ),
-        const SizedBox(height: 28),
-        const SectionTitle('Quick access'),
-        const SizedBox(height: 12),
-        _quickAction(
-          Icons.description_rounded,
-          'My sheets',
-          'View and continue field entries',
-          () => context.go('/sheets'),
-        ),
-        const SizedBox(height: 10),
-        _quickAction(
-          Icons.sync_rounded,
-          'Sync data',
-          'Send data queued on this device to the server',
-          () async {
-            await ref.read(sicatatRepositoryProvider).syncPending();
-            await _loadActivity();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sync queue checked.')),
-              );
-            }
-          },
-        ),
-        const SizedBox(height: 10),
-        if (user?.role.canReviewTemperature == true) ...<Widget>[
+          if (user?.role.canManageMasterData == true) ...<Widget>[
+            _quickAction(
+              Icons.manage_accounts_outlined,
+              'Master data & users',
+              'Manage equipment, roster, teams, users, and exports',
+              () => context.go('/admin'),
+            ),
+            const SizedBox(height: 10),
+          ],
           _quickAction(
-            Icons.assignment_late_outlined,
-            'Incomplete sheets',
-            user?.role.isTeamScopedTemperature == true
-                ? 'Review incomplete sheets for your team'
-                : 'Review incomplete sheets across teams',
-            () => context.go('/incomplete'),
+            Icons.help_outline_rounded,
+            'User guide',
+            'Read how to use SICATAT temperature checks and reminders',
+            () => context.go('/guide'),
           ),
-          const SizedBox(height: 10),
-          _quickAction(
-            Icons.monitor_heart_outlined,
-            user?.role.isTeamScopedTemperature == true
-                ? 'Team sheets'
-                : 'Sheet monitoring',
-            'View synced crew sheets and drafts',
-            () => context.go('/monitoring'),
-          ),
-          const SizedBox(height: 10),
-          _quickAction(
-            Icons.thermostat_auto_rounded,
-            'High temperature report',
-            'Review all temperatures at or above 60°C',
-            () => context.go('/high-temperature'),
-          ),
-          const SizedBox(height: 10),
-          _quickAction(
-            Icons.picture_as_pdf_outlined,
-            'Period reports',
-            user?.role.isTeamScopedTemperature == true
-                ? 'Export readings for your team by date range'
-                : 'Export readings and PDF reports by date range',
-            () => context.go('/reports'),
-          ),
-          const SizedBox(height: 10),
         ],
-        if (user?.role.canManageMasterData == true) ...<Widget>[
-          _quickAction(
-            Icons.manage_accounts_outlined,
-            'Master data & users',
-            'Manage equipment, roster, teams, users, and exports',
-            () => context.go('/admin'),
-          ),
-          const SizedBox(height: 10),
-        ],
-        _quickAction(
-          Icons.help_outline_rounded,
-          'Buku panduan',
-          'Cara menggunakan pencatatan temperature dan reminder',
-          () => context.go('/guide'),
-        ),
       ],
     );
   }
