@@ -15,10 +15,10 @@ This is the active handoff file for Codex. Follow it before editing.
 
 ## Source rilis tunggal — wajib untuk setiap chat
 
-- Sumber rilis yang telah diverifikasi saat ini adalah `C:\Users\ASUS\.codex\worktrees\42e3\sicatat`, dengan versi `2.5.9+10259` di `flutter_app/pubspec.yaml` dan `2.5.9` di `AppConfig.appVersion` (diverifikasi 2026-09-04). Riwayat migrasi 2.5.5 hingga 2.5.9 juga berada di source ini.
+- Sumber rilis yang telah diverifikasi adalah `origin/master`, saat ini commit `2618b89` dengan versi `2.6.0+10260` di `flutter_app/pubspec.yaml` dan `2.6.0` di `AppConfig.appVersion` (dirilis 2026-09-04). Worktree `C:\Users\ASUS\.codex\worktrees\42e3\sicatat` adalah checkout yang digunakan untuk rilis ini.
 - Sebelum mengubah, membangun, atau menerbitkan apa pun: baca kedua penanda versi tersebut, periksa `git status`, dan bandingkan dengan versi aplikasi Android serta website yang sedang rilis. Pertahankan seluruh perubahan pengguna yang sudah ada.
-- Worktree `C:\Users\ASUS\.codex\worktrees\284f\sicatat` dan salinan utama `D:\Arutmin\Project\sicatat` masih bertanda `2.5.4+10254`; keduanya adalah source lama dan **dilarang** dipakai untuk build atau deploy sampai diselaraskan secara aman dengan source 2.5.9.
-- Bila sebuah chat dibuka pada source lama, hentikan proses rilis. Temukan source rilis tunggal ini terlebih dahulu; jangan menghapus, menggantikan, atau membangun ulang fitur berdasarkan source lama.
+- Worktree `C:\Users\ASUS\.codex\worktrees\284f\sicatat` dan salinan utama `D:\Arutmin\Project\sicatat` pernah bertanda `2.5.4+10254`; keduanya **dilarang** dipakai untuk build atau deploy sampai telah ditarik dan diverifikasi sama dengan `origin/master`.
+- Bila sebuah chat dibuka pada source lama, hentikan proses rilis. Tarik `origin/master` dan verifikasi versi rilis terlebih dahulu; jangan menghapus, menggantikan, atau membangun ulang fitur berdasarkan source lama.
 - Jangan pernah menerbitkan website atau Android dari versi yang lebih rendah daripada baseline rilis. Setiap perubahan fungsional harus dikerjakan dari source rilis tunggal, diverifikasi dengan `flutter analyze` dan `flutter test`, lalu diperbarui di website dan Android sesuai prosedur rilis.
 
 ## Fast start
