@@ -34,16 +34,20 @@ function decodeHtml(value: string) {
 function cleanName(ariaLabel: string) {
   return decodeHtml(ariaLabel)
     .replace(/\s+(?:Shared\s+)?folder$/i, "")
+    .replace(/\s+(?:PDF|Microsoft Word|Microsoft Excel|Microsoft PowerPoint|Unknown)$/i, "")
     .replace(/\s+Shared$/i, "")
     .trim();
 }
 
 function parseFolder(html: string, parentPath: string): DriveEntry[] {
   const entries = new Map<string, DriveEntry>();
-  const pattern = /aria-label="([^"]+)"[\s\S]{0,2400}?data-id="([A-Za-z0-9_-]{12,})"/g;
+  // Drive's public folder page pairs the file ID and display label on the
+  // same element. Parsing that pair avoids accidentally treating controls
+  // such as "More actions" as documents.
+  const pattern = /data-id="([A-Za-z0-9_-]{12,})"[^>]*data-tooltip="([^"]+)"/g;
   for (const match of html.matchAll(pattern)) {
-    const ariaLabel = decodeHtml(match[1]);
-    const id = match[2];
+    const id = match[1];
+    const ariaLabel = decodeHtml(match[2]);
     const name = cleanName(ariaLabel);
     if (!name || id === rootFolderId || entries.has(id)) continue;
     const isFolder = /(?:Shared\s+)?folder$/i.test(ariaLabel);
