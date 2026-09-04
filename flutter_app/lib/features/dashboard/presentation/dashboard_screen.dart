@@ -127,6 +127,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     ),
   );
 
+  Widget _sidebarSectionLabel(String label) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 16, 12, 6),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: AppColors.muted,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.1,
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
@@ -241,6 +254,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               selected: selectedIndex == 0,
                               onTap: () => selectDestination(0),
                             ),
+                            if (hasTemperatureTab || hasReminderTab)
+                              _sidebarSectionLabel('OPERASIONAL'),
                             if (hasTemperatureTab)
                               _desktopSidebarItem(
                                 label: 'Suhu',
@@ -258,6 +273,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 selected: selectedIndex == reminderIndex,
                                 onTap: () => selectDestination(reminderIndex!),
                               ),
+                            _sidebarSectionLabel('REFERENSI'),
+                            if (hasWarehouseTab)
+                              _desktopSidebarItem(
+                                label: 'Gudang',
+                                icon: Icons.inventory_2_outlined,
+                                selectedIcon: Icons.inventory_2_rounded,
+                                selected: selectedIndex == warehouseIndex,
+                                onTap: () => selectDestination(warehouseIndex!),
+                              ),
                             _desktopSidebarItem(
                               label: 'Pusat Dokumen',
                               icon: Icons.folder_shared_outlined,
@@ -265,6 +289,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               selected: false,
                               onTap: () => context.go('/documents'),
                             ),
+                            _sidebarSectionLabel('AKUN'),
                             _desktopSidebarItem(
                               label: 'Profil',
                               icon: Icons.person_outline_rounded,

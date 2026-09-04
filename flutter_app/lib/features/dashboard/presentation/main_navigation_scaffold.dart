@@ -64,8 +64,8 @@ class MainNavigationScaffold extends ConsumerWidget {
       builder: (context, constraints) {
         final useNavigationRail = kIsWeb && constraints.maxWidth >= 920;
         // Pusat Dokumen lives in the web sidebar so the mobile bottom bar
-        // remains compact. Gudang is still available in its existing mobile
-        // navigation and its route is preserved.
+        // remains compact. On desktop, Gudang and Pusat Dokumen are grouped
+        // together as reference tools for quick access.
         final desktopItems = <_NavigationItem>[
           const _NavigationItem(
             tab: MainNavigationTab.home,
@@ -79,6 +79,7 @@ class MainNavigationScaffold extends ConsumerWidget {
               label: 'Suhu',
               icon: Icons.thermostat_outlined,
               selectedIcon: Icons.thermostat_rounded,
+              sectionLabel: 'OPERASIONAL',
             ),
           if (user?.role.canUseReminders == true)
             const _NavigationItem(
@@ -87,17 +88,35 @@ class MainNavigationScaffold extends ConsumerWidget {
               icon: Icons.notifications_none_rounded,
               selectedIcon: Icons.notifications_active_rounded,
             ),
-          const _NavigationItem(
-            tab: MainNavigationTab.documents,
-            label: 'Pusat Dokumen',
-            icon: Icons.folder_shared_outlined,
-            selectedIcon: Icons.folder_shared_rounded,
-          ),
+          if (user?.role.canUseWarehouse == true)
+            const _NavigationItem(
+              tab: MainNavigationTab.warehouse,
+              label: 'Gudang',
+              icon: Icons.inventory_2_outlined,
+              selectedIcon: Icons.inventory_2_rounded,
+              sectionLabel: 'REFERENSI',
+            ),
+          if (user?.role.canUseWarehouse == true)
+            const _NavigationItem(
+              tab: MainNavigationTab.documents,
+              label: 'Pusat Dokumen',
+              icon: Icons.folder_shared_outlined,
+              selectedIcon: Icons.folder_shared_rounded,
+            )
+          else
+            const _NavigationItem(
+              tab: MainNavigationTab.documents,
+              label: 'Pusat Dokumen',
+              icon: Icons.folder_shared_outlined,
+              selectedIcon: Icons.folder_shared_rounded,
+              sectionLabel: 'REFERENSI',
+            ),
           const _NavigationItem(
             tab: MainNavigationTab.profile,
             label: 'Profil',
             icon: Icons.person_outline_rounded,
             selectedIcon: Icons.person_rounded,
+            sectionLabel: 'AKUN',
           ),
         ];
         final items = useNavigationRail ? desktopItems : mobileItems;
@@ -213,13 +232,31 @@ class MainNavigationScaffold extends ConsumerWidget {
                               const SizedBox(height: 6),
                           itemBuilder: (context, index) {
                             final item = items[index];
-                            return _DesktopSidebarItem(
-                              label: item.label,
-                              icon: index == safeSelectedIndex
-                                  ? item.selectedIcon
-                                  : item.icon,
-                              selected: index == safeSelectedIndex,
-                              onTap: () => selectDestination(index),
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                if (item.sectionLabel != null)
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                                    child: Text(
+                                      item.sectionLabel!,
+                                      style: const TextStyle(
+                                        color: AppColors.muted,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 1.1,
+                                      ),
+                                    ),
+                                  ),
+                                _DesktopSidebarItem(
+                                  label: item.label,
+                                  icon: index == safeSelectedIndex
+                                      ? item.selectedIcon
+                                      : item.icon,
+                                  selected: index == safeSelectedIndex,
+                                  onTap: () => selectDestination(index),
+                                ),
+                              ],
                             );
                           },
                         ),
@@ -282,12 +319,14 @@ class _NavigationItem {
     required this.label,
     required this.icon,
     required this.selectedIcon,
+    this.sectionLabel,
   });
 
   final MainNavigationTab tab;
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+  final String? sectionLabel;
 }
 
 class _DesktopSidebarItem extends StatelessWidget {
