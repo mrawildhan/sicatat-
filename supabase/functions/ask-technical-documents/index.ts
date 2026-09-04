@@ -16,6 +16,9 @@ const downloadUrl = (id: string) => `https://drive.usercontent.google.com/downlo
 type DriveEntry = { id: string; name: string; path: string; isFolder: boolean };
 type LoadedDocument = DriveEntry & { mimeType: string; data: string };
 
+let documentIndexCache: { expiresAt: number; documents: DriveEntry[] } | undefined;
+let documentIndexRequest: Promise<DriveEntry[]> | undefined;
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -57,6 +60,26 @@ function parseFolder(html: string, parentPath: string): DriveEntry[] {
 }
 
 async function listDocuments(): Promise<DriveEntry[]> {
+  if (documentIndexCache && documentIndexCache.expiresAt > Date.now()) {
+    return documentIndexCache.documents;
+  }
+  if (documentIndexRequest) return documentIndexRequest;
+
+  documentIndexRequest = buildDocumentIndex();
+  try {
+    const documents = await documentIndexRequest;
+    documentIndexCache = {
+      documents,
+      // Public folder contents do not need to be rediscovered for every user.
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    };
+    return documents;
+  } finally {
+    documentIndexRequest = undefined;
+  }
+}
+
+async function buildDocumentIndex(): Promise<DriveEntry[]> {
   const documents: DriveEntry[] = [];
   const visited = new Set<string>();
   let queue = [{ id: rootFolderId, path: "Pusat Dokumen", depth: 0 }];
@@ -85,6 +108,32 @@ async function listDocuments(): Promise<DriveEntry[]> {
     }
   }
   return documents;
+}
+
+async function modelsAvailableToKey(apiKey: string): Promise<string[]> {
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
+    headers: { "x-goog-api-key": apiKey },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) return [];
+  const data = await response.json() as { models?: Array<{ name?: string; supportedGenerationMethods?: string[] }> };
+  return (data.models ?? [])
+    .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
+    .map((model) => model.name?.replace(/^models\//, "") ?? "")
+    .filter((model) => /^gemini-/i.test(model))
+    .filter((model) => !/(?:image|live|tts|embedding|audio)/i.test(model));
+}
+
+function selectModelCandidates(preferredModel: string, availableModels: string[]) {
+  const priority = [
+    preferredModel,
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-latest",
+  ];
+  const preferred = priority.filter((model) => availableModels.includes(model));
+  const otherFlashModels = availableModels.filter((model) => /flash/i.test(model));
+  return [...new Set([...preferred, ...otherFlashModels])];
 }
 
 function queryTerms(question: string) {
@@ -212,10 +261,11 @@ Deno.serve(async (req) => {
       parts.push({ inlineData: { mimeType: loaded[index].mimeType, data: loaded[index].data } });
     }
     const preferredModel = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
-    // Some AI Studio projects expose Flash-Lite before the full Flash model.
-    // A model-not-found response is safe to retry because no answer has been
-    // generated, and both candidates receive exactly the same folder-scoped files.
-    const candidateModels = [...new Set([preferredModel, "gemini-2.5-flash", "gemini-2.5-flash-lite"])];
+    const availableModels = await modelsAvailableToKey(apiKey);
+    const candidateModels = selectModelCandidates(preferredModel, availableModels);
+    if (candidateModels.length === 0) {
+      throw new Error("Tidak ada model Gemini yang dapat digunakan oleh kunci API server.");
+    }
     let response: Response | undefined;
     for (const model of candidateModels) {
       const modelResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
