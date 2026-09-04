@@ -211,13 +211,25 @@ Deno.serve(async (req) => {
       parts.push({ text: `Dokumen [${index + 1}]: ${loaded[index].name}` });
       parts.push({ inlineData: { mimeType: loaded[index].mimeType, data: loaded[index].data } });
     }
-    const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0.1, maxOutputTokens: 900, responseMimeType: "application/json" } }),
-      signal: AbortSignal.timeout(55000),
-    });
+    const preferredModel = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
+    // Some AI Studio projects expose Flash-Lite before the full Flash model.
+    // A model-not-found response is safe to retry because no answer has been
+    // generated, and both candidates receive exactly the same folder-scoped files.
+    const candidateModels = [...new Set([preferredModel, "gemini-2.5-flash", "gemini-2.5-flash-lite"])];
+    let response: Response | undefined;
+    for (const model of candidateModels) {
+      const modelResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0.1, maxOutputTokens: 900, responseMimeType: "application/json" } }),
+        signal: AbortSignal.timeout(55000),
+      });
+      if (modelResponse.status !== 404 || model === candidateModels[candidateModels.length - 1]) {
+        response = modelResponse;
+        break;
+      }
+    }
+    if (!response) throw new Error("Model AI tidak dapat dihubungi.");
     if (!response.ok) throw new Error(`Model AI tidak dapat dihubungi (HTTP ${response.status}).`);
     const modelJson = parseModelJson(textFromModel(await response.json()));
     const rawCitations = Array.isArray(modelJson.citations) ? modelJson.citations : [];
