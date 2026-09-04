@@ -67,6 +67,15 @@ class _DocumentCenterScreenState extends State<DocumentCenterScreen> {
       _showMessage(
         'Pencarian terlalu lama. Silakan coba pertanyaan yang lebih singkat.',
       );
+    } on FunctionException catch (error) {
+      final Object? details = error.details;
+      if (details is Map<Object?, Object?> && details['error'] != null) {
+        _showMessage(details['error'].toString());
+      } else {
+        _showMessage(
+          'Pencarian dokumen sedang tidak tersedia. Silakan coba lagi sebentar.',
+        );
+      }
     } on Object catch (error) {
       _showMessage(error.toString().replaceFirst('Bad state: ', ''));
     } finally {
