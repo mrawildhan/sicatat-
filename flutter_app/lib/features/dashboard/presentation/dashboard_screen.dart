@@ -188,7 +188,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
               ),
               Text(
-                'Operational inspections & reminders',
+                'Inspeksi operasional dan pengingat',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.muted,
@@ -414,18 +414,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final AppRelease? release = update.release;
       if (release == null) {
         await _showUpdateMessage(
-          title: 'Updates are not available yet',
-          message:
-              'No Android release has been published for this update channel.',
+          title: 'Pembaruan belum tersedia',
+          message: 'Belum ada rilis Android pada kanal pembaruan ini.',
           icon: Icons.cloud_off_rounded,
         );
         return;
       }
       if (!update.isUpdateAvailable) {
         await _showUpdateMessage(
-          title: 'SICATAT is up to date',
+          title: 'SICATAT sudah versi terbaru',
           message:
-              'You are using version ${update.currentVersion}, the latest available version.',
+              'Anda menggunakan versi ${update.currentVersion}, versi terbaru yang tersedia.',
           icon: Icons.verified_rounded,
         );
         return;
@@ -433,12 +432,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final bool? shouldInstall = await showDialog<bool>(
         context: context,
         builder: (BuildContext dialogContext) => AlertDialog(
-          title: const Text('Update available'),
+          title: const Text('Pembaruan tersedia'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('SICATAT ${release.versionName} is ready to install.'),
+              Text('SICATAT ${release.versionName} siap dipasang.'),
               if (release.releaseNotes.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 12),
                 Container(
@@ -452,7 +451,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       const Text(
-                        "What's new",
+                        'Yang baru',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 6),
@@ -463,7 +462,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ],
               const SizedBox(height: 14),
               const Text(
-                'Android will ask you to approve the installation. Your SICATAT data and login are kept.',
+                'Android akan meminta persetujuan pemasangan. Data dan sesi masuk SICATAT tetap tersimpan.',
                 style: TextStyle(color: AppColors.muted),
               ),
             ],
@@ -471,12 +470,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Not now'),
+              child: const Text('Nanti saja'),
             ),
             FilledButton.icon(
               onPressed: () => Navigator.pop(dialogContext, true),
               icon: const Icon(Icons.system_update_alt_rounded),
-              label: const Text('Download update'),
+              label: const Text('Unduh pembaruan'),
             ),
           ],
         ),
@@ -487,7 +486,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     } on Object catch (error) {
       if (mounted) {
         await _showUpdateMessage(
-          title: 'Unable to check for updates',
+          title: 'Pembaruan tidak dapat diperiksa',
           message: '$error',
           icon: Icons.error_outline_rounded,
         );
@@ -506,7 +505,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: <Widget>[
             CircularProgressIndicator(),
             SizedBox(width: 18),
-            Expanded(child: Text('Downloading the update...')),
+            Expanded(child: Text('Mengunduh pembaruan…')),
           ],
         ),
       ),
@@ -518,8 +517,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       Navigator.of(context, rootNavigator: true).pop();
       if (result == AppInstallerResult.permissionRequired) {
         await _showUpdateMessage(
-          title: 'Allow app installs first',
-          message: 'Android opened its permission page. Allow installations from SICATAT, then return here and tap Check for updates again.',
+          title: 'Izinkan pemasangan aplikasi',
+          message: 'Android membuka halaman izin. Izinkan pemasangan dari SICATAT, lalu kembali dan ketuk Periksa pembaruan lagi.',
           icon: Icons.security_rounded,
         );
       }
@@ -527,7 +526,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
       await _showUpdateMessage(
-        title: 'Update download failed',
+        title: 'Unduhan pembaruan gagal',
         message: '$error',
         icon: Icons.error_outline_rounded,
       );
@@ -746,6 +745,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           subtitle: 'Cari stok & lokasi barang',
           onTap: () => context.go('/warehouse'),
         ),
+      _homeMenuCard(
+        icon: Icons.folder_shared_rounded,
+        title: 'Pusat Dokumen',
+        subtitle: 'Cari SOP, izin kerja, JSEA, manual, dan drawing',
+        onTap: () => context.go('/documents'),
+      ),
     ];
 
     return ListView(

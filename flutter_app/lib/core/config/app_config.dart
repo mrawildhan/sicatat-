@@ -1,5 +1,5 @@
 class AppConfig {
-  static const appVersion = '2.5.9';
+  static const appVersion = '2.6.0';
 
   static const supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
@@ -11,6 +11,13 @@ class AppConfig {
   static const supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     defaultValue: 'sb_publishable_e85vPiEENe19yCviVUzuLg_nTewJBSW',
+  );
+
+  /// Folder publik yang menjadi satu-satunya ruang lingkup Pusat Dokumen.
+  /// Ini bukan kredensial; pemrosesan AI dan kunci model berada di server.
+  static const technicalDocumentsFolderUrl = String.fromEnvironment(
+    'TECHNICAL_DOCUMENTS_FOLDER_URL',
+    defaultValue: 'https://drive.google.com/drive/folders/1Mrt4ND-wPgkfmCngbmTfHBwyAo1oclxp?usp=sharing',
   );
 
   static bool get isSupabaseConfigured =>

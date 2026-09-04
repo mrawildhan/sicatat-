@@ -129,7 +129,7 @@ class MainNavigationScaffold extends ConsumerWidget {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Operational inspections & reminders',
+                        'Inspeksi operasional dan pengingat',
                         style: TextStyle(
                           fontSize: 12,
                           color: Color(0xFF92B6A6),
