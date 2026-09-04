@@ -244,18 +244,30 @@ class MainNavigationScaffold extends ConsumerWidget {
               ? null
               : SafeArea(
                   top: false,
-                  child: NavigationBar(
-                    selectedIndex: safeSelectedIndex,
-                    onDestinationSelected: selectDestination,
-                    destinations: items
-                        .map(
-                          (item) => NavigationDestination(
-                            icon: Icon(item.icon),
-                            selectedIcon: Icon(item.selectedIcon),
-                            label: item.label,
-                          ),
-                        )
-                        .toList(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const Padding(
+                        padding: EdgeInsets.only(top: 6, bottom: 2),
+                        child: Text(
+                          '© 2026 WIL • Versi ${AppConfig.appVersion}',
+                          style: TextStyle(fontSize: 10, color: AppColors.muted),
+                        ),
+                      ),
+                      NavigationBar(
+                        selectedIndex: safeSelectedIndex,
+                        onDestinationSelected: selectDestination,
+                        destinations: items
+                            .map(
+                              (item) => NavigationDestination(
+                                icon: Icon(item.icon),
+                                selectedIcon: Icon(item.selectedIcon),
+                                label: item.label,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ],
                   ),
                 ),
         );

@@ -307,37 +307,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ? null
             : SafeArea(
                 top: false,
-                child: NavigationBar(
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: selectDestination,
-                  destinations: <NavigationDestination>[
-                    const NavigationDestination(
-                      icon: Icon(Icons.home_outlined),
-                      selectedIcon: Icon(Icons.home_rounded),
-                      label: 'Beranda',
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6, bottom: 2),
+                      child: Text(
+                        '© 2026 WIL • Versi ${AppConfig.appVersion}',
+                        style: TextStyle(fontSize: 10, color: AppColors.muted),
+                      ),
                     ),
-                    if (hasTemperatureTab)
-                      const NavigationDestination(
-                        icon: Icon(Icons.thermostat_outlined),
-                        selectedIcon: Icon(Icons.thermostat_rounded),
-                        label: 'Suhu',
-                      ),
-                    if (hasReminderTab)
-                      const NavigationDestination(
-                        icon: Icon(Icons.notifications_none_rounded),
-                        selectedIcon: Icon(Icons.notifications_active_rounded),
-                        label: 'Pengingat',
-                      ),
-                    if (hasWarehouseTab)
-                      const NavigationDestination(
-                        icon: Icon(Icons.inventory_2_outlined),
-                        selectedIcon: Icon(Icons.inventory_2_rounded),
-                        label: 'Gudang',
-                      ),
-                    const NavigationDestination(
-                      icon: Icon(Icons.person_outline_rounded),
-                      selectedIcon: Icon(Icons.person_rounded),
-                      label: 'Profil',
+                    NavigationBar(
+                      selectedIndex: selectedIndex,
+                      onDestinationSelected: selectDestination,
+                      destinations: <NavigationDestination>[
+                        const NavigationDestination(
+                          icon: Icon(Icons.home_outlined),
+                          selectedIcon: Icon(Icons.home_rounded),
+                          label: 'Beranda',
+                        ),
+                        if (hasTemperatureTab)
+                          const NavigationDestination(
+                            icon: Icon(Icons.thermostat_outlined),
+                            selectedIcon: Icon(Icons.thermostat_rounded),
+                            label: 'Suhu',
+                          ),
+                        if (hasReminderTab)
+                          const NavigationDestination(
+                            icon: Icon(Icons.notifications_none_rounded),
+                            selectedIcon: Icon(Icons.notifications_active_rounded),
+                            label: 'Pengingat',
+                          ),
+                        if (hasWarehouseTab)
+                          const NavigationDestination(
+                            icon: Icon(Icons.inventory_2_outlined),
+                            selectedIcon: Icon(Icons.inventory_2_rounded),
+                            label: 'Gudang',
+                          ),
+                        const NavigationDestination(
+                          icon: Icon(Icons.person_outline_rounded),
+                          selectedIcon: Icon(Icons.person_rounded),
+                          label: 'Profil',
+                        ),
+                      ],
                     ),
                   ],
                 ),
