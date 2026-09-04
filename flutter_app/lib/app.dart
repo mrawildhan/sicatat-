@@ -261,7 +261,7 @@ final _router = GoRouter(
           UserRole.admin,
         },
         child: MainNavigationScaffold(
-          selectedTab: MainNavigationTab.home,
+          selectedTab: MainNavigationTab.documents,
           child: DocumentCenterScreen(),
         ),
       ),

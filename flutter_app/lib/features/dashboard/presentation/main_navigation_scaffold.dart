@@ -8,7 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
 
-enum MainNavigationTab { home, temperature, reminders, warehouse, profile }
+enum MainNavigationTab { home, temperature, reminders, warehouse, documents, profile }
 
 class MainNavigationScaffold extends ConsumerWidget {
   const MainNavigationScaffold({
@@ -23,7 +23,7 @@ class MainNavigationScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final items = <_NavigationItem>[
+    final mobileItems = <_NavigationItem>[
       const _NavigationItem(
         tab: MainNavigationTab.home,
         label: 'Beranda',
@@ -58,11 +58,49 @@ class MainNavigationScaffold extends ConsumerWidget {
         selectedIcon: Icons.person_rounded,
       ),
     ];
-    final selectedIndex = items.indexWhere((item) => item.tab == selectedTab);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final useNavigationRail = kIsWeb && constraints.maxWidth >= 920;
+        // Pusat Dokumen lives in the web sidebar so the mobile bottom bar
+        // remains compact. Gudang is still available in its existing mobile
+        // navigation and its route is preserved.
+        final desktopItems = <_NavigationItem>[
+          const _NavigationItem(
+            tab: MainNavigationTab.home,
+            label: 'Beranda',
+            icon: Icons.home_outlined,
+            selectedIcon: Icons.home_rounded,
+          ),
+          if (user?.role.canCreateTemperatureSheet == true)
+            const _NavigationItem(
+              tab: MainNavigationTab.temperature,
+              label: 'Suhu',
+              icon: Icons.thermostat_outlined,
+              selectedIcon: Icons.thermostat_rounded,
+            ),
+          if (user?.role.canUseReminders == true)
+            const _NavigationItem(
+              tab: MainNavigationTab.reminders,
+              label: 'Pengingat',
+              icon: Icons.notifications_none_rounded,
+              selectedIcon: Icons.notifications_active_rounded,
+            ),
+          const _NavigationItem(
+            tab: MainNavigationTab.documents,
+            label: 'Pusat Dokumen',
+            icon: Icons.folder_shared_outlined,
+            selectedIcon: Icons.folder_shared_rounded,
+          ),
+          const _NavigationItem(
+            tab: MainNavigationTab.profile,
+            label: 'Profil',
+            icon: Icons.person_outline_rounded,
+            selectedIcon: Icons.person_rounded,
+          ),
+        ];
+        final items = useNavigationRail ? desktopItems : mobileItems;
+        final selectedIndex = items.indexWhere((item) => item.tab == selectedTab);
         final safeSelectedIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
         void selectDestination(int index) {
@@ -78,6 +116,9 @@ class MainNavigationScaffold extends ConsumerWidget {
               return;
             case MainNavigationTab.warehouse:
               context.go('/warehouse');
+              return;
+            case MainNavigationTab.documents:
+              context.go('/documents');
               return;
             case MainNavigationTab.profile:
               context.go('/dashboard?tab=profile');

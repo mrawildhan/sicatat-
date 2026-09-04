@@ -257,14 +257,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 selected: selectedIndex == reminderIndex,
                                 onTap: () => selectDestination(reminderIndex!),
                               ),
-                            if (hasWarehouseTab)
-                              _desktopSidebarItem(
-                                label: 'Gudang',
-                                icon: Icons.inventory_2_outlined,
-                                selectedIcon: Icons.inventory_2_rounded,
-                                selected: selectedIndex == warehouseIndex,
-                                onTap: () => selectDestination(warehouseIndex!),
-                              ),
+                            _desktopSidebarItem(
+                              label: 'Pusat Dokumen',
+                              icon: Icons.folder_shared_outlined,
+                              selectedIcon: Icons.folder_shared_rounded,
+                              selected: false,
+                              onTap: () => context.go('/documents'),
+                            ),
                             _desktopSidebarItem(
                               label: 'Profil',
                               icon: Icons.person_outline_rounded,

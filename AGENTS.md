@@ -15,7 +15,7 @@ This is the active handoff file for Codex. Follow it before editing.
 
 ## Source rilis tunggal — wajib untuk setiap chat
 
-- Sumber rilis yang telah diverifikasi adalah `origin/master`, saat ini commit `de9c223` dengan versi `2.6.1+10261` di `flutter_app/pubspec.yaml` dan `2.6.1` di `AppConfig.appVersion` (dirilis 2026-09-04). Worktree `C:\Users\ASUS\.codex\worktrees\42e3\sicatat` adalah checkout yang digunakan untuk rilis ini.
+- Sumber rilis yang telah diverifikasi adalah `origin/master`, dengan versi `2.6.2+10262` di `flutter_app/pubspec.yaml` dan `2.6.2` di `AppConfig.appVersion` (dirilis 2026-09-04). Worktree `C:\Users\ASUS\.codex\worktrees\42e3\sicatat` adalah checkout yang digunakan untuk rilis ini.
 - Sebelum mengubah, membangun, atau menerbitkan apa pun: baca kedua penanda versi tersebut, periksa `git status`, dan bandingkan dengan versi aplikasi Android serta website yang sedang rilis. Pertahankan seluruh perubahan pengguna yang sudah ada.
 - Worktree `C:\Users\ASUS\.codex\worktrees\284f\sicatat` dan salinan utama `D:\Arutmin\Project\sicatat` pernah bertanda `2.5.4+10254`; keduanya **dilarang** dipakai untuk build atau deploy sampai telah ditarik dan diverifikasi sama dengan `origin/master`.
 - Bila sebuah chat dibuka pada source lama, hentikan proses rilis. Tarik `origin/master` dan verifikasi versi rilis terlebih dahulu; jangan menghapus, menggantikan, atau membangun ulang fitur berdasarkan source lama.
