@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     const { data: reminder, error: reminderError } = await admin
       .from("operational_reminder")
       .select(
-        "id,site_id,title,due_date,recipient_emails,category,asset_code,description,priority,assigned_to,location,reminder_schedule,custom_reminder_days,reminder_offsets_days,status,site:site_id(name,code)",
+        "id,site_id,title,due_date,recipient_emails,category,asset_code,document_number,government_agency,description,priority,assigned_to,location,reminder_schedule,custom_reminder_days,reminder_offsets_days,status,site:site_id(name,code)",
       )
       .eq("id", reminderId)
       .single();

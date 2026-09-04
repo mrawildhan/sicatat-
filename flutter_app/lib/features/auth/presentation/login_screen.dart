@@ -103,122 +103,131 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         onPopInvokedWithResult: (_, __) {},
         child: Scaffold(
           body: SafeArea(
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(24, 42, 24, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Image.asset(
-                      'assets/images/logo-full.png',
-                      height: 180,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Welcome to',
-                    style: TextStyle(fontSize: 18, color: AppColors.muted),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'sicatat',
-                    style: TextStyle(
-                      fontSize: 40,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.greenDark,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Field data recording application',
-                    style: TextStyle(
-                      fontSize: 16,
-                      height: 1.45,
-                      color: AppColors.muted,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  const Text(
-                    'Sign in to your crew account',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _nik,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
-                    enabled: !_isSubmitting,
-                    decoration: const InputDecoration(
-                      labelText: 'Crew ID / NIK',
-                      prefixIcon: Icon(Icons.badge_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: _pin,
-                    obscureText: _obscure,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    enabled: !_isSubmitting,
-                    onSubmitted: (_) => _signIn(),
-                    decoration: InputDecoration(
-                      labelText: 'PIN',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded),
-                      suffixIcon: IconButton(
-                        onPressed: _isSubmitting
-                            ? null
-                            : () => setState(() => _obscure = !_obscure),
-                        icon: Icon(
-                          _obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(24, 42, 24, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Image.asset(
+                          'assets/images/logo-full.png',
+                          height: 180,
+                          fit: BoxFit.contain,
                         ),
                       ),
-                    ),
-                  ),
-                  if (_errorMessage case final message?) ...[
-                    const SizedBox(height: 14),
-                    Text(
-                      message,
-                      style: const TextStyle(
-                        color: AppColors.danger,
-                        fontWeight: FontWeight.w600,
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Welcome to',
+                        style: TextStyle(fontSize: 18, color: AppColors.muted),
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 22),
-                  ElevatedButton.icon(
-                    onPressed: _isSubmitting ? null : _signIn,
-                    icon: _isSubmitting
-                        ? const SizedBox.square(
-                            dimension: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
+                      const SizedBox(height: 4),
+                      const Text(
+                        'sicatat',
+                        style: TextStyle(
+                          fontSize: 40,
+                          height: 1,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.greenDark,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Field data recording application',
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 1.45,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      const Text(
+                        'Masuk ke akun crew Anda',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: _nik,
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.next,
+                        enabled: !_isSubmitting,
+                        decoration: const InputDecoration(
+                          labelText: 'Crew ID / NIK',
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _pin,
+                        obscureText: _obscure,
+                        keyboardType: TextInputType.visiblePassword,
+                        textInputAction: TextInputAction.done,
+                        enabled: !_isSubmitting,
+                        autofillHints: const <String>[AutofillHints.password],
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        onSubmitted: (_) => _signIn(),
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          suffixIcon: IconButton(
+                            onPressed: _isSubmitting
+                                ? null
+                                : () => setState(() => _obscure = !_obscure),
+                            icon: Icon(
+                              _obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
                             ),
-                          )
-                        : const Icon(Icons.arrow_forward_rounded),
-                    label: Text(
-                      _isSubmitting ? 'Checking account...' : 'Sign in',
-                    ),
+                          ),
+                        ),
+                      ),
+                      if (_errorMessage case final message?) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          message,
+                          style: const TextStyle(
+                            color: AppColors.danger,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 22),
+                      ElevatedButton.icon(
+                        onPressed: _isSubmitting ? null : _signIn,
+                        icon: _isSubmitting
+                            ? const SizedBox.square(
+                                dimension: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.arrow_forward_rounded),
+                        label: Text(
+                          _isSubmitting ? 'Memeriksa akun...' : 'Masuk',
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Center(
+                        child: Text(
+                          'Version ${AppConfig.appVersion} • Online-only',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.muted),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 18),
-                  Center(
-                    child: Text(
-                      'Version ${AppConfig.appVersion} • Online-only',
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: AppColors.muted),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

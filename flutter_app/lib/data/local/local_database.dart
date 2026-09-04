@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
@@ -12,6 +10,7 @@ import '../models/master_data_models.dart';
 import '../models/sicatat_types.dart';
 import '../models/sheet_model.dart';
 import '../models/sync_queue_item.dart';
+import 'local_database_platform.dart';
 
 /// SQLite database matching the existing SICATAT local schema.
 ///
@@ -34,8 +33,7 @@ class LocalDatabase {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    final databasesPath = await getDatabasesPath();
-    final currentDatabasePath = path.join(databasesPath, 'sicatat_local.db');
+    final currentDatabasePath = await localDatabasePath('sicatat_local.db');
     _database = await openDatabase(
       currentDatabasePath,
       version: 5,
@@ -83,7 +81,7 @@ class LocalDatabase {
     );
     await _importLegacyDatabaseIfNeeded(
       _database!,
-      legacyDatabasePath: path.join(databasesPath, 'sicatat_localSQLite.db'),
+      legacyDatabasePath: await localDatabasePath('sicatat_localSQLite.db'),
     );
     await _recoverLegacyConflictsIfNeeded(_database!);
     return _database!;
@@ -103,7 +101,7 @@ class LocalDatabase {
     );
     if (marker.isNotEmpty) return;
 
-    if (!await File(legacyDatabasePath).exists()) {
+    if (!await legacyDatabaseExists(legacyDatabasePath)) {
       await _saveLegacyImportMarker(database, markerId);
       return;
     }

@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -59,102 +61,154 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final title = user?.role.isTeamScopedTemperature == true
-        ? 'Team sheets'
-        : 'Sheet monitoring';
+        ? 'Lembar tim'
+        : 'Pemantauan lembar';
     final errorMessage = _errorMessage;
+    final bool useDesktopHeader =
+        kIsWeb && MediaQuery.sizeOf(context).width >= 920;
+    final Widget content = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : errorMessage != null
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                errorMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.danger),
+              ),
+            ),
+          )
+        : _sheets.isEmpty
+        ? const Center(
+            child: Text('Belum ada lembar yang tersinkron ke server.'),
+          )
+        : RefreshIndicator(
+            onRefresh: _load,
+            child: ListView.separated(
+              padding: const EdgeInsets.all(20),
+              itemCount: _sheets.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (_, index) => _sheet(_sheets[index]),
+            ),
+          );
     return AppBackScope(
       fallbackRoute: '/dashboard',
       child: Scaffold(
-        appBar: AppBar(
-          leading: const AppBackButton(fallbackRoute: '/dashboard'),
-          title: Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-          actions: <Widget>[
-            IconButton(
-              onPressed: _isLoading ? null : _load,
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ],
-        ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : errorMessage != null
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    errorMessage,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.danger),
+        appBar: useDesktopHeader
+            ? null
+            : AppBar(
+                leading: const AppBackButton(fallbackRoute: '/dashboard'),
+                title: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                actions: <Widget>[
+                  IconButton(
+                    onPressed: _isLoading ? null : _load,
+                    icon: const Icon(Icons.refresh_rounded),
                   ),
-                ),
-              )
-            : _sheets.isEmpty
-            ? const Center(
-                child: Text('No sheets have been synced to the server yet.'),
-              )
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(20),
-                  itemCount: _sheets.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (_, index) => _sheet(_sheets[index]),
-                ),
+                ],
               ),
+        body: useDesktopHeader
+            ? Column(
+                children: <Widget>[
+                  _desktopHeader(context, title),
+                  Expanded(child: content),
+                ],
+              )
+            : content,
       ),
     );
   }
+
+  Widget _desktopHeader(BuildContext context, String title) => Padding(
+    padding: const EdgeInsets.fromLTRB(24, 22, 24, 12),
+    child: Row(
+      children: <Widget>[
+        IconButton(
+          tooltip: 'Kembali ke Suhu',
+          onPressed: () => context.go('/sheets'),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Muat ulang',
+          onPressed: _isLoading ? null : _load,
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ],
+    ),
+  );
 
   Widget _sheet(SheetModel sheet) {
     final state = sheet.status == SheetStatus.draft
         ? SyncState.draft
         : SyncState.synced;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                const Icon(
-                  Icons.calendar_today_rounded,
-                  size: 18,
-                  color: AppColors.green,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  DateFormat('dd/MM/yyyy').format(sheet.date),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const Spacer(),
-                SyncChip(state),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '${sheet.teamName ?? 'Team'} • ${sheet.shiftName ?? 'Shift'}',
-              style: const TextStyle(color: AppColors.muted),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _statusLabel(sheet.status),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.go(_destinationFor(sheet)),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    size: 18,
+                    color: AppColors.green,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    DateFormat('dd/MM/yyyy').format(sheet.date),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const Spacer(),
+                  SyncChip(state),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${sheet.teamName ?? 'Tim'} • ${sheet.shiftName ?? 'Shift'}',
+                style: const TextStyle(color: AppColors.muted),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _statusLabel(sheet.status),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  String _destinationFor(SheetModel sheet) {
+    final AppUser? user = ref.read(currentUserProvider);
+    final bool canContinue =
+        (sheet.status == SheetStatus.draft ||
+            sheet.status == SheetStatus.returned) &&
+        user?.role.canCreateTemperatureSheet == true;
+    return canContinue
+        ? '/temperature?sheetId=${sheet.id}'
+        : '/summary?sheetId=${sheet.id}';
+  }
+
   String _statusLabel(SheetStatus status) => switch (status) {
-    SheetStatus.draft => 'Crew draft',
-    SheetStatus.submitted => 'Submitted',
-    SheetStatus.submittedIncomplete => 'Submitted as incomplete',
-    SheetStatus.verified => 'Verified',
-    SheetStatus.returned => 'Returned',
+    SheetStatus.draft => 'Draf crew',
+    SheetStatus.submitted => 'Dikirim',
+    SheetStatus.submittedIncomplete => 'Dikirim tidak lengkap',
+    SheetStatus.verified => 'Terverifikasi',
+    SheetStatus.returned => 'Dikembalikan',
   };
 }

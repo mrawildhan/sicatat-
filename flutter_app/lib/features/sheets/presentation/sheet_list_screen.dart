@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,7 @@ import '../../../core/widgets/status_chip.dart';
 import '../../../data/local/local_database.dart';
 import '../../../data/models/sheet_model.dart';
 import '../../../data/models/app_user.dart';
+import '../../../data/models/dashboard_activity.dart';
 import '../../../data/models/master_data_models.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../auth/application/current_user_provider.dart';
@@ -23,6 +25,7 @@ class SheetListScreen extends ConsumerStatefulWidget {
 class _SheetListScreenState extends ConsumerState<SheetListScreen> {
   List<SheetModel> _sheets = const <SheetModel>[];
   Map<String, String> _shiftNames = const <String, String>{};
+  DashboardActivity? _todayActivity;
   bool _isLoading = true;
   String? _errorMessage;
   DateTime? _fromDate;
@@ -83,14 +86,23 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
         final name = await LocalDatabase.instance.getCachedShiftName(id);
         if (name != null) names[id] = name;
       }
+      final activity = await LocalDatabase.instance.getDashboardActivity(
+        DateTime.now(),
+        createdBy: user?.role.isGlobalTemperatureManager == true
+            ? null
+            : user?.id,
+      );
       if (!mounted) return;
       setState(() {
         _sheets = sheets;
         _shiftNames = names;
+        _todayActivity = activity;
       });
     } catch (_) {
       if (mounted) {
-        setState(() => _errorMessage = 'Local sheet list could not be loaded.');
+        setState(
+          () => _errorMessage = 'Daftar sheet lokal tidak dapat dimuat.',
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -100,51 +112,94 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
+    final bool useDesktopHeader =
+        kIsWeb && MediaQuery.sizeOf(context).width >= 920;
     final title =
         user?.role.isGlobalTemperatureManager == true ||
             user?.role.isSiteScopedTemperature == true
-        ? 'All sheets'
+        ? 'Semua sheet'
         : user?.role == UserRole.foreman
-        ? 'Team sheets'
-        : 'My sheets';
+        ? 'Sheet tim'
+        : 'Sheet saya';
     return AppBackScope(
       fallbackRoute: '/dashboard',
       child: Scaffold(
-        appBar: AppBar(
-          leading: const AppBackButton(fallbackRoute: '/dashboard'),
-          title: Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-          actions: <Widget>[
-            IconButton(
-              onPressed: _isLoading ? null : _loadSheets,
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-            IconButton(
-              onPressed: _isLoading ? null : _showFilters,
-              icon: Badge(
-                isLabelVisible: _hasFilter,
-                child: const Icon(Icons.tune_rounded),
+        appBar: useDesktopHeader
+            ? null
+            : AppBar(
+                leading: const AppBackButton(fallbackRoute: '/dashboard'),
+                title: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                actions: <Widget>[
+                  IconButton(
+                    onPressed: _isLoading ? null : _loadSheets,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                  IconButton(
+                    onPressed: _isLoading ? null : _showFilters,
+                    icon: Badge(
+                      isLabelVisible: _hasFilter,
+                      child: const Icon(Icons.tune_rounded),
+                    ),
+                    tooltip: 'Filter sheet',
+                  ),
+                ],
               ),
-              tooltip: 'Filter sheets',
-            ),
-          ],
-        ),
         floatingActionButton: user?.role.canCreateTemperatureSheet == true
             ? FloatingActionButton.extended(
                 onPressed: () => context.go('/sheets/new'),
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('New sheet'),
+                label: const Text('Sheet baru'),
               )
             : null,
-        body: RefreshIndicator(
-          onRefresh: _loadSheets,
-          child: _buildBody(context),
-        ),
+        body: useDesktopHeader
+            ? Column(
+                children: <Widget>[
+                  _desktopHeader(title),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _loadSheets,
+                      child: _buildBody(context),
+                    ),
+                  ),
+                ],
+              )
+            : RefreshIndicator(
+                onRefresh: _loadSheets,
+                child: _buildBody(context),
+              ),
       ),
     );
   }
+
+  Widget _desktopHeader(String title) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+    child: Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Muat ulang sheet',
+          onPressed: _isLoading ? null : _loadSheets,
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+        IconButton(
+          tooltip: 'Filter sheet',
+          onPressed: _isLoading ? null : _showFilters,
+          icon: Badge(
+            isLabelVisible: _hasFilter,
+            child: const Icon(Icons.tune_rounded),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildBody(BuildContext context) {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
@@ -166,6 +221,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       return ListView(
         padding: const EdgeInsets.all(24),
         children: <Widget>[
+          _temperatureSummary(),
           const SizedBox(height: 80),
           const Icon(
             Icons.description_outlined,
@@ -176,8 +232,8 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
           Center(
             child: Text(
               _hasFilter
-                  ? 'No sheets match this filter'
-                  : 'No inspection sheets yet',
+                  ? 'Tidak ada sheet yang cocok dengan filter ini'
+                  : 'Belum ada sheet inspeksi',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
           ),
@@ -185,8 +241,8 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
           Center(
             child: Text(
               _hasFilter
-                  ? 'Change or clear the filter to see other sheets.'
-                  : 'Create a new sheet to start recording temperatures.',
+                  ? 'Ubah atau hapus filter untuk melihat sheet lain.'
+                  : 'Buat sheet baru untuk mulai mencatat suhu.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.muted),
             ),
@@ -196,14 +252,100 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 108),
-      itemCount: sheets.length + (_hasFilter ? 1 : 0),
+      itemCount: sheets.length + (_hasFilter ? 1 : 0) + 1,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        if (_hasFilter && index == 0) return _filterSummary(sheets.length);
-        return _sheet(context, sheets[index - (_hasFilter ? 1 : 0)]);
+        if (index == 0) return _temperatureSummary();
+        if (_hasFilter && index == 1) return _filterSummary(sheets.length);
+        final sheetIndex = index - 1 - (_hasFilter ? 1 : 0);
+        return _sheet(context, sheets[sheetIndex]);
       },
     );
   }
+
+  Widget _temperatureSummary() {
+    final activity = _todayActivity;
+    return Row(
+      children: <Widget>[
+        _temperatureSummaryTile(
+          label: 'Draf',
+          count: activity?.draftCount ?? 0,
+          color: AppColors.orange,
+          icon: Icons.edit_note_rounded,
+          onTap: () =>
+              setState(() => _statusFilter = _SheetListStatusFilter.draft),
+        ),
+        const SizedBox(width: 10),
+        _temperatureSummaryTile(
+          label: 'Terkirim',
+          count: activity?.syncedCount ?? 0,
+          color: AppColors.green,
+          icon: Icons.cloud_done_rounded,
+          onTap: () =>
+              setState(() => _statusFilter = _SheetListStatusFilter.submitted),
+        ),
+        const SizedBox(width: 10),
+        _temperatureSummaryTile(
+          label: 'Suhu tinggi',
+          count: activity?.highTemperatureCount ?? 0,
+          color: AppColors.danger,
+          icon: Icons.thermostat_rounded,
+          onTap:
+              ref.read(currentUserProvider)?.role.canReviewTemperature == true
+              ? () => context.go('/high-temperature')
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _temperatureSummaryTile({
+    required String label,
+    required int count,
+    required Color color,
+    required IconData icon,
+    required VoidCallback? onTap,
+  }) => Expanded(
+    child: Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          height: 108,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.line),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Icon(icon, color: color, size: 21),
+              const SizedBox(height: 5),
+              Text(
+                '$count',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 23,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: AppColors.muted),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 
   bool get _hasFilter =>
       _fromDate != null ||
@@ -398,6 +540,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
         ? '/temperature?sheetId=${sheet.id}'
         : '/summary?sheetId=${sheet.id}';
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
         onTap: () => context.go(destination),
@@ -423,14 +566,35 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                 ],
               ),
               const SizedBox(height: 14),
-              Text(
-                displayShiftName(_shiftNames[sheet.shiftId] ?? 'Saved shift'),
-                style: const TextStyle(color: AppColors.muted),
-              ),
-              const SizedBox(height: 9),
-              Text(
-                detail,
-                style: const TextStyle(fontSize: 13, color: AppColors.muted),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          displayShiftName(
+                            _shiftNames[sheet.shiftId] ?? 'Shift tersimpan',
+                          ),
+                          style: const TextStyle(color: AppColors.muted),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          detail,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.muted,
+                  ),
+                ],
               ),
             ],
           ),

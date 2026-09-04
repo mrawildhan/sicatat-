@@ -44,7 +44,23 @@ class CrewGuideScreen extends StatelessWidget {
             body: 'Setelah pekerjaan selesai, ketuk Mark complete, isi catatan bila perlu, dan unggah minimal satu bukti PDF, JPG, JPEG, atau PNG. Jika reminder berulang, siklus berikutnya dibuat otomatis sesuai pengaturan repeat.',
           ),
           (
-            title: 'H. Akses dan koneksi',
+            title: 'H. Mencari stok Warehouse',
+            body: 'Buka menu Warehouse lalu ketik minimal dua karakter pada kolom pencarian, misalnya nama item, kode SC, atau lokasi bin. Data stok tidak ditampilkan sebelum pencarian dilakukan. Gunakan filter warehouse bila perlu, lalu pilih Stock & Price untuk melihat stok atau Tools untuk mencari alat.',
+          ),
+          (
+            title: 'I. Melihat detail item Warehouse',
+            body: 'Ketuk nama atau kartu item pada hasil pencarian untuk melihat detail yang tersedia dari Google Sheet: kode SC, site, lokasi bin, satuan, stok, harga unit, tanggal pembaruan sheet, dan waktu sinkronisasi. Gunakan tombol Refresh bila hasil belum sesuai setelah sumber data diperbarui.',
+          ),
+          (
+            title: 'J. Ganti password',
+            body: 'Buka Profile lalu pilih Ganti password. Masukkan password lama, kemudian buat password baru minimal delapan karakter dengan gabungan huruf dan angka. Setelah berhasil, semua perangkat yang masih login akan dikeluarkan dan Anda perlu masuk kembali dengan password baru.',
+          ),
+          (
+            title: 'K. Memperbarui aplikasi Android',
+            body: 'Buka Profile, pilih App updates, lalu ketuk Check update. Bila versi baru tersedia, pilih Download & install dan izinkan pemasangan aplikasi saat Android meminta persetujuan. Pastikan internet stabil; tidak perlu menghapus aplikasi lama.',
+          ),
+          (
+            title: 'L. Akses dan koneksi',
             body: 'SICATAT hanya dapat digunakan saat online. Menu yang tersedia mengikuti peran dan cakupan site akun. Jika data tidak dapat dimuat, periksa koneksi internet dan ketuk Refresh; jangan menghapus aplikasi.',
           ),
         ];
@@ -95,7 +111,7 @@ class CrewGuideScreen extends StatelessWidget {
         appBar: AppBar(
           leading: const AppBackButton(fallbackRoute: '/dashboard'),
           title: const Text(
-            'SICATAT field guide',
+            'Panduan pengguna SICATAT',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
@@ -117,36 +133,52 @@ class CrewGuideScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const _GuideSection(
-              'A. Temperature recording',
-              'Open the Temperature tab, then select New sheet. Choose the inspection date and the correct shift. One sheet is used for one date, shift, and site combination only.',
+              'A. Pencatatan temperatur',
+              'Buka menu Temperature, lalu pilih New sheet. Pilih tanggal inspeksi dan shift yang benar. Satu sheet digunakan untuk satu kombinasi tanggal, shift, modul, dan site.',
             ),
             const _GuideSection(
-              'B. Complete Round 1 and Round 2',
-              'Choose the unit and its West or East side, then save each side. The round time is recorded automatically with the first saved data. A sheet can remain a draft and be continued before the shift ends.',
+              'B. Round 1 dan Round 2',
+              'Pilih unit serta sisi West atau East, kemudian simpan setiap sisi. Waktu round tercatat otomatis saat data pertama disimpan. Sheet dapat tetap berupa draft dan dilanjutkan sebelum shift berakhir.',
             ),
             const _GuideSection(
-              'C. Select the unit condition',
-              'Choose Operating to record every temperature point. If the unit is Not operating or Not accessible, enter the reason. Do not use a temperature value instead of the required reason.',
+              'C. Kondisi unit',
+              'Pilih Operating untuk mengisi seluruh titik temperatur. Jika unit Not operating atau Not accessible, isi alasannya. Jangan mengganti alasan wajib dengan nilai temperatur.',
             ),
             const _GuideSection(
-              'D. Check the temperature colours',
-              'Green means below 60°C. Orange means 60–69°C and needs attention. Red means 70°C or above and must be reported immediately under the operating procedure.',
+              'D. Warna temperatur',
+              'Hijau berarti di bawah 60°C. Oranye berarti 60–69°C dan perlu perhatian. Merah berarti 70°C atau lebih dan harus segera dilaporkan sesuai prosedur operasi.',
             ),
             const _GuideSection(
-              'E. Sheet summary and submission',
-              'Open Sheet summary to review completed and missing sections. Tap a red card to open the missing data. Submit only when the data is ready; verified sheets are locked.',
+              'E. Ringkasan dan submit',
+              'Buka Sheet summary untuk meninjau bagian yang lengkap atau belum lengkap. Ketuk kartu merah untuk membuka data yang masih kurang. Kirim data hanya jika sudah siap; sheet yang diverifikasi akan terkunci.',
             ),
             const _GuideSection(
-              'F. Operational reminders',
-              'Users with Reminder access can add a title, asset, action, PIC, location, due date, priority, recipients, and email schedule. Select weekly, monthly, or a custom number of days before the due date.',
+              'F. Reminder operasional',
+              'Pengguna dengan akses Reminder dapat menambahkan judul, aset, tindakan, PIC, lokasi, tanggal jatuh tempo, prioritas, penerima, dan jadwal email. Pilih weekly, monthly, atau jumlah hari custom sebelum jatuh tempo.',
             ),
             const _GuideSection(
-              'G. Completing a reminder',
-              'When an action is complete, tap Mark complete and add a note if needed. Use Reopen when the work must be opened again. Use the history icon to view email deliveries and changes.',
+              'G. Menyelesaikan reminder',
+              'Setelah pekerjaan selesai, ketuk Mark complete dan isi catatan bila perlu. Gunakan Reopen jika pekerjaan perlu dibuka kembali. Gunakan ikon riwayat untuk melihat pengiriman email dan perubahan.',
             ),
             const _GuideSection(
-              'H. Access and connection',
-              'SICATAT is online-only. The available menus follow the account role and site scope. If data cannot load, check the internet connection and tap Refresh; do not uninstall the application.',
+              'H. Mencari stok Warehouse',
+              'Buka Warehouse, lalu ketik minimal dua karakter untuk mencari nama item, kode SC, atau lokasi bin. Hasil stok baru muncul setelah pencarian. Gunakan filter warehouse bila perlu, lalu pilih Stock & Price atau Tools sesuai kebutuhan.',
+            ),
+            const _GuideSection(
+              'I. Detail item Warehouse',
+              'Ketuk nama atau kartu item untuk melihat detail dari Google Sheet: kode SC, site, lokasi bin, satuan, stok, harga unit, tanggal pembaruan sheet, dan waktu sinkronisasi.',
+            ),
+            const _GuideSection(
+              'J. Ganti password',
+              'Buka Profile lalu pilih Ganti password. Masukkan password lama, kemudian buat password baru minimal delapan karakter dengan gabungan huruf dan angka. Setelah berhasil, semua perangkat yang masih login akan dikeluarkan dan Anda perlu masuk kembali.',
+            ),
+            const _GuideSection(
+              'K. Memperbarui aplikasi Android',
+              'Buka Profile, pilih App updates, lalu ketuk Check update. Jika ada versi baru, pilih Download & install dan izinkan pemasangan saat Android meminta persetujuan. Jangan hapus aplikasi lama.',
+            ),
+            const _GuideSection(
+              'L. Akses dan koneksi',
+              'SICATAT hanya dapat digunakan saat online. Menu yang tersedia mengikuti peran dan cakupan site akun. Jika data tidak dapat dimuat, periksa koneksi internet dan ketuk Refresh; jangan menghapus aplikasi.',
             ),
           ],
         ),

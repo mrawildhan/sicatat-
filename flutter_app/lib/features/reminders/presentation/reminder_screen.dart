@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,6 +15,7 @@ import '../../../data/models/sicatat_types.dart';
 
 const List<String> _categories = <String>[
   'General',
+  'Taxes',
   'Vehicle document',
   'Servicing',
   'Inspection',
@@ -24,7 +26,7 @@ const List<String> _categories = <String>[
 
 const List<String> _priorities = <String>['low', 'normal', 'high', 'critical'];
 
-enum _ReminderFilter { all, actionRequired, completed }
+enum _ReminderFilter { all, overdue, dueSoon, open, completed }
 
 enum _DueDateFilter { all, nextThirtyDays, custom }
 
@@ -45,6 +47,8 @@ class ReminderItem {
     required this.reminderSchedule,
     required this.evidence,
     this.assetCode,
+    this.documentNumber,
+    this.governmentAgency,
     this.description,
     this.assignedTo,
     this.location,
@@ -62,6 +66,8 @@ class ReminderItem {
   final List<String> emails;
   final String category;
   final String? assetCode;
+  final String? documentNumber;
+  final String? governmentAgency;
   final String? description;
   final String priority;
   final String? assignedTo;
@@ -77,6 +83,16 @@ class ReminderItem {
 
   bool get isOpen => status == 'open';
   bool get isCompleted => status == 'completed';
+  List<ReminderEvidence> get supportingDocuments => evidence
+      .where(
+        (ReminderEvidence file) => file.attachmentType == 'supporting_document',
+      )
+      .toList(growable: false);
+  List<ReminderEvidence> get completionProof => evidence
+      .where(
+        (ReminderEvidence file) => file.attachmentType != 'supporting_document',
+      )
+      .toList(growable: false);
 
   factory ReminderItem.fromJson(JsonMap json) {
     final Object? rawEmails = json['recipient_emails'];
@@ -101,6 +117,10 @@ class ReminderItem {
       emails: emails,
       category: json.optionalString('category') ?? 'General',
       assetCode: _cleanOptional(json.optionalString('asset_code')),
+      documentNumber: _cleanOptional(json.optionalString('document_number')),
+      governmentAgency: _cleanOptional(
+        json.optionalString('government_agency'),
+      ),
       description: _cleanOptional(json.optionalString('description')),
       priority: json.optionalString('priority') ?? 'normal',
       assignedTo: _cleanOptional(json.optionalString('assigned_to')),
@@ -133,6 +153,8 @@ class ReminderItem {
     'recipient_emails': emails,
     'category': category,
     'asset_code': assetCode,
+    'document_number': documentNumber,
+    'government_agency': governmentAgency,
     'description': description,
     'priority': priority,
     'assigned_to': assignedTo,
@@ -153,6 +175,7 @@ class ReminderEvidence {
     required this.mimeType,
     required this.sizeBytes,
     required this.uploadedAt,
+    required this.attachmentType,
   });
 
   final String id;
@@ -161,6 +184,7 @@ class ReminderEvidence {
   final String mimeType;
   final int sizeBytes;
   final DateTime uploadedAt;
+  final String attachmentType;
 
   factory ReminderEvidence.fromJson(JsonMap json) => ReminderEvidence(
     id: json.requiredString('id'),
@@ -169,6 +193,8 @@ class ReminderEvidence {
     mimeType: json.requiredString('mime_type'),
     sizeBytes: (json['size_bytes'] as num?)?.toInt() ?? 0,
     uploadedAt: DateTime.parse(json.requiredString('uploaded_at')).toLocal(),
+    attachmentType:
+        json.optionalString('attachment_type') ?? 'completion_proof',
   );
 }
 
@@ -212,6 +238,8 @@ class _ReminderScreenState extends State<ReminderScreen> {
   AppUser? _actor;
   final Set<String> _sendingIds = <String>{};
   final TextEditingController _searchController = TextEditingController();
+  RealtimeChannel? _reminderChannel;
+  Timer? _realtimeRefreshDebounce;
   _ReminderFilter _filter = _ReminderFilter.all;
   String _searchQuery = '';
   String? _siteFilterId;
@@ -227,7 +255,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
       _actor?.role == UserRole.foremanLv;
 
   bool get _hasAdvancedFilter =>
-      _siteFilterId != null || _dueDateFilter != _DueDateFilter.all;
+      _siteFilterId != null ||
+      _dueDateFilter != _DueDateFilter.all ||
+      _filter != _ReminderFilter.all;
 
   bool get _hasActiveFilter =>
       _hasAdvancedFilter || _searchQuery.trim().isNotEmpty;
@@ -236,10 +266,14 @@ class _ReminderScreenState extends State<ReminderScreen> {
   void initState() {
     super.initState();
     _load();
+    _subscribeToReminderChanges();
   }
 
   @override
   void dispose() {
+    _realtimeRefreshDebounce?.cancel();
+    final RealtimeChannel? channel = _reminderChannel;
+    if (channel != null) unawaited(_client.removeChannel(channel));
     _searchController.dispose();
     super.dispose();
   }
@@ -247,8 +281,8 @@ class _ReminderScreenState extends State<ReminderScreen> {
   void _message(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  Future<void> _load({bool showLoading = true, bool showErrors = true}) async {
+    if (showLoading && mounted) setState(() => _loading = true);
     try {
       final String? email = _client.auth.currentUser?.email;
       if (email == null) throw const FormatException('No active user session.');
@@ -257,7 +291,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         _client
             .from('operational_reminder')
             .select(
-              'id,site_id,title,due_date,recipient_emails,category,asset_code,description,priority,assigned_to,location,status,reminder_schedule,custom_reminder_days,recurrence_months,completed_at,completed_note,last_sent_at,operational_reminder_evidence(id,file_name,storage_path,mime_type,size_bytes,uploaded_at)',
+              'id,site_id,title,due_date,recipient_emails,category,asset_code,document_number,government_agency,description,priority,assigned_to,location,status,reminder_schedule,custom_reminder_days,recurrence_months,completed_at,completed_note,last_sent_at,operational_reminder_evidence(id,file_name,storage_path,mime_type,size_bytes,uploaded_at,attachment_type)',
             )
             .order('due_date'),
         _client
@@ -321,10 +355,31 @@ class _ReminderScreenState extends State<ReminderScreen> {
         });
       }
     } on Object catch (error) {
-      if (mounted) _message('Unable to load reminders: $error');
+      if (mounted && showErrors) _message('Unable to load reminders: $error');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && showLoading) setState(() => _loading = false);
     }
+  }
+
+  void _subscribeToReminderChanges() {
+    _reminderChannel = _client
+        .channel(
+          'operational-reminders-${DateTime.now().microsecondsSinceEpoch}',
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'operational_reminder',
+          callback: (_) => _queueRealtimeRefresh(),
+        )
+        .subscribe();
+  }
+
+  void _queueRealtimeRefresh() {
+    _realtimeRefreshDebounce?.cancel();
+    _realtimeRefreshDebounce = Timer(const Duration(milliseconds: 450), () {
+      if (mounted) unawaited(_load(showLoading: false, showErrors: false));
+    });
   }
 
   bool _isValidEmail(String value) =>
@@ -356,14 +411,17 @@ class _ReminderScreenState extends State<ReminderScreen> {
     final TextEditingController assetCode = TextEditingController(
       text: existing?.assetCode ?? '',
     );
+    final TextEditingController documentNumber = TextEditingController(
+      text: existing?.documentNumber ?? '',
+    );
+    final TextEditingController governmentAgency = TextEditingController(
+      text: existing?.governmentAgency ?? '',
+    );
     final TextEditingController description = TextEditingController(
       text: existing?.description ?? '',
     );
     final TextEditingController assignedTo = TextEditingController(
       text: existing?.assignedTo ?? '',
-    );
-    final TextEditingController location = TextEditingController(
-      text: existing?.location ?? '',
     );
     final TextEditingController addEmail = TextEditingController();
     DateTime dueDate =
@@ -371,8 +429,8 @@ class _ReminderScreenState extends State<ReminderScreen> {
         _dateOnlyDate(DateTime.now()).add(const Duration(days: 7));
     String? siteId = existing?.siteId ?? _actor?.siteId;
     if (siteId == null && _sites.isNotEmpty) siteId = _sites.first.id;
-    String category = existing?.category ?? 'General';
-    if (!_categories.contains(category)) category = 'Other';
+    String? category = existing?.category;
+    if (category != null && !_categories.contains(category)) category = 'Other';
     String priority = existing?.priority ?? 'normal';
     if (!_priorities.contains(priority)) priority = 'normal';
     int? recurrenceMonths = existing?.recurrenceMonths;
@@ -389,6 +447,17 @@ class _ReminderScreenState extends State<ReminderScreen> {
       ..._recipientDirectory,
     }.toList(growable: true)..sort();
     String? addEmailError;
+    final List<_PendingEvidence> pendingDocuments = <_PendingEvidence>[];
+    bool showValidation = false;
+
+    bool hasMissingRequiredFields() =>
+        title.text.trim().isEmpty ||
+        siteId == null ||
+        category == null ||
+        documentNumber.text.trim().isEmpty ||
+        governmentAgency.text.trim().isEmpty ||
+        description.text.trim().isEmpty ||
+        selected.isEmpty;
 
     final bool? saved = await showDialog<bool>(
       context: context,
@@ -398,7 +467,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
               BuildContext context,
               void Function(void Function()) setModalState,
             ) => AlertDialog(
-              title: Text(existing == null ? 'Add reminder' : 'Edit reminder'),
+              title: Text(
+                existing == null ? 'Tambah pengingat' : 'Ubah pengingat',
+              ),
               content: SizedBox(
                 width: 480,
                 child: SingleChildScrollView(
@@ -409,16 +480,27 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       TextField(
                         controller: title,
                         textCapitalization: TextCapitalization.sentences,
-                        decoration: const InputDecoration(
-                          labelText: 'Reminder title',
-                          hintText: 'e.g. Renew vehicle registration',
+                        onChanged: (_) {
+                          if (showValidation) setModalState(() {});
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Nama dokumen *',
+                          hintText: 'e.g. PAJAK HILUX RESCUE',
+                          errorText: showValidation && title.text.trim().isEmpty
+                              ? 'Nama dokumen wajib diisi.'
+                              : null,
                         ),
                       ),
                       if (_canSelectSite) ...<Widget>[
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           initialValue: siteId,
-                          decoration: const InputDecoration(labelText: 'Site'),
+                          decoration: InputDecoration(
+                            labelText: 'Site *',
+                            errorText: showValidation && siteId == null
+                                ? 'Pilih site.'
+                                : null,
+                          ),
                           items: _sites
                               .map(
                                 (_ReminderSite site) =>
@@ -441,8 +523,11 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: category,
-                        decoration: const InputDecoration(
-                          labelText: 'Category',
+                        decoration: InputDecoration(
+                          labelText: 'Kategori *',
+                          errorText: showValidation && category == null
+                              ? 'Pilih kategori.'
+                              : null,
                         ),
                         items: _categories
                             .map(
@@ -452,16 +537,56 @@ class _ReminderScreenState extends State<ReminderScreen> {
                               ),
                             )
                             .toList(growable: false),
-                        onChanged: (String? value) =>
-                            setModalState(() => category = value ?? category),
+                        onChanged: (String? value) => setModalState(() {
+                          category = value;
+                          if (value == 'Taxes' &&
+                              governmentAgency.text.trim().isEmpty) {
+                            governmentAgency.text =
+                                'Samsat Provinsi Kalimantan Selatan';
+                          }
+                        }),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: assetCode,
                         textCapitalization: TextCapitalization.characters,
                         decoration: const InputDecoration(
-                          labelText: 'Asset / reference',
+                          labelText: 'Aset / referensi (opsional)',
                           hintText: 'e.g. SMG 001',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: documentNumber,
+                        textCapitalization: TextCapitalization.characters,
+                        onChanged: (_) {
+                          if (showValidation) setModalState(() {});
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Nomor dokumen *',
+                          hintText: 'e.g. DA 8074 LN',
+                          errorText:
+                              showValidation &&
+                                  documentNumber.text.trim().isEmpty
+                              ? 'Nomor dokumen wajib diisi.'
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: governmentAgency,
+                        textCapitalization: TextCapitalization.words,
+                        onChanged: (_) {
+                          if (showValidation) setModalState(() {});
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Instansi pemerintah *',
+                          hintText: 'e.g. Samsat Provinsi Kalimantan Selatan',
+                          errorText:
+                              showValidation &&
+                                  governmentAgency.text.trim().isEmpty
+                              ? 'Instansi pemerintah wajib diisi.'
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -470,16 +595,24 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         textCapitalization: TextCapitalization.sentences,
                         minLines: 2,
                         maxLines: 4,
-                        decoration: const InputDecoration(
-                          labelText: 'Required action',
-                          hintText: 'Describe what must be completed.',
+                        onChanged: (_) {
+                          if (showValidation) setModalState(() {});
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Tindakan / catatan wajib *',
+                          hintText:
+                              'Jelaskan pekerjaan yang harus diselesaikan.',
+                          errorText:
+                              showValidation && description.text.trim().isEmpty
+                              ? 'Tindakan atau catatan wajib diisi.'
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: priority,
                         decoration: const InputDecoration(
-                          labelText: 'Priority',
+                          labelText: 'Prioritas',
                         ),
                         items: _priorities
                             .map(
@@ -497,24 +630,63 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         controller: assignedTo,
                         textCapitalization: TextCapitalization.words,
                         decoration: const InputDecoration(
-                          labelText: 'Responsible person / team',
+                          labelText: 'Penanggung jawab / tim',
                           hintText: 'e.g. Maintenance Clerk',
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: location,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(
-                          labelText: 'Location',
-                          hintText: 'e.g. Asam-Asam',
+                      if (existing == null) ...<Widget>[
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Dokumen pendukung (opsional)',
+                          style: TextStyle(fontWeight: FontWeight.w800),
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Lampirkan PDF, JPG, JPEG, atau PNG bila tersedia.',
+                          style: TextStyle(color: AppColors.muted),
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final List<_PendingEvidence> selectedFiles =
+                                await _pickCompletionEvidence();
+                            if (selectedFiles.isNotEmpty) {
+                              setModalState(
+                                () => pendingDocuments.addAll(selectedFiles),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.attach_file_rounded),
+                          label: Text(
+                            pendingDocuments.isEmpty
+                                ? 'Lampirkan dokumen'
+                                : 'Tambah dokumen',
+                          ),
+                        ),
+                        ...pendingDocuments.asMap().entries.map(
+                          (MapEntry<int, _PendingEvidence> entry) => ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(_evidenceIcon(entry.value.mimeType)),
+                            title: Text(entry.value.name),
+                            subtitle: Text(
+                              _prettyBytes(entry.value.bytes.length),
+                            ),
+                            trailing: IconButton(
+                              tooltip: 'Hapus dokumen',
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => setModalState(
+                                () => pendingDocuments.removeAt(entry.key),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.event_rounded),
-                        title: const Text('Due date'),
+                        title: const Text('Tanggal berakhir *'),
                         subtitle: Text(_prettyDate(dueDate)),
                         trailing: const Icon(Icons.calendar_month_rounded),
                         onTap: () async {
@@ -531,32 +703,36 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Automatic email schedule',
+                        'Jadwal email otomatis',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Email is sent automatically at 08:00 WITA.',
+                        'Email dikirim otomatis pukul 08.00 WITA.',
                         style: TextStyle(color: AppColors.muted),
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<ReminderSchedule>(
                         initialValue: reminderSchedule,
                         decoration: const InputDecoration(
-                          labelText: 'Reminder timing',
+                          labelText: 'Waktu pengingat',
                         ),
                         items: const <DropdownMenuItem<ReminderSchedule>>[
                           DropdownMenuItem<ReminderSchedule>(
                             value: ReminderSchedule.weekly,
-                            child: Text('Weekly · 7 days before'),
+                            child: Text('Mingguan · 7 hari sebelumnya'),
                           ),
                           DropdownMenuItem<ReminderSchedule>(
                             value: ReminderSchedule.monthly,
-                            child: Text('Monthly · 1 calendar month before'),
+                            child: Text(
+                              'Bulanan · 1 bulan kalender sebelumnya',
+                            ),
                           ),
                           DropdownMenuItem<ReminderSchedule>(
                             value: ReminderSchedule.custom,
-                            child: Text('Custom · choose days before'),
+                            child: Text(
+                              'Kustom · pilih jumlah hari sebelumnya',
+                            ),
                           ),
                         ],
                         onChanged: (ReminderSchedule? value) => setModalState(
@@ -570,9 +746,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
                           controller: customReminderDays,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
-                            labelText: 'Days before due date',
+                            labelText: 'Hari sebelum jatuh tempo',
                             hintText: 'e.g. 14',
-                            suffixText: 'days',
+                            suffixText: 'hari',
                           ),
                         ),
                       ],
@@ -580,48 +756,61 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       DropdownButtonFormField<int?>(
                         initialValue: recurrenceMonths,
                         decoration: const InputDecoration(
-                          labelText: 'Repeat after completion',
+                          labelText: 'Ulangi setelah selesai',
                         ),
                         items: const <DropdownMenuItem<int?>>[
                           DropdownMenuItem<int?>(
                             value: null,
-                            child: Text('Does not repeat'),
+                            child: Text('Tidak berulang'),
                           ),
                           DropdownMenuItem<int?>(
                             value: 1,
-                            child: Text('Every month'),
+                            child: Text('Setiap bulan'),
                           ),
                           DropdownMenuItem<int?>(
                             value: 3,
-                            child: Text('Every 3 months'),
+                            child: Text('Setiap 3 bulan'),
                           ),
                           DropdownMenuItem<int?>(
                             value: 6,
-                            child: Text('Every 6 months'),
+                            child: Text('Setiap 6 bulan'),
                           ),
                           DropdownMenuItem<int?>(
                             value: 12,
-                            child: Text('Every year'),
+                            child: Text('Setiap tahun'),
                           ),
                         ],
                         onChanged: (int? value) =>
                             setModalState(() => recurrenceMonths = value),
                       ),
                       const SizedBox(height: 18),
-                      const Text(
-                        'Email recipients',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                      Text(
+                        'Penerima email *',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: showValidation && selected.isEmpty
+                              ? AppColors.danger
+                              : null,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Tick every person who should receive this reminder.',
+                        'Pilih setiap orang yang perlu menerima pengingat ini.',
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Testing mode: all outgoing email is routed to mcasamasam@arutmin.com.',
+                        'Mode pengujian: seluruh email keluar dikirim ke mcasamasam@arutmin.com.',
                         style: TextStyle(color: AppColors.muted),
                       ),
                       const SizedBox(height: 8),
+                      if (showValidation && selected.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            'Pilih setidaknya satu penerima.',
+                            style: TextStyle(color: AppColors.danger),
+                          ),
+                        ),
                       ...available.map(
                         (String email) => CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
@@ -645,14 +834,14 @@ class _ReminderScreenState extends State<ReminderScreen> {
                               controller: addEmail,
                               keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
-                                labelText: 'Add another email',
+                                labelText: 'Tambah email lain',
                                 errorText: addEmailError,
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           IconButton.filledTonal(
-                            tooltip: 'Add and select email',
+                            tooltip: 'Tambah dan pilih email',
                             icon: const Icon(Icons.person_add_alt_1_rounded),
                             onPressed: () {
                               final String email = addEmail.text
@@ -660,7 +849,8 @@ class _ReminderScreenState extends State<ReminderScreen> {
                                   .toLowerCase();
                               if (!_isValidEmail(email)) {
                                 setModalState(
-                                  () => addEmailError = 'Enter a valid email.',
+                                  () => addEmailError =
+                                      'Masukkan email yang valid.',
                                 );
                                 return;
                               }
@@ -684,12 +874,18 @@ class _ReminderScreenState extends State<ReminderScreen> {
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
+                  child: const Text('Batal'),
                 ),
                 FilledButton.icon(
-                  onPressed: () => Navigator.pop(dialogContext, true),
+                  onPressed: () {
+                    if (hasMissingRequiredFields()) {
+                      setModalState(() => showValidation = true);
+                      return;
+                    }
+                    Navigator.pop(dialogContext, true);
+                  },
                   icon: const Icon(Icons.save_rounded),
-                  label: const Text('Save'),
+                  label: const Text('Simpan'),
                 ),
               ],
             ),
@@ -699,9 +895,10 @@ class _ReminderScreenState extends State<ReminderScreen> {
       _disposeControllers(<TextEditingController>[
         title,
         assetCode,
+        documentNumber,
+        governmentAgency,
         description,
         assignedTo,
-        location,
         customReminderDays,
         addEmail,
       ]);
@@ -716,12 +913,16 @@ class _ReminderScreenState extends State<ReminderScreen> {
       if (cleanTitle.isEmpty ||
           recipients.isEmpty ||
           siteId == null ||
+          category == null ||
+          documentNumber.text.trim().isEmpty ||
+          governmentAgency.text.trim().isEmpty ||
+          description.text.trim().isEmpty ||
           (reminderSchedule == ReminderSchedule.custom &&
               (parsedCustomDays == null ||
                   parsedCustomDays < 0 ||
                   parsedCustomDays > 365))) {
         throw const FormatException(
-          'Enter a title, choose a site, tick at least one recipient, and enter custom days from 0 to 365 when needed.',
+          'Lengkapi setiap kolom wajib bertanda * dan isi jumlah hari kustom 0 sampai 365 bila diperlukan.',
         );
       }
       final ReminderItem item = ReminderItem(
@@ -730,12 +931,14 @@ class _ReminderScreenState extends State<ReminderScreen> {
         title: cleanTitle,
         dueDate: dueDate,
         emails: recipients,
-        category: category,
+        category: category!,
         assetCode: _cleanOptional(assetCode.text),
+        documentNumber: _cleanOptional(documentNumber.text),
+        governmentAgency: _cleanOptional(governmentAgency.text),
         description: _cleanOptional(description.text),
         priority: priority,
         assignedTo: _cleanOptional(assignedTo.text),
-        location: _cleanOptional(location.text),
+        location: _siteName(siteId!),
         status: existing?.status ?? 'open',
         reminderSchedule: reminderSchedule,
         evidence: existing?.evidence ?? const <ReminderEvidence>[],
@@ -762,7 +965,18 @@ class _ReminderScreenState extends State<ReminderScreen> {
             );
       }
       if (existing == null) {
-        await _client.from('operational_reminder').insert(item.toPayload());
+        final Object created = await _client
+            .from('operational_reminder')
+            .insert(item.toPayload())
+            .select('id')
+            .single();
+        final String reminderId = requireJsonMap(
+          created,
+          source: 'created reminder',
+        ).requiredString('id');
+        if (pendingDocuments.isNotEmpty) {
+          await _uploadSupportingDocuments(reminderId, pendingDocuments);
+        }
       } else {
         await _client
             .from('operational_reminder')
@@ -771,17 +985,20 @@ class _ReminderScreenState extends State<ReminderScreen> {
       }
       await _load();
       if (mounted) {
-        _message('Reminder saved. Automatic schedule is active at 08:00 WITA.');
+        _message(
+          'Pengingat tersimpan. Jadwal otomatis aktif pukul 08.00 WITA.',
+        );
       }
     } on Object catch (error) {
-      if (mounted) _message('Unable to save reminder: $error');
+      if (mounted) _message('Pengingat tidak dapat disimpan: $error');
     } finally {
       _disposeControllers(<TextEditingController>[
         title,
         assetCode,
+        documentNumber,
+        governmentAgency,
         description,
         assignedTo,
-        location,
         customReminderDays,
         addEmail,
       ]);
@@ -799,11 +1016,11 @@ class _ReminderScreenState extends State<ReminderScreen> {
               BuildContext context,
               void Function(void Function()) setModalState,
             ) => AlertDialog(
-              title: const Text('Mark reminder as complete?'),
+              title: const Text('Tandai pengingat selesai?'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Text('Complete "${item.title}"?'),
+                  Text('Selesaikan "${item.title}"?'),
                   const SizedBox(height: 12),
                   TextField(
                     controller: note,
@@ -811,17 +1028,17 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     maxLines: 4,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
-                      labelText: 'Completion note (optional)',
+                      labelText: 'Catatan penyelesaian (opsional)',
                     ),
                   ),
                   const SizedBox(height: 14),
                   const Text(
-                    'Evidence files',
+                    'File bukti',
                     style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Upload at least one PDF, JPG, JPEG, or PNG (up to 10 MB each).',
+                    'Unggah minimal satu PDF, JPG, JPEG, atau PNG (maksimal 10 MB per file).',
                     style: TextStyle(color: AppColors.muted),
                   ),
                   const SizedBox(height: 8),
@@ -842,15 +1059,15 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     icon: const Icon(Icons.upload_file_rounded),
                     label: Text(
                       pendingEvidence.isEmpty
-                          ? 'Select proof files'
-                          : 'Add proof files',
+                          ? 'Pilih file bukti'
+                          : 'Tambah file bukti',
                     ),
                   ),
                   if (pendingEvidence.isEmpty)
                     const Padding(
                       padding: EdgeInsets.only(top: 8),
                       child: Text(
-                        'A proof file is required before completion.',
+                        'File bukti wajib dilampirkan sebelum selesai.',
                         style: TextStyle(color: AppColors.orange),
                       ),
                     ),
@@ -862,7 +1079,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       title: Text(entry.value.name),
                       subtitle: Text(_prettyBytes(entry.value.bytes.length)),
                       trailing: IconButton(
-                        tooltip: 'Remove file',
+                        tooltip: 'Hapus file',
                         icon: const Icon(Icons.close_rounded),
                         onPressed: () => setModalState(
                           () => pendingEvidence.removeAt(entry.key),
@@ -873,7 +1090,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   if (item.recurrenceMonths != null) ...<Widget>[
                     const SizedBox(height: 12),
                     const Text(
-                      'A new recurring reminder will be created automatically.',
+                      'Pengingat berulang baru akan dibuat otomatis.',
                       style: TextStyle(color: AppColors.muted),
                     ),
                   ],
@@ -882,14 +1099,14 @@ class _ReminderScreenState extends State<ReminderScreen> {
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
+                  child: const Text('Batal'),
                 ),
                 FilledButton.icon(
                   onPressed: pendingEvidence.isEmpty
                       ? null
                       : () => Navigator.pop(dialogContext, true),
                   icon: const Icon(Icons.task_alt_rounded),
-                  label: const Text('Mark complete'),
+                  label: const Text('Tandai selesai'),
                 ),
               ],
             ),
@@ -933,15 +1150,15 @@ class _ReminderScreenState extends State<ReminderScreen> {
       if (mounted) {
         _message(
           item.recurrenceMonths == null
-              ? 'Reminder marked as complete.'
-              : 'Reminder completed and the next cycle was created.',
+              ? 'Pengingat ditandai selesai.'
+              : 'Pengingat selesai dan siklus berikutnya telah dibuat.',
         );
       }
     } on Object catch (error) {
       if (uploadedPaths.isNotEmpty) {
         await _client.storage.from('reminder-evidence').remove(uploadedPaths);
       }
-      if (mounted) _message('Unable to complete reminder: $error');
+      if (mounted) _message('Pengingat tidak dapat diselesaikan: $error');
     } finally {
       note.dispose();
     }
@@ -958,9 +1175,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
           })
           .eq('id', item.id);
       await _load();
-      if (mounted) _message('Reminder reopened.');
+      if (mounted) _message('Pengingat dibuka kembali.');
     } on Object catch (error) {
-      if (mounted) _message('Unable to reopen reminder: $error');
+      if (mounted) _message('Pengingat tidak dapat dibuka kembali: $error');
     }
   }
 
@@ -977,7 +1194,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
       final Uint8List? bytes = file.bytes;
       if (bytes == null || bytes.isEmpty) continue;
       if (bytes.length > 10 * 1024 * 1024) {
-        _message('${file.name} is larger than 10 MB.');
+        _message('${file.name} lebih besar dari 10 MB.');
         continue;
       }
       final String? mimeType = _evidenceMimeType(file.name);
@@ -989,6 +1206,46 @@ class _ReminderScreenState extends State<ReminderScreen> {
     return evidence;
   }
 
+  Future<void> _uploadSupportingDocuments(
+    String reminderId,
+    List<_PendingEvidence> documents,
+  ) async {
+    final List<String> uploadedPaths = <String>[];
+    try {
+      final List<Map<String, Object?>> payload = <Map<String, Object?>>[];
+      for (final _PendingEvidence document in documents) {
+        final String storagePath =
+            '$reminderId/${DateTime.now().microsecondsSinceEpoch}_${_safeStorageFileName(document.name)}';
+        await _client.storage
+            .from('reminder-evidence')
+            .uploadBinary(
+              storagePath,
+              document.bytes,
+              fileOptions: FileOptions(contentType: document.mimeType),
+            );
+        uploadedPaths.add(storagePath);
+        payload.add(<String, Object?>{
+          'storage_path': storagePath,
+          'file_name': document.name,
+          'mime_type': document.mimeType,
+          'size_bytes': document.bytes.length,
+        });
+      }
+      await _client.rpc<dynamic>(
+        'attach_operational_reminder_documents',
+        params: <String, Object?>{
+          'p_reminder_id': reminderId,
+          'p_documents': payload,
+        },
+      );
+    } on Object catch (_) {
+      if (uploadedPaths.isNotEmpty) {
+        await _client.storage.from('reminder-evidence').remove(uploadedPaths);
+      }
+      rethrow;
+    }
+  }
+
   Future<void> _openEvidence(ReminderEvidence evidence) async {
     try {
       final String url = await _client.storage
@@ -998,9 +1255,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
         Uri.parse(url),
         mode: LaunchMode.externalApplication,
       );
-      if (!opened && mounted) _message('Unable to open the evidence file.');
+      if (!opened && mounted) _message('File bukti tidak dapat dibuka.');
     } on Object catch (error) {
-      if (mounted) _message('Unable to open evidence: $error');
+      if (mounted) _message('Bukti tidak dapat dibuka: $error');
     }
   }
 
@@ -1008,16 +1265,16 @@ class _ReminderScreenState extends State<ReminderScreen> {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Delete reminder?'),
-        content: Text('Delete "${item.title}" and its history?'),
+        title: const Text('Hapus pengingat?'),
+        content: Text('Hapus "${item.title}" beserta riwayatnya?'),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: const Text('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
+            child: const Text('Hapus'),
           ),
         ],
       ),
@@ -1026,35 +1283,41 @@ class _ReminderScreenState extends State<ReminderScreen> {
     try {
       await _client.from('operational_reminder').delete().eq('id', item.id);
       await _load();
-      if (mounted) _message('Reminder deleted.');
+      if (mounted) _message('Pengingat dihapus.');
     } on Object catch (error) {
-      if (mounted) _message('Unable to delete reminder: $error');
+      if (mounted) _message('Pengingat tidak dapat dihapus: $error');
     }
   }
 
   Future<void> _sendEmail(ReminderItem item) async {
     setState(() => _sendingIds.add(item.id));
     try {
-      final FunctionResponse response = await _client.functions.invoke(
-        'send-reminder-email',
-        body: <String, Object?>{'reminder_id': item.id},
-      );
+      final FunctionResponse response = await _client.functions
+          .invoke(
+            'send-reminder-email',
+            body: <String, Object?>{'reminder_id': item.id},
+          )
+          .timeout(
+            const Duration(seconds: 25),
+            onTimeout: () => throw TimeoutException(
+              'Layanan email tidak merespons dalam 25 detik.',
+            ),
+          );
       final JsonMap data = requireJsonMap(
         response.data,
         source: 'send reminder email response',
       );
       if (data['ok'] != true) {
         throw FormatException(
-          data.optionalString('error') ??
-              'The email service rejected the request.',
+          data.optionalString('error') ?? 'Layanan email menolak permintaan.',
         );
       }
       await _load();
       if (mounted) {
-        _message('Email sent to ${item.emails.length} recipient(s).');
+        _message('Email dikirim ke ${item.emails.length} penerima.');
       }
     } on Object catch (error) {
-      if (mounted) _message('Email was not sent: ${_emailFailure(error)}');
+      if (mounted) _message('Email tidak terkirim: ${_emailFailure(error)}');
     } finally {
       if (mounted) setState(() => _sendingIds.remove(item.id));
     }
@@ -1063,6 +1326,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
   Future<void> _showAdvancedFilter() async {
     String? siteId = _siteFilterId;
     _DueDateFilter dueDateFilter = _dueDateFilter;
+    _ReminderFilter reminderFilter = _filter;
     DateTimeRange? customRange = _customDueRange;
     final bool? apply = await showDialog<bool>(
       context: context,
@@ -1118,6 +1382,38 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         () => dueDateFilter = value ?? dueDateFilter,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<_ReminderFilter>(
+                      initialValue: reminderFilter,
+                      decoration: const InputDecoration(
+                        labelText: 'Reminder status',
+                      ),
+                      items: const <DropdownMenuItem<_ReminderFilter>>[
+                        DropdownMenuItem<_ReminderFilter>(
+                          value: _ReminderFilter.all,
+                          child: Text('All reminders'),
+                        ),
+                        DropdownMenuItem<_ReminderFilter>(
+                          value: _ReminderFilter.overdue,
+                          child: Text('Overdue'),
+                        ),
+                        DropdownMenuItem<_ReminderFilter>(
+                          value: _ReminderFilter.dueSoon,
+                          child: Text('Due soon (next 7 days)'),
+                        ),
+                        DropdownMenuItem<_ReminderFilter>(
+                          value: _ReminderFilter.open,
+                          child: Text('Open'),
+                        ),
+                        DropdownMenuItem<_ReminderFilter>(
+                          value: _ReminderFilter.completed,
+                          child: Text('Completed'),
+                        ),
+                      ],
+                      onChanged: (_ReminderFilter? value) => setModalState(
+                        () => reminderFilter = value ?? reminderFilter,
+                      ),
+                    ),
                     if (dueDateFilter == _DueDateFilter.custom) ...<Widget>[
                       const SizedBox(height: 10),
                       OutlinedButton.icon(
@@ -1150,6 +1446,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     siteId = null;
                     dueDateFilter = _DueDateFilter.all;
                     customRange = null;
+                    reminderFilter = _ReminderFilter.all;
                     Navigator.pop(dialogContext, true);
                   },
                   child: const Text('Clear filters'),
@@ -1171,6 +1468,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
       _siteFilterId = siteId;
       _dueDateFilter = dueDateFilter;
       _customDueRange = customRange;
+      _filter = reminderFilter;
     });
   }
 
@@ -1314,9 +1612,11 @@ class _ReminderScreenState extends State<ReminderScreen> {
             item.title,
             item.category,
             item.assetCode ?? '',
+            item.documentNumber ?? '',
             item.description ?? '',
             item.assignedTo ?? '',
             item.location ?? '',
+            _siteName(item.siteId),
           ].join(' ').toLowerCase();
           if (!searchableText.contains(query)) return false;
         }
@@ -1344,7 +1644,12 @@ class _ReminderScreenState extends State<ReminderScreen> {
         switch (_filter) {
           case _ReminderFilter.all:
             return true;
-          case _ReminderFilter.actionRequired:
+          case _ReminderFilter.overdue:
+            return item.isOpen && _daysUntil(item.dueDate) < 0;
+          case _ReminderFilter.dueSoon:
+            final int days = _daysUntil(item.dueDate);
+            return item.isOpen && days >= 0 && days <= 7;
+          case _ReminderFilter.open:
             return item.isOpen;
           case _ReminderFilter.completed:
             return item.isCompleted;
@@ -1360,14 +1665,44 @@ class _ReminderScreenState extends State<ReminderScreen> {
     return 'Selected site';
   }
 
+  String _siteName(String siteId) {
+    for (final _ReminderSite site in _sites) {
+      if (site.id == siteId) return site.name;
+    }
+    return 'Assigned site';
+  }
+
+  String _reminderFilterLabel() => switch (_filter) {
+    _ReminderFilter.all => 'Semua pengingat',
+    _ReminderFilter.overdue => 'Terlambat',
+    _ReminderFilter.dueSoon => 'Segera jatuh tempo',
+    _ReminderFilter.open => 'Terbuka',
+    _ReminderFilter.completed => 'Selesai',
+  };
+
+  void _selectReminderFilter(_ReminderFilter filter) {
+    setState(() => _filter = filter);
+  }
+
   String _dueDateFilterLabel() => switch (_dueDateFilter) {
-    _DueDateFilter.all => 'All dates',
-    _DueDateFilter.nextThirtyDays => 'Next 30 days',
+    _DueDateFilter.all => 'Semua tanggal',
+    _DueDateFilter.nextThirtyDays => '30 hari ke depan',
     _DueDateFilter.custom =>
       _customDueRange == null
-          ? 'Custom dates'
+          ? 'Tanggal kustom'
           : '${_prettyDate(_customDueRange!.start)} – ${_prettyDate(_customDueRange!.end)}',
   };
+
+  String _activeFilterLabel() {
+    final List<String> labels = <String>[
+      if (_searchQuery.trim().isNotEmpty)
+        'Pencarian: “${_searchQuery.trim()}” · ${_visibleItems.length} hasil',
+      if (_filter != _ReminderFilter.all) _reminderFilterLabel(),
+      if (_siteFilterId != null) _siteFilterLabel(),
+      if (_dueDateFilter != _DueDateFilter.all) _dueDateFilterLabel(),
+    ];
+    return labels.join(' · ');
+  }
 
   int get _overdueCount => _items
       .where((ReminderItem item) => item.isOpen && _daysUntil(item.dueDate) < 0)
@@ -1381,232 +1716,290 @@ class _ReminderScreenState extends State<ReminderScreen> {
       _items.where((ReminderItem item) => item.isCompleted).length;
 
   @override
-  Widget build(BuildContext context) => AppBackScope(
-    fallbackRoute: '/dashboard',
-    child: Scaffold(
-      appBar: AppBar(
-        leading: const AppBackButton(fallbackRoute: '/dashboard'),
-        title: const Text('Reminders'),
-        actions: <Widget>[
-          IconButton(
-            tooltip: 'Filter reminders',
-            icon: Badge(
-              isLabelVisible: _hasAdvancedFilter,
-              child: const Icon(Icons.filter_alt_outlined),
-            ),
-            onPressed: _loading ? null : _showAdvancedFilter,
-          ),
-          IconButton(
-            tooltip: 'Refresh reminders',
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _loading ? null : _load,
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
-                children: <Widget>[
-                  const Text(
-                    'Operational follow-ups',
-                    style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 5),
-                  const Text(
-                    'Track action, ownership, delivery history, and due-date risk.',
-                    style: TextStyle(color: AppColors.muted),
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () => _edit(null),
-                      icon: const Icon(Icons.add_alert_rounded),
-                      label: const Text('Add reminder'),
+  Widget build(BuildContext context) {
+    final bool useDesktopHeader =
+        kIsWeb && MediaQuery.sizeOf(context).width >= 920;
+    return AppBackScope(
+      fallbackRoute: '/dashboard',
+      child: Scaffold(
+        appBar: useDesktopHeader
+            ? null
+            : AppBar(
+                leading: const AppBackButton(fallbackRoute: '/dashboard'),
+                title: const Text('Pengingat'),
+                actions: <Widget>[
+                  IconButton(
+                    tooltip: 'Filter pengingat',
+                    icon: Badge(
+                      isLabelVisible: _hasAdvancedFilter,
+                      child: const Icon(Icons.filter_alt_outlined),
                     ),
+                    onPressed: _loading ? null : _showAdvancedFilter,
                   ),
-                  const SizedBox(height: 16),
-                  _summaryGrid(context),
-                  const SizedBox(height: 18),
-                  TextField(
-                    controller: _searchController,
-                    textInputAction: TextInputAction.search,
-                    onChanged: (String value) =>
-                        setState(() => _searchQuery = value),
-                    decoration: InputDecoration(
-                      labelText: 'Search reminders',
-                      hintText: 'Type a title, asset, category, or location',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: _searchQuery.isEmpty
-                          ? null
-                          : IconButton(
-                              tooltip: 'Clear search',
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() => _searchQuery = '');
-                              },
-                            ),
-                    ),
+                  IconButton(
+                    tooltip: 'Muat ulang pengingat',
+                    icon: const Icon(Icons.refresh_rounded),
+                    onPressed: _loading ? null : _load,
                   ),
-                  const SizedBox(height: 12),
-                  if (_hasActiveFilter) ...<Widget>[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.greenSurface,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: <Widget>[
-                          const Icon(Icons.filter_alt_rounded, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _searchQuery.trim().isEmpty
-                                  ? '${_siteFilterLabel()} · ${_dueDateFilterLabel()}'
-                                  : 'Search: “${_searchQuery.trim()}” · ${_visibleItems.length} result${_visibleItems.length == 1 ? '' : 's'}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: 'Clear filters',
-                            icon: const Icon(Icons.close_rounded),
-                            onPressed: () => setState(() {
-                              _siteFilterId = null;
-                              _dueDateFilter = _DueDateFilter.all;
-                              _customDueRange = null;
-                              _searchController.clear();
-                              _searchQuery = '';
-                            }),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: <Widget>[
-                        _filterChip('All', _ReminderFilter.all),
-                        const SizedBox(width: 8),
-                        _filterChip(
-                          'Action required',
-                          _ReminderFilter.actionRequired,
-                        ),
-                        const SizedBox(width: 8),
-                        _filterChip('Completed', _ReminderFilter.completed),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  if (_visibleItems.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 50),
-                      child: Text(
-                        _searchQuery.trim().isEmpty
-                            ? 'No reminders in this view. Add a due date for servicing, documents, or any operational follow-up.'
-                            : 'No reminders match “${_searchQuery.trim()}”. Try another title, asset, category, or location.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.muted),
-                      ),
-                    ),
-                  ..._visibleItems.map(
-                    (ReminderItem item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _reminderCard(item),
-                    ),
-                  ),
+                  const SizedBox(width: 4),
                 ],
               ),
-            ),
-    ),
-  );
+        body: _withDesktopHeader(
+          useDesktopHeader,
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+                    children: <Widget>[
+                      const Text(
+                        'Tindak lanjut operasional',
+                        style: TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        'Pantau tindakan, penanggung jawab, riwayat pengiriman, dan risiko tenggat waktu.',
+                        style: TextStyle(color: AppColors.muted),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => _edit(null),
+                          icon: const Icon(Icons.add_alert_rounded),
+                          label: const Text('Tambah pengingat'),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _summaryGrid(context),
+                      const SizedBox(height: 18),
+                      TextField(
+                        controller: _searchController,
+                        textInputAction: TextInputAction.search,
+                        onChanged: (String value) =>
+                            setState(() => _searchQuery = value),
+                        decoration: InputDecoration(
+                          labelText: 'Cari pengingat',
+                          hintText: 'Ketik judul, aset, nomor dokumen, kategori, atau site',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: _searchQuery.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Hapus pencarian',
+                                  icon: const Icon(Icons.close_rounded),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _searchQuery = '');
+                                  },
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (_hasActiveFilter) ...<Widget>[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.greenSurface,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              const Icon(Icons.filter_alt_rounded, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _activeFilterLabel(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Hapus filter',
+                                icon: const Icon(Icons.close_rounded),
+                                onPressed: () => setState(() {
+                                  _siteFilterId = null;
+                                  _dueDateFilter = _DueDateFilter.all;
+                                  _customDueRange = null;
+                                  _filter = _ReminderFilter.all;
+                                  _searchController.clear();
+                                  _searchQuery = '';
+                                }),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: <Widget>[
+                            _filterChip('Semua', _ReminderFilter.all),
+                            const SizedBox(width: 8),
+                            _filterChip('Terlambat', _ReminderFilter.overdue),
+                            const SizedBox(width: 8),
+                            _filterChip(
+                              'Segera jatuh tempo',
+                              _ReminderFilter.dueSoon,
+                            ),
+                            const SizedBox(width: 8),
+                            _filterChip('Terbuka', _ReminderFilter.open),
+                            const SizedBox(width: 8),
+                            _filterChip('Selesai', _ReminderFilter.completed),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      if (_visibleItems.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 50),
+                          child: Text(
+                            _searchQuery.trim().isEmpty
+                                ? 'Belum ada pengingat pada tampilan ini. Tambahkan tenggat untuk servis, dokumen, atau tindak lanjut operasional.'
+                                : 'Tidak ada pengingat yang cocok dengan “${_searchQuery.trim()}”. Coba judul, aset, nomor dokumen, kategori, atau site lain.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.muted),
+                          ),
+                        ),
+                      ..._visibleItems.map(
+                        (ReminderItem item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _reminderCard(item),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
 
-  Widget _summaryGrid(BuildContext context) {
-    final double width = (MediaQuery.sizeOf(context).width - 52) / 2;
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+  Widget _withDesktopHeader(bool useDesktopHeader, Widget body) {
+    if (!useDesktopHeader) return body;
+    return Column(
       children: <Widget>[
-        _summaryTile(
-          width,
-          'Overdue',
-          _overdueCount,
-          AppColors.danger,
-          Icons.warning_amber_rounded,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+          child: Row(
+            children: <Widget>[
+              const Expanded(
+                child: Text(
+                  'Pengingat',
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Filter pengingat',
+                icon: Badge(
+                  isLabelVisible: _hasAdvancedFilter,
+                  child: const Icon(Icons.filter_alt_outlined),
+                ),
+                onPressed: _loading ? null : _showAdvancedFilter,
+              ),
+              IconButton(
+                tooltip: 'Muat ulang pengingat',
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: _loading ? null : _load,
+              ),
+            ],
+          ),
         ),
-        _summaryTile(
-          width,
-          'Due soon',
-          _dueSoonCount,
-          AppColors.orange,
-          Icons.schedule_rounded,
-        ),
-        _summaryTile(
-          width,
-          'Open',
-          _openCount,
-          AppColors.green,
-          Icons.pending_actions_rounded,
-        ),
-        _summaryTile(
-          width,
-          'Completed',
-          _completedCount,
-          AppColors.muted,
-          Icons.task_alt_rounded,
-        ),
+        Expanded(child: body),
       ],
     );
   }
 
+  Widget _summaryGrid(BuildContext context) => Row(
+    children: <Widget>[
+      _summaryTile(
+        'Terlambat',
+        _overdueCount,
+        AppColors.danger,
+        Icons.warning_amber_rounded,
+        () => _selectReminderFilter(_ReminderFilter.overdue),
+      ),
+      const SizedBox(width: 8),
+      _summaryTile(
+        'Segera',
+        _dueSoonCount,
+        AppColors.orange,
+        Icons.schedule_rounded,
+        () => _selectReminderFilter(_ReminderFilter.dueSoon),
+      ),
+      const SizedBox(width: 8),
+      _summaryTile(
+        'Terbuka',
+        _openCount,
+        AppColors.green,
+        Icons.pending_actions_rounded,
+        () => _selectReminderFilter(_ReminderFilter.open),
+      ),
+      const SizedBox(width: 8),
+      _summaryTile(
+        'Selesai',
+        _completedCount,
+        AppColors.muted,
+        Icons.task_alt_rounded,
+        () => _selectReminderFilter(_ReminderFilter.completed),
+      ),
+    ],
+  );
+
   Widget _summaryTile(
-    double width,
     String label,
     int count,
     Color color,
     IconData icon,
-  ) => SizedBox(
-    width: width,
-    child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    VoidCallback onTap,
+  ) => Expanded(
+    child: Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(icon, color: color),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                '$count',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(fontSize: 12, color: AppColors.muted),
-              ),
-            ],
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.line),
           ),
-        ],
+          child: SizedBox(
+            height: 76,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Icon(icon, color: color, size: 19),
+                const SizedBox(height: 4),
+                Text(
+                  '$count',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     ),
   );
@@ -1618,215 +2011,356 @@ class _ReminderScreenState extends State<ReminderScreen> {
   );
 
   Widget _reminderCard(ReminderItem item) {
-    final bool sending = _sendingIds.contains(item.id);
     final int days = _daysUntil(item.dueDate);
     final Color statusColor = _statusColor(item, days);
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Container(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => _showReminderDetails(item),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  item.isCompleted
+                      ? Icons.task_alt_rounded
+                      : Icons.notifications_active_rounded,
+                  color: statusColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${item.documentNumber ?? item.assetCode ?? 'Tanpa nomor dokumen'} · ${item.category}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.muted),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            item.isCompleted
+                                ? 'Selesai · ${_prettyDate(item.completedAt ?? item.dueDate)}'
+                                : '${_dueLabel(item, days)} · ${_prettyDate(item.dueDate)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _tag(_statusLabel(item, days), statusColor),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showReminderDetails(ReminderItem item) async {
+    final int days = _daysUntil(item.dueDate);
+    final Color statusColor = _statusColor(item, days);
+    final bool sending = _sendingIds.contains(item.id);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext detailContext) => SafeArea(
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: .78,
+          maxChildSize: .94,
+          builder: (BuildContext context, ScrollController controller) => ListView(
+            controller: controller,
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+            children: <Widget>[
+              Center(
+                child: Container(
                   width: 42,
-                  height: 42,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    item.isCompleted
-                        ? Icons.task_alt_rounded
-                        : Icons.notifications_active_rounded,
-                    color: statusColor,
+                    color: AppColors.line,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        item.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                        ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w900,
                       ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 7,
-                        runSpacing: 6,
-                        children: <Widget>[
-                          _tag(_statusLabel(item, days), statusColor),
-                          _tag(
-                            _priorityLabel(item.priority),
-                            _priorityColor(item.priority),
+                    ),
+                  ),
+                  PopupMenuButton<_ReminderMenuAction>(
+                    tooltip: 'Tindakan lainnya',
+                    onSelected: (_ReminderMenuAction action) {
+                      Navigator.pop(detailContext);
+                      if (action == _ReminderMenuAction.delete) {
+                        _delete(item);
+                      }
+                    },
+                    itemBuilder: (BuildContext context) =>
+                        const <PopupMenuEntry<_ReminderMenuAction>>[
+                          PopupMenuItem<_ReminderMenuAction>(
+                            value: _ReminderMenuAction.delete,
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.delete_outline_rounded,
+                                color: AppColors.danger,
+                              ),
+                              title: Text(
+                                'Hapus pengingat',
+                                style: TextStyle(color: AppColors.danger),
+                              ),
+                            ),
                           ),
                         ],
-                      ),
-                    ],
                   ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 7,
+                runSpacing: 6,
+                children: <Widget>[
+                  _tag(_statusLabel(item, days), statusColor),
+                  _tag(
+                    _priorityLabel(item.priority),
+                    _priorityColor(item.priority),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _infoRow(
+                Icons.event_rounded,
+                item.isCompleted ? 'Selesai' : 'Jatuh tempo',
+                item.isCompleted
+                    ? _prettyDate(item.completedAt ?? item.dueDate)
+                    : '${_dueLabel(item, days)} · ${_prettyDate(item.dueDate)}',
+                statusColor,
+              ),
+              _infoRow(
+                Icons.category_outlined,
+                'Kategori',
+                '${item.category}${item.assetCode == null ? '' : ' · ${item.assetCode}'}',
+              ),
+              if (item.governmentAgency != null)
+                _infoRow(
+                  Icons.account_balance_outlined,
+                  'Instansi pemerintah',
+                  item.governmentAgency!,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.history_rounded),
-                  tooltip: 'Reminder history',
-                  onPressed: () => _showHistory(item),
+              if (item.documentNumber != null)
+                _infoRow(
+                  Icons.numbers_rounded,
+                  'Nomor dokumen',
+                  item.documentNumber!,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Edit reminder',
-                  onPressed: () => _edit(item),
+              if (item.assignedTo != null)
+                _infoRow(
+                  Icons.person_outline_rounded,
+                  'Penanggung jawab',
+                  item.assignedTo!,
                 ),
-                PopupMenuButton<_ReminderMenuAction>(
-                  tooltip: 'More actions',
-                  onSelected: (_ReminderMenuAction action) {
-                    if (action == _ReminderMenuAction.delete) {
-                      _delete(item);
-                    }
-                  },
-                  itemBuilder: (BuildContext context) =>
-                      const <PopupMenuEntry<_ReminderMenuAction>>[
-                        PopupMenuItem<_ReminderMenuAction>(
-                          value: _ReminderMenuAction.delete,
-                          child: ListTile(
-                            leading: Icon(
-                              Icons.delete_outline_rounded,
-                              color: AppColors.danger,
-                            ),
-                            title: Text(
-                              'Delete reminder',
-                              style: TextStyle(color: AppColors.danger),
-                            ),
-                          ),
-                        ),
-                      ],
+              _infoRow(
+                Icons.location_on_outlined,
+                'Site',
+                _siteName(item.siteId),
+              ),
+              if (item.description != null) ...<Widget>[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.greenSurface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(item.description!),
                 ),
               ],
-            ),
-            const SizedBox(height: 14),
-            _infoRow(
-              Icons.event_rounded,
-              item.isCompleted ? 'Completed' : 'Due',
-              item.isCompleted
-                  ? _prettyDate(item.completedAt ?? item.dueDate)
-                  : '${_dueLabel(item, days)} · ${_prettyDate(item.dueDate)}',
-              statusColor,
-            ),
-            _infoRow(
-              Icons.category_outlined,
-              'Category',
-              '${item.category}${item.assetCode == null ? '' : ' · ${item.assetCode}'}',
-            ),
-            if (item.assignedTo != null)
-              _infoRow(
-                Icons.person_outline_rounded,
-                'Responsible',
-                item.assignedTo!,
-              ),
-            if (item.location != null)
-              _infoRow(Icons.location_on_outlined, 'Location', item.location!),
-            if (item.description != null) ...<Widget>[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.greenSurface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(item.description!),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Text(
-              'Recipients · ${item.emails.length} person(s)',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            Text(
-              item.emails.join(', '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.muted),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Automatic email · ${_reminderScheduleLabel(item.reminderSchedule, item.customReminderDays)} · 08:00 WITA',
-              style: const TextStyle(fontSize: 12, color: AppColors.muted),
-            ),
-            if (item.lastSentAt != null) ...<Widget>[
-              const SizedBox(height: 4),
+              const Divider(height: 30),
               Text(
-                'Last email · ${_prettyDateTime(item.lastSentAt!)}',
-                style: const TextStyle(fontSize: 12, color: AppColors.muted),
-              ),
-            ],
-            if (item.isCompleted && item.completedNote != null) ...<Widget>[
-              const SizedBox(height: 8),
-              Text(
-                'Completion note · ${item.completedNote}',
-                style: const TextStyle(fontSize: 12, color: AppColors.muted),
-              ),
-            ],
-            if (item.evidence.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 10),
-              Text(
-                'Completion proof · ${item.evidence.length} file(s)',
+                'Penerima · ${item.emails.length} orang',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 3),
+              Text(
+                item.emails.join(', '),
+                style: const TextStyle(color: AppColors.muted),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Email otomatis · ${_reminderScheduleLabel(item.reminderSchedule, item.customReminderDays)} · 08.00 WITA',
+                style: const TextStyle(fontSize: 12, color: AppColors.muted),
+              ),
+              if (item.lastSentAt != null) ...<Widget>[
+                const SizedBox(height: 4),
+                Text(
+                  'Email terakhir · ${_prettyDateTime(item.lastSentAt!)}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                ),
+              ],
+              if (item.isCompleted && item.completedNote != null) ...<Widget>[
+                const SizedBox(height: 8),
+                Text(
+                  'Catatan penyelesaian · ${item.completedNote}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                ),
+              ],
+              if (item.supportingDocuments.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 12),
+                Text(
+                  'Dokumen pendukung · ${item.supportingDocuments.length} file',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: item.supportingDocuments
+                      .map(
+                        (ReminderEvidence document) => ActionChip(
+                          avatar: Icon(
+                            _evidenceIcon(document.mimeType),
+                            size: 18,
+                          ),
+                          label: Text(document.fileName),
+                          onPressed: () => _openEvidence(document),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              ],
+              if (item.completionProof.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 12),
+                Text(
+                  'Bukti penyelesaian · ${item.completionProof.length} file',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: item.completionProof
+                      .map(
+                        (ReminderEvidence evidence) => ActionChip(
+                          avatar: Icon(
+                            _evidenceIcon(evidence.mimeType),
+                            size: 18,
+                          ),
+                          label: Text(evidence.fileName),
+                          onPressed: () => _openEvidence(evidence),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              ],
+              const SizedBox(height: 18),
               Wrap(
                 spacing: 8,
-                runSpacing: 6,
-                children: item.evidence
-                    .map(
-                      (ReminderEvidence evidence) => ActionChip(
-                        avatar: Icon(
-                          _evidenceIcon(evidence.mimeType),
-                          size: 18,
-                        ),
-                        label: Text(evidence.fileName),
-                        onPressed: () => _openEvidence(evidence),
-                      ),
+                runSpacing: 8,
+                children: <Widget>[
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(detailContext);
+                      _showHistory(item);
+                    },
+                    icon: const Icon(Icons.history_rounded),
+                    label: const Text('Riwayat'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(detailContext);
+                      _edit(item);
+                    },
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Ubah'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: <Widget>[
+                  if (item.isOpen)
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(detailContext);
+                        _complete(item);
+                      },
+                      icon: const Icon(Icons.task_alt_rounded),
+                      label: const Text('Tandai selesai'),
                     )
-                    .toList(growable: false),
+                  else
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(detailContext);
+                        _reopen(item);
+                      },
+                      icon: const Icon(Icons.restart_alt_rounded),
+                      label: const Text('Buka kembali'),
+                    ),
+                  if (item.isOpen)
+                    FilledButton.icon(
+                      onPressed: sending
+                          ? null
+                          : () {
+                              Navigator.pop(detailContext);
+                              _sendEmail(item);
+                            },
+                      icon: sending
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send_rounded),
+                      label: Text(
+                        sending ? 'Mengirim...' : 'Kirim email sekarang',
+                      ),
+                    ),
+                ],
               ),
             ],
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                if (item.isOpen)
-                  OutlinedButton.icon(
-                    onPressed: () => _complete(item),
-                    icon: const Icon(Icons.task_alt_rounded),
-                    label: const Text('Mark complete'),
-                  )
-                else
-                  OutlinedButton.icon(
-                    onPressed: () => _reopen(item),
-                    icon: const Icon(Icons.restart_alt_rounded),
-                    label: const Text('Reopen'),
-                  ),
-                if (item.isOpen)
-                  FilledButton.icon(
-                    onPressed: sending ? null : () => _sendEmail(item),
-                    icon: sending
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send_rounded),
-                    label: Text(sending ? 'Sending...' : 'Send email now'),
-                  ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1899,9 +2433,9 @@ String _sentenceCase(String value) =>
     value.isEmpty ? value : '${value[0].toUpperCase()}${value.substring(1)}';
 
 String _priorityLabel(String priority) => switch (priority) {
-  'low' => 'Low',
-  'high' => 'High',
-  'critical' => 'Critical',
+  'low' => 'Rendah',
+  'high' => 'Tinggi',
+  'critical' => 'Kritis',
   _ => 'Normal',
 };
 
@@ -1923,16 +2457,16 @@ String _reminderScheduleStorageValue(ReminderSchedule schedule) =>
 
 String _reminderScheduleLabel(ReminderSchedule schedule, int? customDays) =>
     switch (schedule) {
-      ReminderSchedule.weekly => 'Weekly · H-7',
-      ReminderSchedule.monthly => 'Monthly · 1 month before',
-      ReminderSchedule.custom => 'Custom · H-${customDays ?? 0}',
+      ReminderSchedule.weekly => 'Mingguan · H-7',
+      ReminderSchedule.monthly => 'Bulanan · 1 bulan sebelumnya',
+      ReminderSchedule.custom => 'Kustom · H-${customDays ?? 0}',
     };
 
 String _deliveryScheduleLabel(String? schedule, int days) => switch (schedule) {
-  'weekly' => 'Weekly · H-7',
-  'monthly' => 'Monthly · 1 month before',
-  'custom' => 'Custom · H-$days',
-  _ => days == 0 ? 'Due date' : 'H-$days',
+  'weekly' => 'Mingguan · H-7',
+  'monthly' => 'Bulanan · 1 bulan sebelumnya',
+  'custom' => 'Kustom · H-$days',
+  _ => days == 0 ? 'Tanggal jatuh tempo' : 'H-$days',
 };
 
 Color _statusColor(ReminderItem item, int days) {
@@ -1944,20 +2478,20 @@ Color _statusColor(ReminderItem item, int days) {
 }
 
 String _statusLabel(ReminderItem item, int days) {
-  if (item.isCompleted) return 'Completed';
-  if (item.status == 'cancelled') return 'Cancelled';
-  if (days < 0) return 'Overdue';
-  if (days == 0) return 'Due today';
-  if (days == 1) return 'Due tomorrow';
-  if (days <= 7) return 'Due soon';
-  return 'Upcoming';
+  if (item.isCompleted) return 'Selesai';
+  if (item.status == 'cancelled') return 'Dibatalkan';
+  if (days < 0) return 'Terlambat';
+  if (days == 0) return 'Jatuh tempo hari ini';
+  if (days == 1) return 'Jatuh tempo besok';
+  if (days <= 7) return 'Segera jatuh tempo';
+  return 'Mendatang';
 }
 
 String _dueLabel(ReminderItem item, int days) {
-  if (days < 0) return 'Overdue by ${-days} day(s)';
-  if (days == 0) return 'Due today';
-  if (days == 1) return 'Due tomorrow';
-  return 'Due in $days days';
+  if (days < 0) return 'Terlambat ${-days} hari';
+  if (days == 0) return 'Jatuh tempo hari ini';
+  if (days == 1) return 'Jatuh tempo besok';
+  return 'Jatuh tempo dalam $days hari';
 }
 
 String? _evidenceMimeType(String fileName) =>

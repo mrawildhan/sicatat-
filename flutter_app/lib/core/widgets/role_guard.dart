@@ -13,7 +13,13 @@ class RoleGuard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppUser? user = ref.watch(currentUserProvider);
-    if (user != null && allowed.contains(user.role)) return child;
+    if (user == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) context.go('/login');
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (allowed.contains(user.role)) return child;
     return AppBackScope(
       fallbackRoute: '/dashboard',
       child: Scaffold(

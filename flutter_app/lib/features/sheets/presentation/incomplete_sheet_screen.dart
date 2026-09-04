@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/models/app_user.dart';
@@ -134,40 +136,85 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
   Widget build(BuildContext context) {
     final AppUser? user = ref.watch(currentUserProvider);
     final bool teamOnly = user?.role.isTeamScopedTemperature == true;
+    final bool useDesktopHeader =
+        kIsWeb && MediaQuery.sizeOf(context).width >= 920;
     return AppBackScope(
       fallbackRoute: '/dashboard',
       child: Scaffold(
-        appBar: AppBar(
-          leading: const AppBackButton(fallbackRoute: '/dashboard'),
-          title: const Text('Incomplete sheets'),
-        ),
-        body: RefreshIndicator(
-          onRefresh: _load,
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: <Widget>[
-                    Text(
-                      teamOnly
-                          ? 'Showing your team only.'
-                          : 'Showing all teams.',
-                      style: const TextStyle(color: Colors.black54),
-                    ),
-                    const SizedBox(height: 14),
-                    if (_error != null) _errorCard(),
-                    if (_error == null && _items.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 36),
-                        child: Center(child: Text('No incomplete sheets.')),
-                      ),
-                    ..._items.map(_tile),
-                  ],
-                ),
-        ),
+        appBar: useDesktopHeader
+            ? null
+            : AppBar(
+                leading: const AppBackButton(fallbackRoute: '/dashboard'),
+                title: const Text('Lembar belum selesai'),
+                actions: <Widget>[
+                  IconButton(
+                    tooltip: 'Muat ulang',
+                    onPressed: _loading ? null : _load,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ],
+              ),
+        body: useDesktopHeader
+            ? Column(
+                children: <Widget>[
+                  _desktopHeader(context),
+                  Expanded(child: _body(teamOnly)),
+                ],
+              )
+            : _body(teamOnly),
       ),
     );
   }
+
+  Widget _desktopHeader(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(24, 22, 24, 12),
+    child: Row(
+      children: <Widget>[
+        IconButton(
+          tooltip: 'Kembali ke Suhu',
+          onPressed: () => context.go('/sheets'),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Text(
+            'Lembar belum selesai',
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Muat ulang',
+          onPressed: _loading ? null : _load,
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ],
+    ),
+  );
+
+  Widget _body(bool teamOnly) => RefreshIndicator(
+    onRefresh: _load,
+    child: _loading
+        ? const Center(child: CircularProgressIndicator())
+        : ListView(
+            padding: const EdgeInsets.all(20),
+            children: <Widget>[
+              Text(
+                teamOnly
+                    ? 'Menampilkan lembar milik tim Anda.'
+                    : 'Menampilkan lembar dari semua tim.',
+                style: const TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 14),
+              if (_error != null) _errorCard(),
+              if (_error == null && _items.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: 36),
+                  child: Center(child: Text('Tidak ada lembar belum selesai.')),
+                ),
+              ..._items.map(_tile),
+            ],
+          ),
+  );
 
   Widget _errorCard() => Card(
     child: Padding(
@@ -175,8 +222,8 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('Unable to load: $_error'),
-          TextButton(onPressed: _load, child: const Text('Try again')),
+          Text('Data tidak dapat dimuat: $_error'),
+          TextButton(onPressed: _load, child: const Text('Coba lagi')),
         ],
       ),
     ),
@@ -184,23 +231,38 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
   Widget _tile(_IncompleteSheet sheet) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: Card(
-      child: ListTile(
-        leading: Icon(
-          sheet.status == 'submitted_incomplete'
-              ? Icons.warning_amber_rounded
-              : Icons.edit_note_rounded,
-        ),
-        title: Text(
-          sheet.date,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        subtitle: Text('${sheet.teamName} · ${sheet.shiftCode}'),
-        trailing: Chip(
-          label: Text(
-            '${sheet.completed}/$_expectedSides · ${sheet.status == 'submitted_incomplete' ? 'Override' : 'Draft'}',
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _openSheet(sheet),
+        child: ListTile(
+          leading: Icon(
+            sheet.status == 'submitted_incomplete'
+                ? Icons.warning_amber_rounded
+                : Icons.edit_note_rounded,
+          ),
+          title: Text(
+            sheet.date,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          subtitle: Text('${sheet.teamName} · ${sheet.shiftCode}'),
+          trailing: Chip(
+            label: Text(
+              '${sheet.completed}/$_expectedSides · ${sheet.status == 'submitted_incomplete' ? 'Dikirim tidak lengkap' : 'Draf'}',
+            ),
           ),
         ),
       ),
     ),
   );
+
+  void _openSheet(_IncompleteSheet sheet) {
+    final AppUser? user = ref.read(currentUserProvider);
+    final bool canContinueDraft =
+        sheet.status == 'draft' && user?.role.canCreateTemperatureSheet == true;
+    context.go(
+      canContinueDraft
+          ? '/temperature?sheetId=${sheet.id}'
+          : '/summary?sheetId=${sheet.id}',
+    );
+  }
 }

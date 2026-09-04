@@ -7,6 +7,8 @@ export type ReminderEmailRecord = {
   recipient_emails: unknown;
   category?: string | null;
   asset_code?: string | null;
+  document_number?: string | null;
+  government_agency?: string | null;
   description?: string | null;
   priority?: string | null;
   assigned_to?: string | null;
@@ -112,12 +114,19 @@ function documentCategory(reminder: ReminderEmailRecord) {
   return textOrDash(reminder.category);
 }
 
-function governmentAgency(category: string) {
+function defaultGovernmentAgency(category: string) {
   if (category === "Taxes" || category.includes("STNK")) {
     return "Samsat Provinsi Kalimantan Selatan";
   }
   if (category.includes("KIR")) return "Dinas Perhubungan";
   return "Not specified";
+}
+
+function governmentAgency(reminder: ReminderEmailRecord, category: string) {
+  const stored = reminder.government_agency?.trim();
+  return stored && stored.length > 0
+    ? stored
+    : defaultGovernmentAgency(category);
 }
 
 function remarks(value: string | null | undefined) {
@@ -182,6 +191,7 @@ async function getGmailAccessToken(
 ) {
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
+    signal: AbortSignal.timeout(8000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: clientId,
@@ -202,23 +212,57 @@ async function getGmailAccessToken(
   return tokenData.access_token as string;
 }
 
+async function sendWithResend({
+  apiKey,
+  senderEmail,
+  recipients,
+  subject,
+  html,
+  text,
+}: {
+  apiKey: string;
+  senderEmail: string;
+  recipients: string[];
+  subject: string;
+  html: string;
+  text: string;
+}) {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    signal: AbortSignal.timeout(8000),
+    headers: {
+      Authorization: "Bearer " + apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: senderEmail,
+      to: recipients,
+      subject,
+      html,
+      text,
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || typeof data.id !== "string") {
+    console.error("Resend API error", response.status, data);
+    const detail =
+      typeof data.message === "string" && data.message.trim().length > 0
+        ? data.message.trim()
+        : "HTTP " + response.status;
+    throw new Error("Resend rejected the delivery request: " + detail);
+  }
+  return data.id as string;
+}
+
 export async function sendReminderEmail(
   reminder: ReminderEmailRecord,
 ): Promise<ReminderEmailResult> {
   const gmailClientId = Deno.env.get("GMAIL_CLIENT_ID");
   const gmailClientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
   const gmailRefreshToken = Deno.env.get("GMAIL_REFRESH_TOKEN");
-  const senderEmail = Deno.env.get("GMAIL_SENDER_EMAIL");
-  if (
-    !gmailClientId ||
-    !gmailClientSecret ||
-    !gmailRefreshToken ||
-    !senderEmail
-  ) {
-    throw new Error(
-      "Email delivery is not configured. Add GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, and GMAIL_SENDER_EMAIL in Supabase secrets.",
-    );
-  }
+  const gmailSenderEmail = Deno.env.get("GMAIL_SENDER_EMAIL")?.trim();
+  const resendApiKey = Deno.env.get("RESEND_API_KEY")?.trim();
+  const resendSenderEmail = Deno.env.get("RESEND_FROM_EMAIL")?.trim();
 
   const storedRecipients = Array.isArray(reminder.recipient_emails)
     ? reminder.recipient_emails
@@ -232,23 +276,18 @@ export async function sendReminderEmail(
     throw new Error("This reminder has no valid recipients.");
   }
 
-  // Keep every development and acceptance-test delivery contained to one
-  // mailbox. The saved recipient list remains ready for the future live mode.
-  const testRecipient = (
-    Deno.env.get("REMINDER_TEST_RECIPIENT") ?? "mcasamasam@arutmin.com"
-  )
-    .trim()
-    .toLowerCase();
-  if (!isValidEmail(testRecipient)) {
-    throw new Error("REMINDER_TEST_RECIPIENT is not a valid email address.");
-  }
-  const recipients = [testRecipient];
+  // Send to the recipients saved with this reminder. This lets the Test
+  // reminder verify delivery to each intended recipient without embedding an
+  // address in the app or function source.
+  const recipients = [...new Set(storedRecipients)];
 
   const title = safeHeader(reminder.title);
   const dueDate = safeHeader(reminder.due_date);
   const category = documentCategory(reminder);
-  const agency = governmentAgency(category);
-  const documentNumber = textOrDash(reminder.asset_code);
+  const agency = governmentAgency(reminder, category);
+  const documentNumber = textOrDash(
+    reminder.document_number ?? reminder.asset_code,
+  );
   const documentName = title;
   const documentRemarks = remarks(reminder.description);
   const schedule = reminderScheduleLabel(reminder);
@@ -308,10 +347,11 @@ export async function sendReminderEmail(
     "Please complete the required action and update its status in SICATAT.",
     "Testing mode: delivery is routed to the designated test mailbox.",
   ].join("\n");
+  const subject = prefix + " " + site.name + " - " + title + " - " + urgency.toLowerCase();
   const mime = [
-    "From: " + safeHeader(senderEmail),
+    "From: " + safeHeader(gmailSenderEmail ?? resendSenderEmail ?? ""),
     "To: " + recipients.join(", "),
-    "Subject: " + encodeHeader(prefix + " " + site.name + " - " + title + " - " + urgency.toLowerCase()),
+    "Subject: " + encodeHeader(subject),
     "MIME-Version: 1.0",
     'Content-Type: multipart/alternative; boundary="sicatat-boundary"',
     "",
@@ -330,35 +370,59 @@ export async function sendReminderEmail(
     "--sicatat-boundary--",
   ].join("\r\n");
 
-  const accessToken = await getGmailAccessToken(
-    gmailClientId,
-    gmailClientSecret,
-    gmailRefreshToken,
-  );
-  const response = await fetch(
-    "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-    {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + accessToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ raw: base64UrlEncode(mime) }),
-    },
-  );
-  const providerData = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    console.error(
-      "Gmail API error",
-      response.status,
-      providerData.error?.status ?? providerData.error,
-    );
-    throw new Error(
-      "Gmail rejected the delivery request. Check the Gmail OAuth configuration.",
-    );
+  if (gmailClientId && gmailClientSecret && gmailRefreshToken && gmailSenderEmail) {
+    try {
+      const accessToken = await getGmailAccessToken(
+        gmailClientId.trim(),
+        gmailClientSecret.trim(),
+        gmailRefreshToken.trim(),
+      );
+      const response = await fetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        {
+          method: "POST",
+          signal: AbortSignal.timeout(8000),
+          headers: {
+            Authorization: "Bearer " + accessToken,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ raw: base64UrlEncode(mime) }),
+        },
+      );
+      const providerData = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error(
+          "Gmail API error",
+          response.status,
+          providerData.error?.status ?? providerData.error,
+        );
+        throw new Error("Gmail rejected the delivery request.");
+      }
+      return {
+        providerId: typeof providerData.id === "string" ? providerData.id : null,
+        recipients,
+      };
+    } catch (error) {
+      console.error(
+        "Gmail delivery failed; attempting configured Resend fallback.",
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
-  return {
-    providerId: typeof providerData.id === "string" ? providerData.id : null,
-    recipients,
-  };
+
+  if (resendApiKey && resendSenderEmail) {
+    const providerId = await sendWithResend({
+      apiKey: resendApiKey,
+      senderEmail: resendSenderEmail,
+      recipients,
+      subject,
+      html,
+      text,
+    });
+    return { providerId: "resend:" + providerId, recipients };
+  }
+
+  throw new Error(
+    "Email delivery is unavailable. Renew Gmail authorization or configure RESEND_API_KEY and RESEND_FROM_EMAIL in Supabase secrets.",
+  );
 }

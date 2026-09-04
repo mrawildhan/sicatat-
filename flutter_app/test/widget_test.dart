@@ -13,6 +13,6 @@ void main() {
   testWidgets('SICATAT opens on the login screen', (WidgetTester tester) async {
     await tester.pumpWidget(const SicatatApp());
     expect(find.text('sicatat'), findsOneWidget);
-    expect(find.text('Sign in to your crew account'), findsOneWidget);
+    expect(find.text('Masuk ke akun crew Anda'), findsOneWidget);
   });
 }

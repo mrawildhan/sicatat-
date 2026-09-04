@@ -76,7 +76,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
   String get _sectionLabel => _section == InspectionSection.gearboxBreaker
       ? 'Gearbox Breaker'
       : 'Gearbox Sizer';
-  String get _sideLabel => _side == 'BARAT' ? 'West' : 'East';
+  String get _sideLabel => _side == 'BARAT' ? 'Barat' : 'Timur';
   List<InspectionEquipment> get _equipment =>
       _config?.equipmentFor(_section.storageValue) ?? const [];
   List<MeasurementPoint> get _gearboxPoints =>
@@ -93,7 +93,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
     if (sheetId == null || sheetId.isEmpty) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Inspection sheet not found.';
+        _errorMessage = 'Sheet inspeksi tidak ditemukan.';
       });
       return;
     }
@@ -108,23 +108,25 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
       ]);
       final sheet = results[0] as SheetModel?;
       if (sheet == null) {
-        throw const LocalRecordNotFoundException('Inspection sheet not found.');
+        throw const LocalRecordNotFoundException(
+          'Sheet inspeksi tidak ditemukan.',
+        );
       }
       if (sheet.status == SheetStatus.verified) {
         throw const FormatException(
-          'This sheet is verified and locked. Ask a supervisor to return it before editing.',
+          'Sheet ini telah diverifikasi dan terkunci. Minta supervisor mengembalikannya sebelum mengubah data.',
         );
       }
       if (sheet.status == SheetStatus.submitted ||
           sheet.status == SheetStatus.submittedIncomplete) {
         throw const FormatException(
-          'Reopen the submitted sheet from Sheet Summary before editing.',
+          'Buka kembali sheet yang telah dikirim dari Ringkasan Sheet sebelum mengubah data.',
         );
       }
       final config = results[1] as InspectionFormConfig;
       if (config.gearboxPoints.isEmpty) {
         throw const FormatException(
-          'No gearbox temperature points are available in the active template.',
+          'Tidak ada titik suhu gearbox pada template aktif.',
         );
       }
       _sheet = sheet;
@@ -146,7 +148,8 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _errorMessage = 'The form could not be loaded. Check your connection or master data.',
+          () => _errorMessage =
+              'Formulir tidak dapat dimuat. Periksa koneksi atau data master.',
         );
       }
     } finally {
@@ -282,14 +285,14 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Confirm abnormal temperature'),
+            title: const Text('Konfirmasi suhu tidak wajar'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   const Text(
-                    'These readings will be marked as anomalies and included in the audit trail.',
+                    'Nilai ini akan ditandai sebagai anomali dan dicatat pada jejak audit.',
                   ),
                   const SizedBox(height: 12),
                   ...flagged.map(
@@ -316,8 +319,9 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                     maxLines: 2,
                     onChanged: (_) => setDialogState(() {}),
                     decoration: const InputDecoration(
-                      labelText: 'Anomaly note *',
-                      hintText: 'State the condition or confirm the reading',
+                      labelText: 'Catatan anomali *',
+                      hintText:
+                          'Jelaskan kondisi atau konfirmasi nilai pengukuran',
                     ),
                   ),
                 ],
@@ -326,7 +330,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Correct reading'),
+                child: const Text('Perbaiki nilai'),
               ),
               FilledButton(
                 onPressed: note.text.trim().isEmpty
@@ -335,7 +339,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                         dialogContext,
                         _AnomalyDecision(note: note.text.trim()),
                       ),
-                child: const Text('Save & flag'),
+                child: const Text('Simpan & tandai'),
               ),
             ],
           ),
@@ -406,7 +410,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
       if (mounted) {
         setState(
           () => _errorMessage =
-              'Equipment data could not be saved. Please try again.',
+              'Data peralatan tidak dapat disimpan. Silakan coba lagi.',
         );
       }
     } finally {
@@ -495,7 +499,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _errorMessage = 'Data could not be saved. Please try again.',
+          () => _errorMessage = 'Data tidak dapat disimpan. Silakan coba lagi.',
         );
       }
     } finally {
@@ -522,7 +526,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                _errorMessage ?? 'Inspection sheet not found.',
+                _errorMessage ?? 'Sheet inspeksi tidak ditemukan.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.danger),
               ),
@@ -541,7 +545,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
           title: Text(
             _showEquipment
                 ? '$_sectionLabel - Round $_roundNumber'
-                : 'Temperature $_sectionLabel',
+                : 'Suhu $_sectionLabel',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
@@ -560,7 +564,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                   ],
                   if (_showEquipment) ...<Widget>[
                     const Text(
-                      'Equipment readings',
+                      'Pembacaan peralatan',
                       style: TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w900,
@@ -568,7 +572,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'You may save a partial draft and continue. Sheet Summary identifies every required point still missing.',
+                      'Anda dapat menyimpan draf sebagian dan melanjutkannya. Ringkasan Sheet menunjukkan setiap titik wajib yang masih kosong.',
                       style: TextStyle(color: AppColors.muted),
                     ),
                     const SizedBox(height: 16),
@@ -576,8 +580,8 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                   ] else ...<Widget>[
                     SegmentedButton<String>(
                       segments: const <ButtonSegment<String>>[
-                        ButtonSegment(value: 'BARAT', label: Text('West')),
-                        ButtonSegment(value: 'TIMUR', label: Text('East')),
+                        ButtonSegment(value: 'BARAT', label: Text('Barat')),
+                        ButtonSegment(value: 'TIMUR', label: Text('Timur')),
                       ],
                       selected: <String>{_side},
                       onSelectionChanged: _isSaving
@@ -605,7 +609,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                       _reasonField()
                     else
                       _notice(
-                        'Select a status for this side. The sheet cannot be submitted while any side is unanswered.',
+                        'Pilih status untuk sisi ini. Sheet tidak dapat dikirim selama masih ada sisi yang belum diisi.',
                       ),
                   ],
                 ],
@@ -662,13 +666,13 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
     child: ListTile(
       leading: const Icon(Icons.schedule_rounded, color: AppColors.green),
       title: Text(
-        'Round $_roundNumber time (West & East)',
+        'Waktu Ronde $_roundNumber (Barat & Timur)',
         style: const TextStyle(fontWeight: FontWeight.w700),
       ),
       subtitle: Text(
         _inspectedAt == null
-            ? 'Recorded automatically when this round is saved.'
-            : 'Recorded automatically: ${DateFormat('dd MMM yyyy, HH:mm').format(_inspectedAt!)}',
+            ? 'Tercatat otomatis saat ronde ini disimpan.'
+            : 'Tercatat otomatis: ${DateFormat('dd MMM yyyy, HH:mm').format(_inspectedAt!)}',
       ),
     ),
   );
@@ -689,7 +693,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
             const SizedBox(height: 12),
             if (points.isEmpty)
               const Text(
-                'No measurement points are configured for this equipment.',
+                'Belum ada titik pengukuran untuk peralatan ini.',
                 style: TextStyle(color: AppColors.danger),
               )
             else
@@ -704,24 +708,24 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
       const Text(
-        'Status of this side\'s unit',
+        'Status unit sisi ini',
         style: TextStyle(fontWeight: FontWeight.w800),
       ),
       const SizedBox(height: 8),
       ...const <(UnitOperationalStatus, String, IconData)>[
         (
           UnitOperationalStatus.operating,
-          'Operating',
+          'Beroperasi',
           Icons.check_circle_outline,
         ),
         (
           UnitOperationalStatus.notOperating,
-          'Not operating',
+          'Tidak beroperasi',
           Icons.pause_circle_outline,
         ),
         (
           UnitOperationalStatus.notAccessible,
-          'Not accessible',
+          'Tidak dapat diakses',
           Icons.block_outlined,
         ),
       ].map(
@@ -776,7 +780,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
               emptySelectionAllowed: true,
               segments: const <ButtonSegment<bool>>[
                 ButtonSegment(value: true, label: Text('OK')),
-                ButtonSegment(value: false, label: Text('Low')),
+                ButtonSegment(value: false, label: Text('Rendah')),
               ],
               selected: <bool>{if (value != null) value},
               onSelectionChanged: _isSaving
@@ -819,9 +823,9 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
         onChanged: (_) => setState(() {}),
         decoration: InputDecoration(
           labelText: '${point.label}${_config!.isRequired(point) ? ' *' : ''}',
-          hintText: _config!.isRequired(point) ? 'Required' : 'Optional',
+          hintText: _config!.isRequired(point) ? 'Wajib diisi' : 'Opsional',
           helperText: assessment?.requiresConfirmation == true
-              ? '${assessment!.message} Confirmation is required to save.'
+              ? '${assessment!.message} Konfirmasi diperlukan untuk menyimpan.'
               : null,
           suffixText: numeric ? (point.unit ?? '°C') : null,
           prefixIcon: numeric
@@ -854,8 +858,8 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
     enabled: !_isSaving,
     maxLines: 2,
     decoration: const InputDecoration(
-      labelText: 'Reason *',
-      hintText: 'Explain the unit condition',
+      labelText: 'Alasan *',
+      hintText: 'Jelaskan kondisi unit',
     ),
   );
 
@@ -929,12 +933,12 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
               ),
         label: Text(
           _showEquipment
-              ? 'Save draft & continue'
+              ? 'Simpan draf & lanjutkan'
               : _side == 'BARAT'
-              ? 'Save West side'
+              ? 'Simpan sisi Barat'
               : _stepIndex == _steps.length - 1
-              ? 'Save draft & view summary'
-              : 'Save draft & continue',
+              ? 'Simpan draf & lihat ringkasan'
+              : 'Simpan draf & lanjutkan',
         ),
       ),
     ),

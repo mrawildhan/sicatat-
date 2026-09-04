@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import '../theme/app_theme.dart';
@@ -123,29 +123,23 @@ class _OnlineOnlyGateState extends State<OnlineOnlyGate> {
 
   Future<bool> _isSupabaseReachable() async {
     if (!AppConfig.isSupabaseConfigured) return false;
-    final HttpClient client = HttpClient();
     try {
       final Uri endpoint = Uri.parse(
         '${AppConfig.supabaseUrl}/rest/v1/app_version?select=platform&limit=1',
       );
-      final HttpClientRequest request = await client
-          .getUrl(endpoint)
+      final http.Response response = await http
+          .get(
+            endpoint,
+            headers: <String, String>{
+              'accept': 'application/json',
+              'apikey': AppConfig.supabaseAnonKey,
+              'authorization': 'Bearer ${AppConfig.supabaseAnonKey}',
+            },
+          )
           .timeout(const Duration(seconds: 5));
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      request.headers.set('apikey', AppConfig.supabaseAnonKey);
-      request.headers.set(
-        HttpHeaders.authorizationHeader,
-        'Bearer ${AppConfig.supabaseAnonKey}',
-      );
-      final HttpClientResponse response = await request.close().timeout(
-        const Duration(seconds: 5),
-      );
-      await response.drain<void>();
       return response.statusCode >= 200 && response.statusCode < 300;
     } on Object {
       return false;
-    } finally {
-      client.close(force: true);
     }
   }
 

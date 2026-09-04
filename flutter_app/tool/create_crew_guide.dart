@@ -10,7 +10,7 @@ Future<void> main() async {
       'Sebelum mulai',
       <String>[
         'Pastikan baterai cukup dan perangkat pernah terhubung internet untuk memuat data awal.',
-        'Masuk menggunakan NIK dan PIN sendiri. Jangan berbagi PIN.',
+        'Masuk menggunakan NIK dan password sendiri. Jangan berbagi password.',
         'Buat lembar sesuai tanggal dan shift bertugas.',
       ],
     ),
@@ -39,6 +39,30 @@ Future<void> main() async {
         'Status Not synced berarti data tetap tersimpan di perangkat dan perlu disinkronkan saat koneksi tersedia.',
         'Jangan hapus aplikasi sebelum status menjadi Synced.',
         'Status Conflict harus dilaporkan ke foreman atau admin.',
+      ],
+    ),
+    (
+      'Warehouse',
+      <String>[
+        'Buka Warehouse lalu ketik minimal dua karakter untuk mencari nama item, kode SC, atau lokasi bin. Hasil stok hanya muncul setelah pencarian.',
+        'Gunakan filter warehouse bila perlu. Pilih Stock & Price untuk stok atau Tools untuk alat.',
+        'Ketuk nama atau kartu item untuk melihat detail dari Google Sheet: kode SC, site, lokasi bin, satuan, stok, harga unit, tanggal pembaruan sheet, dan waktu sinkronisasi.',
+      ],
+    ),
+    (
+      'Ganti password',
+      <String>[
+        'Buka Profile lalu pilih Ganti password.',
+        'Masukkan password lama, lalu buat password baru minimal delapan karakter dengan gabungan huruf dan angka.',
+        'Setelah berhasil, semua perangkat yang masih login akan dikeluarkan dan Anda perlu masuk kembali dengan password baru.',
+      ],
+    ),
+    (
+      'Memperbarui aplikasi Android',
+      <String>[
+        'Buka Profile, pilih App updates, lalu ketuk Check update.',
+        'Jika ada versi baru, pilih Download & install dan izinkan pemasangan saat Android meminta persetujuan.',
+        'Gunakan koneksi internet stabil dan jangan hapus aplikasi lama sebelum pembaruan selesai.',
       ],
     ),
   ];

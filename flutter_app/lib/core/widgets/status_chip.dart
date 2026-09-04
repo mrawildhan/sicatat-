@@ -12,15 +12,19 @@ class SyncChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color, icon) = switch (state) {
-      SyncState.draft => ('Draft', AppColors.warning, Icons.edit_note_rounded),
-      SyncState.synced => ('Synced', AppColors.green, Icons.cloud_done_rounded),
+      SyncState.draft => ('Draf', AppColors.warning, Icons.edit_note_rounded),
+      SyncState.synced => (
+        'Tersinkron',
+        AppColors.green,
+        Icons.cloud_done_rounded,
+      ),
       SyncState.pending => (
-        'Not synced',
+        'Belum tersinkron',
         AppColors.orange,
         Icons.cloud_upload_rounded,
       ),
       SyncState.conflict => (
-        'Conflict',
+        'Konflik',
         AppColors.danger,
         Icons.warning_amber_rounded,
       ),

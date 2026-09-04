@@ -10,6 +10,7 @@ String _roleLabel(String role) => switch (role) {
   'supervisor_cop' => 'Supervisor COP',
   'supervisor_smg' || 'supervisor' => 'Supervisor SMG',
   'foreman_lv' => 'Foreman LV',
+  'warehouseman' => 'Warehouseman',
   'admin' => 'Admin',
   _ => role,
 };
@@ -98,6 +99,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     'supervisor_cop',
     'supervisor_smg',
     'foreman_lv',
+    'warehouseman',
     'admin',
   ];
   List<_TeamOption> _teams = const <_TeamOption>[];
@@ -184,7 +186,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   bool get _roleNeedsTeam => _role == 'crew' || _role == 'foreman';
-  bool get _roleNeedsSite => _role == 'supervisor_cop';
+  bool get _roleNeedsSite =>
+      _role == 'supervisor_cop' || _role == 'warehouseman';
   void _openCreate() {
     _creating = true;
     _editing = null;
@@ -233,7 +236,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       return;
     }
     if (_roleNeedsSite && _siteId == null) {
-      _message('A site is required for Supervisor COP users.');
+      _message('A site is required for Supervisor COP and Warehouseman users.');
       return;
     }
     if (_editing == null && _pinController.text.length < 6) {

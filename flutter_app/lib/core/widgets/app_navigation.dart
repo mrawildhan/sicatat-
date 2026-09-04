@@ -33,7 +33,7 @@ class AppBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => IconButton(
-    tooltip: 'Back',
+    tooltip: 'Kembali',
     icon: const Icon(Icons.arrow_back_rounded),
     onPressed: () => context.go(fallbackRoute),
   );

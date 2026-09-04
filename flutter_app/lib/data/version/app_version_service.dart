@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/config/app_config.dart';
@@ -39,6 +40,7 @@ class AppVersionService {
   }
 
   Future<AppVersionStatus> check() async {
+    if (kIsWeb) return const AppVersionStatus.unavailable();
     final SupabaseClient? client = _client;
     if (client == null) return const AppVersionStatus.unavailable();
     try {

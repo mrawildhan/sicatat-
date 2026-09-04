@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,7 +8,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/app_update_service.dart';
-import '../../../core/widgets/section_title.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/dashboard_activity.dart';
@@ -16,7 +16,9 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../auth/application/current_user_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({this.showProfile = false, super.key});
+
+  final bool showProfile;
 
   @override
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
@@ -27,10 +29,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   DashboardActivity? _activity;
   Timer? _activityRefreshTimer;
   bool _checkingForUpdate = false;
+  late bool _showProfile;
 
   @override
   void initState() {
     super.initState();
+    _showProfile = widget.showProfile;
     _loadActivity();
     _activityRefreshTimer = Timer.periodic(
       const Duration(seconds: 15),
@@ -42,6 +46,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void dispose() {
     _activityRefreshTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant DashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.showProfile != widget.showProfile) {
+      _showProfile = widget.showProfile;
+    }
   }
 
   Future<void> _loadActivity() async {
@@ -72,20 +84,96 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return SyncState.synced;
   }
 
+  Widget _desktopSidebarItem({
+    required IconData icon,
+    required IconData selectedIcon,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Material(
+      color: selected ? AppColors.mint : Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: SizedBox(
+          height: 54,
+          child: Row(
+            children: <Widget>[
+              SizedBox(
+                width: 58,
+                child: Icon(
+                  selected ? selectedIcon : icon,
+                  color: selected ? AppColors.green : AppColors.ink,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                    color: selected ? AppColors.green : AppColors.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final crewName = user?.name ?? 'Crew';
     final bool hasTemperatureTab = user?.role.canCreateTemperatureSheet == true;
     final bool hasReminderTab = user?.role.canUseReminders == true;
+    final bool hasWarehouseTab = user?.role.canUseWarehouse == true;
     final int? reminderIndex = hasReminderTab
         ? (hasTemperatureTab ? 2 : 1)
         : null;
+    final int? warehouseIndex = hasWarehouseTab
+        ? 1 + (hasTemperatureTab ? 1 : 0) + (hasReminderTab ? 1 : 0)
+        : null;
+    final int profileIndex =
+        1 +
+        (hasTemperatureTab ? 1 : 0) +
+        (hasReminderTab ? 1 : 0) +
+        (hasWarehouseTab ? 1 : 0);
+    final int selectedIndex = _showProfile ? profileIndex : _index;
+    final bool useWebNavigationRail =
+        kIsWeb && MediaQuery.sizeOf(context).width >= 920;
+    void selectDestination(int value) {
+      if (hasTemperatureTab && value == 1) {
+        context.go('/sheets');
+        return;
+      }
+      if (value == reminderIndex) {
+        context.go('/reminders');
+        return;
+      }
+      if (value == warehouseIndex) {
+        context.go('/warehouse');
+        return;
+      }
+      setState(() {
+        _showProfile = value == profileIndex;
+        _index = value;
+      });
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _index != 0) {
-          setState(() => _index = 0);
+        if (!didPop && selectedIndex != 0) {
+          setState(() {
+            _showProfile = false;
+            _index = 0;
+          });
         }
       },
       child: Scaffold(
@@ -113,12 +201,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             IconButton(
               onPressed: _loadActivity,
               icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Refresh activity',
+              tooltip: 'Muat ulang aktivitas',
             ),
             IconButton(
               onPressed: _signOut,
               icon: const Icon(Icons.logout_rounded),
-              tooltip: 'Logout',
+              tooltip: 'Keluar',
             ),
             const SizedBox(width: 8),
           ],
@@ -126,57 +214,134 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         body: SafeArea(
           top: false,
           bottom: false,
-          child: IndexedStack(
-            index: _index,
-            children: [
-              _home(context, crewName, user),
-              if (hasTemperatureTab) const SizedBox(),
-              if (hasReminderTab) const SizedBox(),
-              _profile(context, user),
+          child: Row(
+            children: <Widget>[
+              if (useWebNavigationRail) ...<Widget>[
+                SizedBox(
+                  width: 206,
+                  child: Column(
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+                        child: Image.asset(
+                          'assets/images/logo-full.png',
+                          height: 42,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                          children: <Widget>[
+                            _desktopSidebarItem(
+                              label: 'Beranda',
+                              icon: Icons.home_outlined,
+                              selectedIcon: Icons.home_rounded,
+                              selected: selectedIndex == 0,
+                              onTap: () => selectDestination(0),
+                            ),
+                            if (hasTemperatureTab)
+                              _desktopSidebarItem(
+                                label: 'Suhu',
+                                icon: Icons.thermostat_outlined,
+                                selectedIcon: Icons.thermostat_rounded,
+                                selected: selectedIndex == 1,
+                                onTap: () => selectDestination(1),
+                              ),
+                            if (hasReminderTab)
+                              _desktopSidebarItem(
+                                label: 'Pengingat',
+                                icon: Icons.notifications_none_rounded,
+                                selectedIcon:
+                                    Icons.notifications_active_rounded,
+                                selected: selectedIndex == reminderIndex,
+                                onTap: () => selectDestination(reminderIndex!),
+                              ),
+                            if (hasWarehouseTab)
+                              _desktopSidebarItem(
+                                label: 'Gudang',
+                                icon: Icons.inventory_2_outlined,
+                                selectedIcon: Icons.inventory_2_rounded,
+                                selected: selectedIndex == warehouseIndex,
+                                onTap: () => selectDestination(warehouseIndex!),
+                              ),
+                            _desktopSidebarItem(
+                              label: 'Profil',
+                              icon: Icons.person_outline_rounded,
+                              selectedIcon: Icons.person_rounded,
+                              selected: selectedIndex == profileIndex,
+                              onTap: () => selectDestination(profileIndex),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(16, 8, 16, 18),
+                        child: Text(
+                          '© 2026 WIL',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 9, color: AppColors.muted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+              ],
+              Expanded(
+                child: IndexedStack(
+                  index: selectedIndex,
+                  children: <Widget>[
+                    _home(context, crewName, user),
+                    if (hasTemperatureTab) const SizedBox(),
+                    if (hasReminderTab) const SizedBox(),
+                    if (hasWarehouseTab) const SizedBox(),
+                    _profile(context, user),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: NavigationBar(
-            selectedIndex: _index,
-            onDestinationSelected: (value) {
-              if (hasTemperatureTab && value == 1) {
-                context.go('/sheets');
-                return;
-              }
-              if (value == reminderIndex) {
-                context.go('/reminders');
-                return;
-              }
-              setState(() => _index = value);
-            },
-            destinations: <NavigationDestination>[
-              const NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: 'Home',
-              ),
-              if (hasTemperatureTab)
-                const NavigationDestination(
-                  icon: Icon(Icons.thermostat_outlined),
-                  selectedIcon: Icon(Icons.thermostat_rounded),
-                  label: 'Temperature',
+        bottomNavigationBar: useWebNavigationRail
+            ? null
+            : SafeArea(
+                top: false,
+                child: NavigationBar(
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: selectDestination,
+                  destinations: <NavigationDestination>[
+                    const NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home_rounded),
+                      label: 'Beranda',
+                    ),
+                    if (hasTemperatureTab)
+                      const NavigationDestination(
+                        icon: Icon(Icons.thermostat_outlined),
+                        selectedIcon: Icon(Icons.thermostat_rounded),
+                        label: 'Suhu',
+                      ),
+                    if (hasReminderTab)
+                      const NavigationDestination(
+                        icon: Icon(Icons.notifications_none_rounded),
+                        selectedIcon: Icon(Icons.notifications_active_rounded),
+                        label: 'Pengingat',
+                      ),
+                    if (hasWarehouseTab)
+                      const NavigationDestination(
+                        icon: Icon(Icons.inventory_2_outlined),
+                        selectedIcon: Icon(Icons.inventory_2_rounded),
+                        label: 'Gudang',
+                      ),
+                    const NavigationDestination(
+                      icon: Icon(Icons.person_outline_rounded),
+                      selectedIcon: Icon(Icons.person_rounded),
+                      label: 'Profil',
+                    ),
+                  ],
                 ),
-              if (hasReminderTab)
-                const NavigationDestination(
-                  icon: Icon(Icons.notifications_none_rounded),
-                  selectedIcon: Icon(Icons.notifications_active_rounded),
-                  label: 'Reminders',
-                ),
-              const NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: 'Profile',
               ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -185,24 +350,57 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final shouldLogOut = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Log out?'),
+        title: const Text('Keluar dari akun?'),
         content: const Text(
-          'You will need your Crew ID and PIN to sign in again.',
+          'Anda memerlukan Crew ID dan password untuk masuk kembali.',
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: const Text('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Log out'),
+            child: const Text('Keluar'),
           ),
         ],
       ),
     );
     if (shouldLogOut != true) return;
     await Supabase.instance.client.auth.signOut();
+    ref.read(currentUserProvider.notifier).state = null;
+    if (mounted) context.go('/login');
+  }
+
+  Future<void> _changePassword(AppUser? user) async {
+    final String? nik = user?.nik.trim();
+    if (nik == null || nik.isEmpty) return;
+
+    final bool? changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ChangePasswordSheet(email: '$nik@sicatat.local'),
+    );
+    if (changed != true || !mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('Password berhasil diubah'),
+        content: const Text(
+          'Untuk melindungi akun, semua sesi SICATAT akan dikeluarkan. '
+          'Silakan masuk kembali dengan password baru.',
+        ),
+        actions: <Widget>[
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Login kembali'),
+          ),
+        ],
+      ),
+    );
+    await Supabase.instance.client.auth.signOut(scope: SignOutScope.global);
     ref.read(currentUserProvider.notifier).state = null;
     if (mounted) context.go('/login');
   }
@@ -368,7 +566,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
       children: <Widget>[
         const Text(
-          'Profile',
+          'Profil',
           style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 18),
@@ -412,58 +610,70 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         const SizedBox(height: 18),
         const Text(
-          'Account details',
+          'Detail akun',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 8),
         Card(
           child: Column(
             children: <Widget>[
-              _profileRow(Icons.badge_outlined, 'Crew ID', user?.nik ?? '—'),
+              _profileRow(Icons.badge_outlined, 'ID Crew', user?.nik ?? '—'),
               const Divider(height: 1),
-              _profileRow(Icons.admin_panel_settings_outlined, 'Role', role),
+              _profileRow(Icons.admin_panel_settings_outlined, 'Peran', role),
               const Divider(height: 1),
               _profileRow(
                 Icons.groups_outlined,
-                'Team assignment',
-                user?.teamId == null ? 'Not assigned' : 'Assigned',
+                'Penugasan tim',
+                user?.teamId == null ? 'Belum ditugaskan' : 'Sudah ditugaskan',
               ),
               const Divider(height: 1),
               _profileRow(
                 Icons.location_on_outlined,
-                'Site scope',
+                'Cakupan site',
                 user?.siteId == null
-                    ? 'All sites'
-                    : (user?.siteName ?? 'Assigned site'),
+                    ? 'Semua site'
+                    : (user?.siteName ?? 'Site yang ditugaskan'),
               ),
               const Divider(height: 1),
               _profileRow(
                 Icons.phone_outlined,
-                'Phone',
-                phone?.isNotEmpty == true ? phone! : 'Not provided',
+                'Telepon',
+                phone?.isNotEmpty == true ? phone! : 'Belum diisi',
               ),
             ],
           ),
         ),
         const SizedBox(height: 22),
+        if (!kIsWeb) ...<Widget>[
+          Card(
+            child: ListTile(
+              leading: const Icon(
+                Icons.system_update_alt_rounded,
+                color: AppColors.green,
+              ),
+              title: const Text('Pembaruan aplikasi'),
+              subtitle: const Text('Periksa dan pasang SICATAT versi terbaru'),
+              trailing: _checkingForUpdate
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    )
+                  : const Icon(Icons.chevron_right_rounded),
+              onTap: _checkingForUpdate ? null : _checkForUpdates,
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         Card(
           child: ListTile(
-            leading: const Icon(
-              Icons.system_update_alt_rounded,
-              color: AppColors.green,
-            ),
-            title: const Text('App updates'),
+            leading: const Icon(Icons.password_rounded, color: AppColors.green),
+            title: const Text('Ganti password'),
             subtitle: const Text(
-              'Check and install the latest SICATAT version',
+              'Ubah password dan keluarkan semua perangkat yang masih login',
             ),
-            trailing: _checkingForUpdate
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                  )
-                : const Icon(Icons.chevron_right_rounded),
-            onTap: _checkingForUpdate ? null : _checkForUpdates,
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => _changePassword(user),
           ),
         ),
         const SizedBox(height: 12),
@@ -473,8 +683,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               Icons.menu_book_outlined,
               color: AppColors.green,
             ),
-            title: const Text('User guide'),
-            subtitle: const Text('Temperature and reminder instructions'),
+            title: const Text('Panduan pengguna'),
+            subtitle: const Text(
+              'Panduan Temperature, Reminder, dan Warehouse',
+            ),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => context.go('/guide'),
           ),
@@ -484,7 +696,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           onPressed: _signOut,
           style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
           icon: const Icon(Icons.logout_rounded),
-          label: const Text('Log out from this device'),
+          label: const Text('Keluar dari perangkat ini'),
         ),
       ],
     );
@@ -505,32 +717,63 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   );
 
   Widget _home(BuildContext context, String crewName, AppUser? user) {
+    final List<Widget> actions = <Widget>[
+      if (user?.role.canCreateTemperatureSheet == true ||
+          user?.role.canReviewTemperature == true)
+        _homeMenuCard(
+          icon: Icons.thermostat_rounded,
+          title: 'Suhu',
+          subtitle: user?.role.canCreateTemperatureSheet == true
+              ? 'Buat atau lanjutkan sheet'
+              : 'Tinjau pekerjaan suhu',
+          onTap: () => context.go(
+            user?.role.canCreateTemperatureSheet == true
+                ? '/sheets/new'
+                : '/sheets',
+          ),
+        ),
+      if (user?.role.canUseReminders == true)
+        _homeMenuCard(
+          icon: Icons.notifications_active_rounded,
+          title: 'Pengingat',
+          subtitle: 'Tindak lanjut pekerjaan',
+          onTap: () => context.go('/reminders'),
+        ),
+      if (user?.role.canUseWarehouse == true)
+        _homeMenuCard(
+          icon: Icons.inventory_2_rounded,
+          title: 'Gudang',
+          subtitle: 'Cari stok & lokasi barang',
+          onTap: () => context.go('/warehouse'),
+        ),
+    ];
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-      children: [
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+      children: <Widget>[
         Row(
-          children: [
+          children: <Widget>[
             const CircleAvatar(
-              radius: 25,
+              radius: 22,
               backgroundColor: AppColors.mint,
               child: Icon(Icons.person_rounded, color: AppColors.green),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: <Widget>[
                   Text(
-                    'Hello, $crewName',
+                    'Selamat datang, $crewName',
                     style: const TextStyle(
-                      fontSize: 19,
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   const Text(
-                    'Choose the operational task you want to manage.',
-                    style: TextStyle(color: AppColors.muted),
+                    'Pilih menu untuk melanjutkan pekerjaan',
+                    style: TextStyle(color: AppColors.muted, fontSize: 13),
                   ),
                 ],
               ),
@@ -538,285 +781,348 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             SyncChip(_syncState),
           ],
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
         const Text(
-          'Operations hub',
-          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+          'Menu utama',
+          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Informasi rinci muncul setelah Anda membuka menu.',
+          style: TextStyle(color: AppColors.muted, fontSize: 13),
+        ),
+        const SizedBox(height: 10),
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) => Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
+            children: actions
+                .map(
+                  (Widget action) => SizedBox(
+                    width: (constraints.maxWidth - 10) / 2,
+                    child: action,
+                  ),
+                )
+                .toList(growable: false),
+          ),
         ),
         const SizedBox(height: 12),
-        if (user?.role != UserRole.foremanLv) ...<Widget>[
-          _primaryAction(
-            icon: Icons.thermostat_rounded,
-            title: 'Temperature inspections',
-            subtitle: user?.role.canCreateTemperatureSheet == true
-                ? 'Record Feeder Breaker and Sizer readings. More temperature modules can be added here.'
-                : 'Review the temperature work assigned to your site or team.',
-            actionLabel: user?.role.canCreateTemperatureSheet == true
-                ? 'Start recording'
-                : 'View temperature',
-            onTap: () => context.go(
-              user?.role.canCreateTemperatureSheet == true
-                  ? '/sheets/new'
-                  : '/sheets',
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        if (user?.role.canUseReminders == true) ...<Widget>[
-          _primaryAction(
-            icon: Icons.notifications_active_rounded,
-            title: 'Operational reminders',
-            subtitle: 'Manage due dates, action owners, email schedules, and completion history.',
-            actionLabel: 'Open reminders',
-            onTap: () => context.go('/reminders'),
-          ),
-          const SizedBox(height: 12),
-        ],
-        if (user?.role == UserRole.foremanLv) ...<Widget>[
-          const SizedBox(height: 12),
-          _quickAction(
-            Icons.help_outline_rounded,
-            'User guide',
-            'Read how to use SICATAT reminders',
-            () => context.go('/guide'),
-          ),
-        ] else ...<Widget>[
-          const SizedBox(height: 28),
-          SectionTitle(
-            'Today’s activity',
-            action: TextButton(
-              onPressed: () => context.go('/sheets'),
-              child: const Text('View all'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _stat(
-                'Draft',
-                _activity?.draftCount.toString() ?? '—',
-                AppColors.warning,
-                Icons.edit_note_rounded,
-              ),
-              const SizedBox(width: 10),
-              _stat(
-                'Synced',
-                _activity?.syncedCount.toString() ?? '—',
-                AppColors.green,
-                Icons.cloud_done_rounded,
-              ),
-              const SizedBox(width: 10),
-              _stat(
-                'High temp',
-                _activity?.highTemperatureCount.toString() ?? '—',
-                AppColors.danger,
-                Icons.device_thermostat_rounded,
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
-          const SectionTitle('Quick access'),
-          const SizedBox(height: 12),
-          _quickAction(
-            Icons.description_rounded,
-            'My sheets',
-            'View and continue field entries',
-            () => context.go('/sheets'),
-          ),
-          const SizedBox(height: 10),
-          _quickAction(
-            Icons.sync_rounded,
-            'Sync data',
-            'Send data queued on this device to the server',
-            () async {
-              await ref.read(sicatatRepositoryProvider).syncPending();
-              await _loadActivity();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sync queue checked.')),
-                );
-              }
-            },
-          ),
-          const SizedBox(height: 10),
-          if (user?.role.canReviewTemperature == true) ...<Widget>[
-            _quickAction(
-              Icons.assignment_late_outlined,
-              'Incomplete sheets',
-              user?.role.isTeamScopedTemperature == true
-                  ? 'Review incomplete sheets for your team'
-                  : 'Review incomplete sheets across teams',
-              () => context.go('/incomplete'),
-            ),
-            const SizedBox(height: 10),
-            _quickAction(
-              Icons.monitor_heart_outlined,
-              user?.role.isTeamScopedTemperature == true
-                  ? 'Team sheets'
-                  : 'Sheet monitoring',
-              'View synced crew sheets and drafts',
-              () => context.go('/monitoring'),
-            ),
-            const SizedBox(height: 10),
-            _quickAction(
-              Icons.thermostat_auto_rounded,
-              'High temperature report',
-              'Review all temperatures at or above 60°C',
-              () => context.go('/high-temperature'),
-            ),
-            const SizedBox(height: 10),
-            _quickAction(
-              Icons.picture_as_pdf_outlined,
-              'Period reports',
-              user?.role.isTeamScopedTemperature == true
-                  ? 'Export readings for your team by date range'
-                  : 'Export readings and PDF reports by date range',
-              () => context.go('/reports'),
-            ),
-            const SizedBox(height: 10),
-          ],
-          if (user?.role.canManageMasterData == true) ...<Widget>[
-            _quickAction(
-              Icons.manage_accounts_outlined,
-              'Master data & users',
-              'Manage equipment, roster, teams, users, and exports',
-              () => context.go('/admin'),
-            ),
-            const SizedBox(height: 10),
-          ],
-          _quickAction(
-            Icons.help_outline_rounded,
-            'User guide',
-            'Read how to use SICATAT temperature checks and reminders',
-            () => context.go('/guide'),
-          ),
-        ],
+        _homeMoreActions(context, user),
       ],
     );
   }
 
-  Widget _stat(String title, String value, Color color, IconData icon) =>
-      Expanded(
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: color, size: 21),
-              const SizedBox(height: 9),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12, color: AppColors.muted),
-              ),
-            ],
-          ),
-        ),
-      );
-
-  Widget _primaryAction({
+  Widget _homeMenuCard({
     required IconData icon,
     required String title,
     required String subtitle,
-    required String actionLabel,
     required VoidCallback onTap,
-    bool enabled = true,
-  }) => Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      gradient: enabled
-          ? const LinearGradient(colors: [AppColors.greenDark, AppColors.green])
-          : null,
-      color: enabled ? null : AppColors.mint,
-      borderRadius: BorderRadius.circular(24),
-      border: enabled ? null : Border.all(color: AppColors.line),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: enabled ? Colors.white.withValues(alpha: .16) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(icon, color: enabled ? Colors.white : AppColors.green),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
+  }) => Card(
+    margin: EdgeInsets.zero,
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        height: 116,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
+              Icon(icon, color: AppColors.green, size: 25),
+              const SizedBox(height: 10),
               Text(
                 title,
-                style: TextStyle(
-                  color: enabled ? Colors.white : AppColors.greenDark,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(
-                  color: enabled ? Colors.white70 : AppColors.muted,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                onPressed: enabled ? onTap : null,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.greenDark,
-                  disabledBackgroundColor: Colors.white,
-                  disabledForegroundColor: AppColors.muted,
-                ),
-                icon: Icon(
-                  enabled
-                      ? Icons.arrow_forward_rounded
-                      : Icons.admin_panel_settings_outlined,
-                ),
-                label: Text(actionLabel),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.muted, fontSize: 12),
               ),
             ],
           ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _homeMoreActions(BuildContext context, AppUser? user) => Card(
+    margin: EdgeInsets.zero,
+    child: ExpansionTile(
+      leading: const Icon(Icons.bolt_rounded, color: AppColors.green),
+      title: const Text(
+        'Aksi lainnya',
+        style: TextStyle(fontWeight: FontWeight.w800),
+      ),
+      subtitle: const Text('Sheet, sinkronisasi, laporan, dan panduan'),
+      children: <Widget>[
+        if (user?.role != UserRole.foremanLv)
+          ListTile(
+            leading: const Icon(Icons.description_rounded),
+            title: const Text('Sheet saya'),
+            onTap: () => context.go('/sheets'),
+          ),
+        if (user?.role != UserRole.foremanLv)
+          ListTile(
+            leading: const Icon(Icons.sync_rounded),
+            title: const Text('Periksa sinkronisasi'),
+            onTap: () async {
+              await ref.read(sicatatRepositoryProvider).syncPending();
+              await _loadActivity();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Antrian sinkronisasi diperiksa.'),
+                  ),
+                );
+              }
+            },
+          ),
+        if (user?.role.canReviewTemperature == true) ...<Widget>[
+          ListTile(
+            leading: const Icon(Icons.assignment_late_outlined),
+            title: const Text('Sheet belum lengkap'),
+            onTap: () => context.go('/incomplete'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.monitor_heart_outlined),
+            title: const Text('Monitoring sheet'),
+            onTap: () => context.go('/monitoring'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.thermostat_auto_rounded),
+            title: const Text('Laporan suhu tinggi'),
+            onTap: () => context.go('/high-temperature'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.picture_as_pdf_outlined),
+            title: const Text('Laporan periode'),
+            onTap: () => context.go('/reports'),
+          ),
+        ],
+        if (user?.role.canManageMasterData == true)
+          ListTile(
+            leading: const Icon(Icons.manage_accounts_outlined),
+            title: const Text('Data master & pengguna'),
+            onTap: () => context.go('/admin'),
+          ),
+        ListTile(
+          leading: const Icon(Icons.help_outline_rounded),
+          title: const Text('Panduan pengguna'),
+          onTap: () => context.go('/guide'),
         ),
       ],
     ),
   );
+}
 
-  Widget _quickAction(
-    IconData icon,
-    String title,
-    String subtitle,
-    VoidCallback onTap,
-  ) => Card(
-    child: ListTile(
-      onTap: onTap,
-      leading: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: AppColors.mint,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Icon(icon, color: AppColors.green),
+class _ChangePasswordSheet extends StatefulWidget {
+  const _ChangePasswordSheet({required this.email});
+
+  final String email;
+
+  @override
+  State<_ChangePasswordSheet> createState() => _ChangePasswordSheetState();
+}
+
+class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _currentPassword = TextEditingController();
+  final _newPassword = TextEditingController();
+  final _confirmation = TextEditingController();
+  bool _obscureCurrent = true;
+  bool _obscureNew = true;
+  bool _obscureConfirmation = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _currentPassword.dispose();
+    _newPassword.dispose();
+    _confirmation.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final client = Supabase.instance.client;
+      await client.auth.signInWithPassword(
+        email: widget.email,
+        password: _currentPassword.text,
+      );
+      await client.auth.updateUser(UserAttributes(password: _newPassword.text));
+      if (mounted) Navigator.pop(context, true);
+    } on AuthException {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Password lama tidak sesuai atau tidak dapat diverifikasi.',
+        );
+      }
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Password belum dapat diubah. Periksa koneksi lalu coba lagi.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  String? _newPasswordError(String? value) {
+    final password = value ?? '';
+    if (password.length < 8) {
+      return 'Gunakan minimal 8 karakter.';
+    }
+    if (!RegExp(r'[A-Za-z]').hasMatch(password) ||
+        !RegExp(r'[0-9]').hasMatch(password)) {
+      return 'Gunakan gabungan huruf dan angka.';
+    }
+    if (password == _currentPassword.text) {
+      return 'Password baru harus berbeda dari password lama.';
+    }
+    return null;
+  }
+
+  InputDecoration _decoration({
+    required String label,
+    required bool obscure,
+    required VoidCallback onToggle,
+  }) => InputDecoration(
+    labelText: label,
+    prefixIcon: const Icon(Icons.lock_outline_rounded),
+    suffixIcon: IconButton(
+      tooltip: obscure ? 'Tampilkan password' : 'Sembunyikan password',
+      onPressed: _saving ? null : onToggle,
+      icon: Icon(
+        obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right_rounded),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 20,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Text(
+              'Ganti password',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Gunakan minimal 8 karakter dengan gabungan huruf dan angka. '
+              'Sesi pada perangkat lain akan dikeluarkan.',
+              style: TextStyle(color: AppColors.muted),
+            ),
+            const SizedBox(height: 18),
+            TextFormField(
+              controller: _currentPassword,
+              obscureText: _obscureCurrent,
+              enabled: !_saving,
+              autofillHints: const <String>[AutofillHints.password],
+              enableSuggestions: false,
+              autocorrect: false,
+              textInputAction: TextInputAction.next,
+              decoration: _decoration(
+                label: 'Password lama',
+                obscure: _obscureCurrent,
+                onToggle: () =>
+                    setState(() => _obscureCurrent = !_obscureCurrent),
+              ),
+              validator: (String? value) => (value == null || value.isEmpty)
+                  ? 'Masukkan password lama.'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _newPassword,
+              obscureText: _obscureNew,
+              enabled: !_saving,
+              autofillHints: const <String>[AutofillHints.newPassword],
+              enableSuggestions: false,
+              autocorrect: false,
+              textInputAction: TextInputAction.next,
+              decoration: _decoration(
+                label: 'Password baru',
+                obscure: _obscureNew,
+                onToggle: () => setState(() => _obscureNew = !_obscureNew),
+              ),
+              validator: _newPasswordError,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _confirmation,
+              obscureText: _obscureConfirmation,
+              enabled: !_saving,
+              autofillHints: const <String>[AutofillHints.newPassword],
+              enableSuggestions: false,
+              autocorrect: false,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _submit(),
+              decoration: _decoration(
+                label: 'Ulangi password baru',
+                obscure: _obscureConfirmation,
+                onToggle: () => setState(
+                  () => _obscureConfirmation = !_obscureConfirmation,
+                ),
+              ),
+              validator: (String? value) => value != _newPassword.text
+                  ? 'Password baru belum sama.'
+                  : null,
+            ),
+            if (_error case final message?) ...<Widget>[
+              const SizedBox(height: 12),
+              Text(
+                message,
+                style: const TextStyle(
+                  color: AppColors.danger,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _submit,
+                icon: _saving
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.lock_reset_rounded),
+                label: Text(_saving ? 'Menyimpan...' : 'Simpan password baru'),
+              ),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }

@@ -14,8 +14,10 @@ import 'features/admin/presentation/master_data_hub_screen.dart';
 import 'features/admin/presentation/site_management_screen.dart';
 import 'features/admin/presentation/threshold_management_screen.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
+import 'features/dashboard/presentation/main_navigation_scaffold.dart';
 import 'features/guide/presentation/crew_guide_screen.dart';
 import 'features/reminders/presentation/reminder_screen.dart';
+import 'features/warehouse/presentation/warehouse_screen.dart';
 import 'features/reports/presentation/report_screen.dart';
 import 'features/reports/presentation/sheet_export_screen.dart';
 import 'features/reports/presentation/high_temperature_report_screen.dart';
@@ -31,7 +33,23 @@ final _router = GoRouter(
   initialLocation: '/login',
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-    GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
+    GoRoute(
+      path: '/dashboard',
+      builder: (_, state) => RoleGuard(
+        allowed: const <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: DashboardScreen(
+          showProfile: state.uri.queryParameters['tab'] == 'profile',
+        ),
+      ),
+    ),
     GoRoute(
       path: '/admin',
       builder: (_, __) => const RoleGuard(
@@ -110,7 +128,10 @@ final _router = GoRouter(
           UserRole.supervisorSmg,
           UserRole.admin,
         },
-        child: SheetListScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: SheetListScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -121,7 +142,10 @@ final _router = GoRouter(
           UserRole.supervisorSmg,
           UserRole.admin,
         },
-        child: NewSheetScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: NewSheetScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -133,7 +157,10 @@ final _router = GoRouter(
           UserRole.supervisorSmg,
           UserRole.admin,
         },
-        child: SheetMonitoringScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: SheetMonitoringScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -144,12 +171,15 @@ final _router = GoRouter(
           UserRole.supervisorSmg,
           UserRole.admin,
         },
-        child: TemperatureFormScreen(
-          sheetId: state.uri.queryParameters['sheetId'],
-          initialSection: state.uri.queryParameters['section'],
-          initialRound: state.uri.queryParameters['round'],
-          initialSide: state.uri.queryParameters['side'],
-          initialEntry: state.uri.queryParameters['entry'],
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: TemperatureFormScreen(
+            sheetId: state.uri.queryParameters['sheetId'],
+            initialSection: state.uri.queryParameters['section'],
+            initialRound: state.uri.queryParameters['round'],
+            initialSide: state.uri.queryParameters['side'],
+            initialEntry: state.uri.queryParameters['entry'],
+          ),
         ),
       ),
     ),
@@ -163,12 +193,32 @@ final _router = GoRouter(
           UserRole.supervisorSmg,
           UserRole.admin,
         },
-        child: SheetSummaryScreen(
-          sheetId: state.uri.queryParameters['sheetId'],
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: SheetSummaryScreen(
+            sheetId: state.uri.queryParameters['sheetId'],
+          ),
         ),
       ),
     ),
-    GoRoute(path: '/guide', builder: (_, __) => const CrewGuideScreen()),
+    GoRoute(
+      path: '/guide',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: CrewGuideScreen(),
+        ),
+      ),
+    ),
     GoRoute(
       path: '/reminders',
       builder: (_, __) => const RoleGuard(
@@ -177,7 +227,24 @@ final _router = GoRouter(
           UserRole.supervisorSmg,
           UserRole.foremanLv,
         },
-        child: ReminderScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.reminders,
+          child: ReminderScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/warehouse',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.admin,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.warehouse,
+          child: WarehouseScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -189,7 +256,10 @@ final _router = GoRouter(
           UserRole.supervisorSmg,
           UserRole.admin,
         },
-        child: ReportScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: ReportScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -202,7 +272,12 @@ final _router = GoRouter(
           UserRole.supervisorSmg,
           UserRole.admin,
         },
-        child: SheetExportScreen(sheetId: state.uri.queryParameters['sheetId']),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: SheetExportScreen(
+            sheetId: state.uri.queryParameters['sheetId'],
+          ),
+        ),
       ),
     ),
     GoRoute(
@@ -214,7 +289,10 @@ final _router = GoRouter(
           UserRole.supervisorSmg,
           UserRole.admin,
         },
-        child: HighTemperatureReportScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: HighTemperatureReportScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -226,7 +304,10 @@ final _router = GoRouter(
           UserRole.supervisorSmg,
           UserRole.admin,
         },
-        child: IncompleteSheetScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: IncompleteSheetScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -329,7 +410,7 @@ class _VersionNotice extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Version $latestVersion is available.${releaseNotes == null || releaseNotes!.isEmpty ? '' : ' $releaseNotes'}',
+                  'Versi $latestVersion tersedia.${releaseNotes == null || releaseNotes!.isEmpty ? '' : ' $releaseNotes'}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.greenDark,
@@ -339,7 +420,7 @@ class _VersionNotice extends StatelessWidget {
               IconButton(
                 onPressed: onDismiss,
                 icon: const Icon(Icons.close_rounded),
-                tooltip: 'Dismiss update notice',
+                tooltip: 'Tutup pemberitahuan pembaruan',
               ),
             ],
           ),
@@ -375,12 +456,12 @@ class _VersionBlock extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               const Text(
-                'Update required',
+                'Pembaruan diperlukan',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 10),
               Text(
-                'This app version is no longer supported. Ask your administrator for the latest APK (version $latestVersion) before continuing.',
+                'Versi aplikasi ini tidak lagi didukung. Hubungi administrator untuk mendapatkan APK terbaru (versi $latestVersion) sebelum melanjutkan.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.muted, height: 1.5),
               ),

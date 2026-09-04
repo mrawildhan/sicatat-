@@ -22,7 +22,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
   Future<AppUser> signIn({required String nik, required String pin}) async {
     final normalizedNik = nik.trim();
     if (normalizedNik.isEmpty || pin.isEmpty) {
-      throw const FormatException('Crew ID and PIN are required.');
+      throw const FormatException('Crew ID dan password wajib diisi.');
     }
 
     try {
@@ -40,10 +40,10 @@ class SupabaseSicatatRepository implements SicatatRepository {
           .single();
       return AppUser.fromJson(requireJsonMap(row, source: 'profil pengguna'));
     } on AuthException {
-      throw const FormatException('Crew ID or PIN is invalid.');
+      throw const FormatException('Crew ID atau password tidak sesuai.');
     } on PostgrestException {
       await client.auth.signOut();
-      throw const FormatException('Crew ID or PIN is invalid.');
+      throw const FormatException('Crew ID atau password tidak sesuai.');
     }
   }
 

@@ -1,6 +1,14 @@
 import 'sicatat_types.dart';
 
-enum UserRole { crew, foreman, supervisorCop, supervisorSmg, foremanLv, admin }
+enum UserRole {
+  crew,
+  foreman,
+  supervisorCop,
+  supervisorSmg,
+  foremanLv,
+  warehouseman,
+  admin,
+}
 
 class AppUser {
   const AppUser({
@@ -52,6 +60,7 @@ extension UserRoleX on UserRole {
     'supervisor' || 'supervisor_smg' => UserRole.supervisorSmg,
     'supervisor_cop' => UserRole.supervisorCop,
     'foreman_lv' => UserRole.foremanLv,
+    'warehouseman' => UserRole.warehouseman,
     'admin' => UserRole.admin,
     _ => throw FormatException('Unknown user role: $value'),
   };
@@ -62,6 +71,7 @@ extension UserRoleX on UserRole {
     UserRole.supervisorCop => 'supervisor_cop',
     UserRole.supervisorSmg => 'supervisor_smg',
     UserRole.foremanLv => 'foreman_lv',
+    UserRole.warehouseman => 'warehouseman',
     UserRole.admin => 'admin',
   };
 
@@ -71,6 +81,7 @@ extension UserRoleX on UserRole {
     UserRole.supervisorCop => 'Supervisor COP',
     UserRole.supervisorSmg => 'Supervisor SMG',
     UserRole.foremanLv => 'Foreman LV',
+    UserRole.warehouseman => 'Warehouseman',
     UserRole.admin => 'Admin',
   };
 
@@ -93,6 +104,13 @@ extension UserRoleX on UserRole {
       this == UserRole.admin ||
       this == UserRole.supervisorSmg ||
       this == UserRole.foremanLv;
+
+  bool get canUseWarehouse =>
+      this == UserRole.admin ||
+      this == UserRole.supervisorSmg ||
+      this == UserRole.warehouseman;
+
+  bool get canManageWarehouse => canUseWarehouse;
 
   bool get canManageUsers => this == UserRole.admin;
 

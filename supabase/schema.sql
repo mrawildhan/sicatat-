@@ -126,7 +126,7 @@ create table app_user (
     id          uuid primary key default gen_random_uuid(),
     nik         text unique,
     name        text not null,
-    role        text not null check (role in ('crew','foreman','supervisor_cop','supervisor_smg','foreman_lv','admin')),
+    role        text not null check (role in ('crew','foreman','supervisor_cop','supervisor_smg','foreman_lv','warehouseman','admin')),
     team_id     uuid references team(id),   -- wajib untuk crew & foreman
     site_id     uuid references site(id),   -- wajib untuk Supervisor COP dan Foreman LV
     phone       text,
