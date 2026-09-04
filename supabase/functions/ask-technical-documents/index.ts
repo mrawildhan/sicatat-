@@ -59,21 +59,31 @@ function parseFolder(html: string, parentPath: string): DriveEntry[] {
 async function listDocuments(): Promise<DriveEntry[]> {
   const documents: DriveEntry[] = [];
   const visited = new Set<string>();
-  async function visit(folderId: string, path: string, depth: number): Promise<void> {
-    if (visited.has(folderId) || depth > 4 || documents.length >= 240) return;
-    visited.add(folderId);
-    const response = await fetch(folderUrl(folderId), { signal: AbortSignal.timeout(15000) });
-    if (!response.ok) throw new Error(`Folder Google Drive tidak dapat dibaca (HTTP ${response.status}).`);
-    const entries = parseFolder(await response.text(), path);
-    for (const entry of entries) {
-      if (entry.isFolder) {
-        await visit(entry.id, `${path}/${entry.name}`, depth + 1);
-      } else if (documents.length < 240) {
-        documents.push(entry);
+  let queue = [{ id: rootFolderId, path: "Pusat Dokumen", depth: 0 }];
+
+  // Several folders are fetched together. A recursive serial crawl of a public
+  // Drive folder is slow enough to make an otherwise valid AI request time out.
+  while (queue.length > 0 && documents.length < 240) {
+    const batch = queue.splice(0, 5).filter((folder) => {
+      if (folder.depth > 4 || visited.has(folder.id)) return false;
+      visited.add(folder.id);
+      return true;
+    });
+    const results = await Promise.all(batch.map(async (folder) => {
+      const response = await fetch(folderUrl(folder.id), { signal: AbortSignal.timeout(15000) });
+      if (!response.ok) throw new Error(`Folder Google Drive tidak dapat dibaca (HTTP ${response.status}).`);
+      return { folder, entries: parseFolder(await response.text(), folder.path) };
+    }));
+    for (const { folder, entries } of results) {
+      for (const entry of entries) {
+        if (entry.isFolder) {
+          queue.push({ id: entry.id, path: `${folder.path}/${entry.name}`, depth: folder.depth + 1 });
+        } else if (documents.length < 240) {
+          documents.push(entry);
+        }
       }
     }
   }
-  await visit(rootFolderId, "Pusat Dokumen", 0);
   return documents;
 }
 
@@ -169,7 +179,7 @@ Deno.serve(async (req) => {
     }
     const documents = await listDocuments();
     const selected = selectDocuments(question, documents);
-    if (selected.isEmpty) {
+    if (selected.length === 0) {
       return json({ ok: true, answer: "Saya tidak menemukan nama file yang relevan di folder dokumen. Coba gunakan istilah SOP, nomor dokumen, atau nama pekerjaan yang lebih spesifik.", sources_scanned: 0, citations: [] });
     }
     const loaded: LoadedDocument[] = [];
@@ -181,7 +191,7 @@ Deno.serve(async (req) => {
         totalBytes += file.data.length;
       }
     }
-    if (loaded.isEmpty) {
+    if (loaded.length === 0) {
       return json({ ok: true, answer: "File yang relevan ditemukan, tetapi tidak dapat dibaca AI. Buka file sumber untuk melihat atau mengunduhnya.", sources_scanned: 0, citations: selected.map((item) => ({ name: item.name, url: viewUrl(item.id) })) });
     }
     const documentList = loaded.map((item, index) => `[${index + 1}] ${item.name} — ${item.path}`).join("\n");
