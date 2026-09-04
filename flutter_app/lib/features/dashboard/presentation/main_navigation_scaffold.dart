@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
@@ -226,7 +227,7 @@ class MainNavigationScaffold extends ConsumerWidget {
                       const Padding(
                         padding: EdgeInsets.fromLTRB(16, 8, 16, 18),
                         child: Text(
-                          '© 2026 WIL',
+                          '© 2026 WIL • Versi ${AppConfig.appVersion}',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 9, color: AppColors.muted),
                         ),
