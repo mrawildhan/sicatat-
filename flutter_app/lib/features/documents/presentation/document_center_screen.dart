@@ -119,46 +119,6 @@ class _DocumentCenterScreenState extends State<DocumentCenterScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
               children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.mint,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: AppColors.green.withValues(alpha: .2),
-                    ),
-                  ),
-                  child: const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Icon(
-                        Icons.verified_user_outlined,
-                        color: AppColors.green,
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Jawaban hanya dari folder dokumen',
-                              style: TextStyle(fontWeight: FontWeight.w900),
-                            ),
-                            SizedBox(height: 5),
-                            Text(
-                              'AI hanya membaca file yang berada di folder Google Drive ini. Setiap jawaban menyertakan file sumbernya.',
-                              style: TextStyle(
-                                color: AppColors.greenDark,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
                 const Text(
                   'Tanya dokumen',
                   style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
@@ -200,15 +160,6 @@ class _DocumentCenterScreenState extends State<DocumentCenterScreen> {
                 const SizedBox(height: 16),
                 if (_answer != null)
                   _AnswerCard(answer: _answer!, onOpen: _open),
-                const SizedBox(height: 20),
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      _open(Uri.parse(AppConfig.technicalDocumentsFolderUrl)),
-                  icon: const Icon(Icons.folder_open_rounded),
-                  label: const Text(
-                    'Lihat dan unduh semua file di Google Drive',
-                  ),
-                ),
               ],
             ),
           ),
