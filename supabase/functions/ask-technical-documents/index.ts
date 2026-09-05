@@ -115,7 +115,10 @@ async function modelsAvailableToKey(apiKey: string): Promise<string[]> {
     headers: { "x-goog-api-key": apiKey },
     signal: AbortSignal.timeout(15000),
   });
-  if (!response.ok) return [];
+  if (!response.ok) {
+    const failure = await geminiFailure(response);
+    throw new Error(`Pemeriksaan daftar model gagal. ${failure.message}`);
+  }
   const data = await response.json() as { models?: Array<{ name?: string; supportedGenerationMethods?: string[] }> };
   return (data.models ?? [])
     .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
@@ -126,14 +129,53 @@ async function modelsAvailableToKey(apiKey: string): Promise<string[]> {
 
 function selectModelCandidates(preferredModel: string, availableModels: string[]) {
   const priority = [
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
     preferredModel,
     "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
     "gemini-flash-latest",
   ];
   const preferred = priority.filter((model) => availableModels.includes(model));
-  const otherFlashModels = availableModels.filter((model) => /flash/i.test(model));
-  return [...new Set([...preferred, ...otherFlashModels])];
+  return [...new Set(preferred)].slice(0, 2);
+}
+
+async function geminiFailure(response: Response): Promise<Error> {
+  // Never forward Google's raw response: it can contain credential/project data.
+  const body = await response.json().catch(() => ({}));
+  const message = String(body?.error?.message ?? '').toLowerCase();
+  const reasons = (Array.isArray(body?.error?.details) ? body.error.details : [])
+    .map((item: { reason?: string }) => item.reason ?? '').join(' ');
+  let code = `HTTP_${response.status}`;
+  let explanation = 'Layanan Gemini menolak permintaan. Administrator perlu memeriksa konfigurasi API.';
+  if (/leaked|reported.*leak|compromised/.test(message)) {
+    code = 'KEY_BLOCKED';
+    explanation = 'Google memblokir kunci API karena terdeteksi bocor. Buat kunci pengganti di Google AI Studio dan simpan di server SICATAT.';
+  } else if (/project.*denied access|project.*blocked|consumer.*suspended/.test(message)) {
+    code = 'PROJECT_ACCESS_DENIED';
+    explanation = 'Google menolak akses Gemini untuk proyek API ini. Pemilik akun perlu memeriksa status proyek di Google AI Studio; menambah kuota bukan perbaikannya.';
+  } else if (response.status === 403 && !response.headers.get('content-type')?.includes('json')) {
+    code = 'GATEWAY_ACCESS_DENIED';
+    explanation = 'Gerbang Google menolak koneksi dari server SICATAT, sebelum memberikan respons Gemini. Akses dari akun dan lokasi server perlu diperiksa.';
+  } else if (/SERVICE_DISABLED/.test(reasons) || /has not been used|is disabled/.test(message)) {
+    code = 'API_DISABLED';
+    explanation = 'Layanan Gemini API belum aktif pada proyek Google yang digunakan. Aktivasi API perlu diperiksa; billing tidak perlu diaktifkan untuk pemeriksaan ini.';
+  } else if (/API_KEY.*BLOCKED|API_KEY_SERVICE_BLOCKED|IP_ADDRESS_BLOCKED|HTTP_REFERRER_BLOCKED/.test(reasons) || /referer|referrer|ip address|api restrictions/.test(message)) {
+    code = 'KEY_RESTRICTED';
+    explanation = 'Pembatasan kunci API Google menolak akses dari server SICATAT. Administrator perlu memeriksa pembatasan kunci server.';
+  } else if (/API_KEY_INVALID/.test(reasons) || /api key not valid|invalid api key/.test(message)) {
+    code = 'KEY_INVALID';
+    explanation = 'Kunci Gemini di server tidak valid. Periksa kembali kunci yang disimpan di Supabase.';
+  } else if (/location|region|country/.test(message)) {
+    code = 'REGION_UNSUPPORTED';
+    explanation = 'Gemini belum tersedia untuk lokasi server atau akun ini.';
+  } else if (response.status === 429) {
+    code = 'QUOTA_LIMIT';
+    explanation = 'Batas pemakaian Gemini tercapai. Coba kembali setelah kuota tersedia.';
+  } else if (response.status === 404) {
+    explanation = 'Model Gemini yang dipilih tidak tersedia untuk proyek ini.';
+  }
+  return new Error(`${explanation} (Kode: ${code})`);
 }
 
 function queryTerms(question: string) {
@@ -280,7 +322,10 @@ Deno.serve(async (req) => {
       }
     }
     if (!response) throw new Error("Model AI tidak dapat dihubungi.");
-    if (!response.ok) throw new Error(`Model AI tidak dapat dihubungi (HTTP ${response.status}).`);
+    if (!response.ok) {
+      const failure = await geminiFailure(response);
+      throw new Error(`Pembuatan jawaban gagal (${candidateModels.join(', ')}). ${failure.message}`);
+    }
     const modelJson = parseModelJson(textFromModel(await response.json()));
     const rawCitations = Array.isArray(modelJson.citations) ? modelJson.citations : [];
     const citations = rawCitations.flatMap((citation) => {

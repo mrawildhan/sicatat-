@@ -1,5 +1,13 @@
 # SICATAT — Codex Handoff
 
+## AI live diagnostic — 2026-09-05
+
+- Canonical source remains worktree `42e3`; do not release stale `284f`.
+- Deployed backend `ask-technical-documents` now safely classifies Google errors without exposing raw provider responses or secrets. Model candidates are bounded and checked against the model list; Flash-Lite 3.1/3.5 precede legacy 2.5 candidates.
+- REAL signed-in website demo of sandblasting question FAILED: legacy 2.5 candidates returned 404; Flash-Lite request returned 403 with Google's project-denied message, displayed as `PROJECT_ACCESS_DENIED`. AI is NOT verified working. Owner must resolve Google project access; do not claim billing or retries fix it. Billing was not enabled.
+- Backend applies to both web and Android callers. No Flutter/UI release this diagnostic. Web remains 2.6.5; last confirmed published Android remains 2.6.4 (2.6.5 APK upload had failed). Do not claim mobile 2.6.5 is available.
+- Backend regression test: `node supabase/functions/ask-technical-documents/diagnostics.test.mjs` (Node 24).
+
 This is the active handoff file for Codex. Follow it before editing.
 
 ## Current product and non-negotiable rules
