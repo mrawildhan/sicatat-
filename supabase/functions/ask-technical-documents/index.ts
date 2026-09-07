@@ -15,6 +15,7 @@ const downloadUrl = (id: string) => `https://drive.usercontent.google.com/downlo
 
 type DriveEntry = { id: string; name: string; path: string; isFolder: boolean };
 type LoadedDocument = DriveEntry & { mimeType: string; data: string };
+type DocumentCitation = { name: string; url: string; excerpt?: string };
 
 let documentIndexCache: { expiresAt: number; documents: DriveEntry[] } | undefined;
 let documentIndexRequest: Promise<DriveEntry[]> | undefined;
@@ -196,6 +197,19 @@ function queryTerms(question: string) {
   return [...new Set(question.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length >= 3 && !stopWords.has(term)))];
 }
 
+// A model can quote several passages from one file. They support one answer,
+// but they must stay as one source card so users do not see the same document
+// repeated in the source list.
+function uniqueCitations(citations: DocumentCitation[]) {
+  const seen = new Set<string>();
+  return citations.filter((citation) => {
+    const key = citation.url || citation.name.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function selectDocuments(question: string, documents: DriveEntry[]) {
   const originalTerms = queryTerms(question);
   // Safety controls are often written only inside a procedure, not in the
@@ -347,7 +361,7 @@ Deno.serve(async (req) => {
         if (!source) return [];
         return [{ name: source.name, url: viewUrl(source.id), excerpt: citation.excerpt }];
       });
-      return json({ ok: true, answer: result.answer, citations, sources_scanned: result.sources_scanned });
+      return json({ ok: true, answer: result.answer, citations: uniqueCitations(citations), sources_scanned: result.sources_scanned });
     }
     const documentList = loaded.map((item, index) => `[${index + 1}] ${item.name} — ${item.path}`).join("\n");
     const instruction = [
@@ -399,7 +413,7 @@ Deno.serve(async (req) => {
       if (!source) return [];
       return [{ name: source.name, url: viewUrl(source.id), excerpt: typeof value.excerpt === "string" ? value.excerpt.slice(0, 280) : undefined }];
     });
-    return json({ ok: true, answer: typeof modelJson.answer === "string" ? modelJson.answer : "Jawaban AI belum tersedia.", sources_scanned: loaded.length, citations });
+    return json({ ok: true, answer: typeof modelJson.answer === "string" ? modelJson.answer : "Jawaban AI belum tersedia.", sources_scanned: loaded.length, citations: uniqueCitations(citations) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Pencarian dokumen gagal.";
     console.error("ask-technical-documents failed:", message);

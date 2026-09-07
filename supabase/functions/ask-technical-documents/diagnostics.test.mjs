@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8')
   .replace(/import \{ createClient \}[^;]+;/, '')
   .split('Deno.serve(')[0];
-const code = stripTypeScriptTypes(source + '\nexport {geminiFailure, selectModelCandidates, parseFolder, selectDocuments};');
-const { geminiFailure, selectModelCandidates, parseFolder, selectDocuments } = await import(
+const code = stripTypeScriptTypes(source + '\nexport {geminiFailure, selectModelCandidates, parseFolder, selectDocuments, uniqueCitations};');
+const { geminiFailure, selectModelCandidates, parseFolder, selectDocuments, uniqueCitations } = await import(
   'data:text/javascript;base64,' + Buffer.from(code).toString('base64')
 );
 for (const [status, message, expected] of [
@@ -43,4 +43,12 @@ const bodyHarness = selectDocuments('kapan body harness wajib digunakan?', [
   { id: 'other', name: 'ASM-COP-151 Penggantian Belt.docx', path: 'Pusat Dokumen/SOP' },
 ]);
 assert.deepEqual(bodyHarness.map((entry) => entry.id), ['roller']);
+assert.deepEqual(
+  uniqueCitations([
+    { name: 'ASM-COP-107 Penyandaran Tongkang.docx', url: 'https://drive.google.com/file/d/107/view', excerpt: 'Kutipan pertama' },
+    { name: 'ASM-COP-107 Penyandaran Tongkang.docx', url: 'https://drive.google.com/file/d/107/view', excerpt: 'Kutipan kedua' },
+    { name: 'ASM-COP-150 Pergantian Roller.docx', url: 'https://drive.google.com/file/d/150/view', excerpt: 'Kutipan ketiga' },
+  ]).map((citation) => citation.name),
+  ['ASM-COP-107 Penyandaran Tongkang.docx', 'ASM-COP-150 Pergantian Roller.docx'],
+);
 console.log('PASS: embedded Drive listing and relevant document selection');
