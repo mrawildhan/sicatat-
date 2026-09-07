@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8')
   .replace(/import \{ createClient \}[^;]+;/, '')
   .split('Deno.serve(')[0];
-const code = stripTypeScriptTypes(source + '\nexport {geminiFailure, selectModelCandidates};');
-const { geminiFailure, selectModelCandidates } = await import(
+const code = stripTypeScriptTypes(source + '\nexport {geminiFailure, selectModelCandidates, parseFolder, selectDocuments};');
+const { geminiFailure, selectModelCandidates, parseFolder, selectDocuments } = await import(
   'data:text/javascript;base64,' + Buffer.from(code).toString('base64')
 );
 for (const [status, message, expected] of [
@@ -27,3 +27,8 @@ assert.deepEqual(selectModelCandidates('gemini-2.5-flash', [
   'gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-unapproved-flash',
 ]), ['gemini-3.1-flash-lite', 'gemini-2.5-flash']);
 console.log('PASS: 7 safe error classifications and bounded model selection');
+const entries = parseFolder('<div class="flip-entry" id="entry-document123456"><a href="https://drive.google.com/file/d/document123456/view"><div class="flip-entry-title">ASM-COP-160 Sandblasting.pdf</div></a></div>', 'Pusat Dokumen');
+assert.equal(entries[0].name, 'ASM-COP-160 Sandblasting.pdf');
+assert.equal(entries[0].isFolder, false);
+assert.deepEqual(selectDocuments('berapa minimal orang untuk pekerjaan sandblasting', [...entries, {id:'other',name:'Untuk pekerjaan lain.pdf',path:'Pusat Dokumen'}]), entries);
+console.log('PASS: embedded Drive listing and relevant document selection');

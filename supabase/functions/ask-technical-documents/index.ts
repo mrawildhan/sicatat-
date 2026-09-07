@@ -44,6 +44,14 @@ function cleanName(ariaLabel: string) {
 
 function parseFolder(html: string, parentPath: string): DriveEntry[] {
   const entries = new Map<string, DriveEntry>();
+  // The standard Drive page only renders its first batch (150 entries).
+  // The public embedded listing includes later entries such as SOP 160.
+  const embedded = /class="flip-entry" id="entry-([A-Za-z0-9_-]+)"([\s\S]*?)class="flip-entry-title">([^<]+)<\/div>/g;
+  for (const match of html.matchAll(embedded)) {
+    const id = match[1];
+    const name = decodeHtml(match[3]).trim();
+    if (id !== rootFolderId && name) entries.set(id, { id, name, path: parentPath, isFolder: match[2].includes('/drive/folders/') });
+  }
   // Drive's public folder page pairs the file ID and display label on the
   // same element. Parsing that pair avoids accidentally treating controls
   // such as "More actions" as documents.
@@ -86,14 +94,14 @@ async function buildDocumentIndex(): Promise<DriveEntry[]> {
 
   // Several folders are fetched together. A recursive serial crawl of a public
   // Drive folder is slow enough to make an otherwise valid AI request time out.
-  while (queue.length > 0 && documents.length < 240) {
+  while (queue.length > 0 && documents.length < 3000) {
     const batch = queue.splice(0, 5).filter((folder) => {
       if (folder.depth > 4 || visited.has(folder.id)) return false;
       visited.add(folder.id);
       return true;
     });
     const results = await Promise.all(batch.map(async (folder) => {
-      const response = await fetch(folderUrl(folder.id), { signal: AbortSignal.timeout(15000) });
+      const response = await fetch(`https://drive.google.com/embeddedfolderview?id=${folder.id}`, { signal: AbortSignal.timeout(15000) });
       if (!response.ok) throw new Error(`Folder Google Drive tidak dapat dibaca (HTTP ${response.status}).`);
       return { folder, entries: parseFolder(await response.text(), folder.path) };
     }));
@@ -101,7 +109,7 @@ async function buildDocumentIndex(): Promise<DriveEntry[]> {
       for (const entry of entries) {
         if (entry.isFolder) {
           queue.push({ id: entry.id, path: `${folder.path}/${entry.name}`, depth: folder.depth + 1 });
-        } else if (documents.length < 240) {
+        } else if (documents.length < 3000) {
           documents.push(entry);
         }
       }
@@ -179,7 +187,8 @@ async function geminiFailure(response: Response): Promise<Error> {
 }
 
 function queryTerms(question: string) {
-  return [...new Set(question.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length >= 3))];
+  const stopWords = new Set(['berapa', 'untuk', 'yang', 'dengan', 'pada', 'dari', 'pekerjaan', 'melakukan', 'orang', 'minimal', 'adalah', 'bagaimana', 'apakah']);
+  return [...new Set(question.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length >= 3 && !stopWords.has(term)))];
 }
 
 function selectDocuments(question: string, documents: DriveEntry[]) {
@@ -208,6 +217,7 @@ function base64(bytes: Uint8Array) {
 function supportedMimeType(name: string, responseMimeType: string | null) {
   const extension = name.toLowerCase().split(".").pop();
   if (extension === "pdf") return "application/pdf";
+  if (extension === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   if (extension === "txt" || extension === "md") return "text/plain";
   if (extension === "csv") return "text/csv";
   return responseMimeType?.split(";")[0] ?? "application/octet-stream";
@@ -218,7 +228,7 @@ async function loadDocument(entry: DriveEntry): Promise<LoadedDocument | null> {
   if (!response.ok) return null;
   const bytes = new Uint8Array(await response.arrayBuffer());
   const mimeType = supportedMimeType(entry.name, response.headers.get("content-type"));
-  const allowed = mimeType === "application/pdf" || mimeType.startsWith("text/");
+  const allowed = mimeType === "application/pdf" || mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || mimeType.startsWith("text/");
   if (!allowed || bytes.length === 0 || bytes.length > 8 * 1024 * 1024) return null;
   return { ...entry, mimeType, data: base64(bytes) };
 }
@@ -259,7 +269,9 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await caller.auth.getUser();
   if (authError || !user) return json({ ok: false, error: "Sesi masuk tidak valid." }, 401);
   const apiKey = Deno.env.get("GEMINI_API_KEY");
-  if (!apiKey) {
+  const cloudflareUrl = Deno.env.get("CLOUDFLARE_DOCUMENTS_URL");
+  const cloudflareToken = Deno.env.get("CLOUDFLARE_DOCUMENTS_TOKEN");
+  if (!apiKey && !(cloudflareUrl && cloudflareToken)) {
     return json({ ok: false, error: "Pencarian AI belum diaktifkan. Administrator perlu memasang GEMINI_API_KEY di server." }, 503);
   }
   try {
@@ -285,6 +297,24 @@ Deno.serve(async (req) => {
     if (loaded.length === 0) {
       return json({ ok: true, answer: "File yang relevan ditemukan, tetapi tidak dapat dibaca AI. Buka file sumber untuk melihat atau mengunduhnya.", sources_scanned: 0, citations: selected.map((item) => ({ name: item.name, url: viewUrl(item.id) })) });
     }
+    if (cloudflareUrl && cloudflareToken) {
+      const response = await fetch(cloudflareUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cloudflareToken}` },
+        body: JSON.stringify({ question, documents: loaded }),
+        signal: AbortSignal.timeout(55000),
+      });
+      const result = await response.json();
+      if (!response.ok || result.ok !== true) {
+        return json({ ok: false, error: typeof result.error === 'string' ? result.error : 'Layanan AI dokumen belum tersedia.' }, response.ok ? 502 : response.status);
+      }
+      const citations = (Array.isArray(result.citations) ? result.citations : []).flatMap((citation: { id?: number; excerpt?: string }) => {
+        const source = loaded[Number(citation.id) - 1];
+        if (!source) return [];
+        return [{ name: source.name, url: viewUrl(source.id), excerpt: citation.excerpt }];
+      });
+      return json({ ok: true, answer: result.answer, citations, sources_scanned: result.sources_scanned });
+    }
     const documentList = loaded.map((item, index) => `[${index + 1}] ${item.name} — ${item.path}`).join("\n");
     const instruction = [
       "Anda adalah asisten Pusat Dokumen SICATAT.",
@@ -303,7 +333,7 @@ Deno.serve(async (req) => {
       parts.push({ inlineData: { mimeType: loaded[index].mimeType, data: loaded[index].data } });
     }
     const preferredModel = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
-    const availableModels = await modelsAvailableToKey(apiKey);
+    const availableModels = await modelsAvailableToKey(apiKey!);
     const candidateModels = selectModelCandidates(preferredModel, availableModels);
     if (candidateModels.length === 0) {
       throw new Error("Tidak ada model Gemini yang dapat digunakan oleh kunci API server.");

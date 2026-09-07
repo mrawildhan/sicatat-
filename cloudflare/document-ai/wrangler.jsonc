@@ -1,0 +1,8 @@
+{
+  "name": "sicatat-document-ai",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-05",
+  "account_id": "b19895d440b4a0bde0b7e0c912342ac1",
+  "ai": { "binding": "AI" },
+  "workers_dev": true
+}

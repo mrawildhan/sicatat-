@@ -1,5 +1,14 @@
 # SICATAT — Codex Handoff
 
+## Cloudflare AI integration — 2026-09-07
+
+- Active AI provider is Cloudflare Workers AI via `cloudflare/document-ai/`, not the blocked Gemini project. Supabase function `ask-technical-documents` forwards only server-selected files from the approved Drive root. Worker URL: https://sicatat-document-ai.sicatat.workers.dev . Secrets are configured on both servers; never print them.
+- REAL authenticated website demo PASSED on `https://sicatat-5l5.pages.dev/#/documents`: question `berapa minimal orang untuk pekerjaan sandblasting` returned `Minimal 3 (tiga) orang untuk melakukan pekerjaan tersebut`, with source `ASM-COP-160 Sandblasting.docx` and matching excerpt. Three readable files were scanned. No point 3.1 was invented.
+- Fixed public Drive listing truncation (standard page first 150 entries) using embedded listing, raised old 240-file crawl ceiling to 3000, excluded common question words from filename matching, added Word reading. The SOP PDF produced empty pages, but its Word counterpart is readable.
+- No billing upgrade performed. Limits and unsupported scanned PDFs/drawings remain; see `cloudflare/document-ai/README.md`. Full-content folder indexing and 10-user load testing are NOT completed.
+- Backend-only change: shared endpoint now serves both web and existing Android builds; no new Flutter bundle/APK release. Web stays 2.6.5, last confirmed Android publication stays 2.6.4. Physical Android test not performed.
+- Verification: Flutter analyze clean, all 10 Flutter tests passed, 4 Worker tests passed, Supabase diagnostics/listing/selection tests passed. Worker and Supabase function deployed. Worker version `eb4caa23-86c0-437e-aa04-ade918abed62`.
+
 ## AI live diagnostic — 2026-09-05
 
 - Canonical source remains worktree `42e3`; do not release stale `284f`.
