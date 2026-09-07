@@ -16,6 +16,8 @@ enum MainNavigationTab {
   reference,
   temperature,
   reminders,
+  budget,
+  meetingMinutes,
   warehouse,
   documents,
   profile,
@@ -49,13 +51,12 @@ class MainNavigationScaffold extends ConsumerWidget {
             icon: Icons.home_outlined,
             selectedIcon: Icons.home_rounded,
           ),
-          if (canTemperature || canReminders)
-            const _NavigationItem(
-              tab: MainNavigationTab.operational,
-              label: 'Operasional',
-              icon: Icons.fact_check_outlined,
-              selectedIcon: Icons.fact_check,
-            ),
+          const _NavigationItem(
+            tab: MainNavigationTab.operational,
+            label: 'Operasional',
+            icon: Icons.fact_check_outlined,
+            selectedIcon: Icons.fact_check,
+          ),
           const _NavigationItem(
             tab: MainNavigationTab.reference,
             label: 'Referensi',
@@ -71,7 +72,9 @@ class MainNavigationScaffold extends ConsumerWidget {
         ];
         final selectedGroup = switch (selectedTab) {
           MainNavigationTab.temperature ||
-          MainNavigationTab.reminders => MainNavigationTab.operational,
+          MainNavigationTab.reminders ||
+          MainNavigationTab.budget ||
+          MainNavigationTab.meetingMinutes => MainNavigationTab.operational,
           MainNavigationTab.warehouse ||
           MainNavigationTab.documents => MainNavigationTab.reference,
           _ => selectedTab,
@@ -110,6 +113,12 @@ class MainNavigationScaffold extends ConsumerWidget {
               return;
             case MainNavigationTab.reminders:
               context.go('/reminders');
+              return;
+            case MainNavigationTab.budget:
+              context.go('/budget');
+              return;
+            case MainNavigationTab.meetingMinutes:
+              context.go('/meeting-minutes');
               return;
             case MainNavigationTab.warehouse:
               context.go('/warehouse');

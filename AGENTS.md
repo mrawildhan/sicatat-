@@ -1,5 +1,11 @@
 # SICATAT — Codex Handoff
 
+## Rilis tampilan Anggaran & MOM 2.7.0 — 2026-09-07
+
+- Website produksi 2.7.0: https://sicatat-5l5.pages.dev/?versi=2-7-0#/dashboard . Dua section awal tersedia pada kelompok Operasional dan kartu Beranda: `Anggaran Operasional` (`#/budget`) dan `Notulen Rapat` (`#/meeting-minutes`).
+- Anggaran baru berupa tampilan read-only: kartu Anggaran, Aktual, dan Sisa Anggaran serta status sumber spreadsheet; belum ada spreadsheet atau nilai nyata yang disambungkan. MOM menunjukkan status Draf/Selesai dan alur kerja draf, tetapi tombol Buat notulen sengaja nonaktif sampai contoh format pengguna diterima.
+- APK 2.7.0+10270 tiga ABI dibangun dan diverifikasi (`arm64-v8a` code 12270, `armeabi-v7a` 11270, `x86_64` code 14270), diunggah ke `app-releases`, lalu tiga record aktif dipublikasikan dengan migrasi `20260907060000_publish_sicatat_2_7_0_operational_sections.sql`. Validasi: `flutter analyze` bersih dan 14 Flutter tests lulus. Pemasangan fisik Android serta visual browser otomatis belum diuji.
+
 ## Rilis navigasi setara 2.6.9 — 2026-09-07
 
 - Website produksi 2.6.9: https://sicatat-5l5.pages.dev/?versi=2-6-9#/dashboard . Desktop kini memakai sidebar yang sama dengan Android: `Beranda`, `Operasional`, `Referensi`, dan `Profil`; klik Operasional/Referensi membuka submenu identik yang mengikuti hak akses akun. Preview Pages: https://d05fe1d7.sicatat-5l5.pages.dev.

@@ -242,20 +242,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               selected: selectedIndex == 0,
                               onTap: () => selectDestination(0),
                             ),
-                            if (hasTemperatureTab || hasReminderTab)
-                              _desktopSidebarItem(
-                                label: 'Operasional',
-                                icon: Icons.fact_check_outlined,
-                                selectedIcon: Icons.fact_check,
-                                selected: false,
-                                onTap: () => openNavigationGroup(
-                                  context,
-                                  operational: true,
-                                  canTemperature: hasTemperatureTab,
-                                  canReminders: hasReminderTab,
-                                  canWarehouse: hasWarehouseTab,
-                                ),
+                            _desktopSidebarItem(
+                              label: 'Operasional',
+                              icon: Icons.fact_check_outlined,
+                              selectedIcon: Icons.fact_check,
+                              selected: false,
+                              onTap: () => openNavigationGroup(
+                                context,
+                                operational: true,
+                                canTemperature: hasTemperatureTab,
+                                canReminders: hasReminderTab,
+                                canWarehouse: hasWarehouseTab,
                               ),
+                            ),
                             _desktopSidebarItem(
                               label: 'Referensi',
                               icon: Icons.folder_copy_outlined,
@@ -725,6 +724,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         title: 'Pusat Dokumen',
         subtitle: 'Cari SOP, izin kerja, JSEA, manual, dan drawing',
         onTap: () => context.go('/documents'),
+      ),
+      _homeMenuCard(
+        icon: Icons.account_balance_wallet_rounded,
+        title: 'Anggaran Operasional',
+        subtitle: 'Pantau budget, aktual, dan sisa anggaran',
+        onTap: () => context.go('/budget'),
+      ),
+      _homeMenuCard(
+        icon: Icons.assignment_rounded,
+        title: 'Notulen Rapat',
+        subtitle: 'Buat dan lanjutkan draf MOM',
+        onTap: () => context.go('/meeting-minutes'),
       ),
     ];
 

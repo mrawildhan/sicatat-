@@ -45,6 +45,22 @@ Future<void> openNavigationGroup(
                 subtitle: const Text('Tindak lanjut pekerjaan'),
                 onTap: () => Navigator.pop(sheetContext, '/reminders'),
               ),
+            if (operational)
+              ListTile(
+                leading: const Icon(Icons.account_balance_wallet_outlined),
+                title: const Text('Anggaran Operasional'),
+                subtitle: const Text(
+                  'Pantau budget, aktual, dan sisa anggaran',
+                ),
+                onTap: () => Navigator.pop(sheetContext, '/budget'),
+              ),
+            if (operational)
+              ListTile(
+                leading: const Icon(Icons.assignment_outlined),
+                title: const Text('Notulen Rapat'),
+                subtitle: const Text('Buat dan lanjutkan draf MOM'),
+                onTap: () => Navigator.pop(sheetContext, '/meeting-minutes'),
+              ),
             if (!operational && canWarehouse)
               ListTile(
                 leading: const Icon(Icons.inventory_2_outlined),
@@ -89,7 +105,7 @@ class GroupedBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasOperational = canTemperature || canReminders;
+    const hasOperational = true;
     final groups = [
       'home',
       if (hasOperational) 'operational',
@@ -140,24 +156,24 @@ class GroupedBottomNavigation extends StatelessWidget {
                   );
               }
             },
-            destinations: [
-              const NavigationDestination(
+            destinations: const [
+              NavigationDestination(
                 icon: Icon(Icons.home_outlined),
                 selectedIcon: Icon(Icons.home_rounded),
                 label: 'Beranda',
               ),
               if (hasOperational)
-                const NavigationDestination(
+                NavigationDestination(
                   icon: Icon(Icons.fact_check_outlined),
                   selectedIcon: Icon(Icons.fact_check),
                   label: 'Operasional',
                 ),
-              const NavigationDestination(
+              NavigationDestination(
                 icon: Icon(Icons.folder_copy_outlined),
                 selectedIcon: Icon(Icons.folder_copy),
                 label: 'Referensi',
               ),
-              const NavigationDestination(
+              NavigationDestination(
                 icon: Icon(Icons.person_outline_rounded),
                 selectedIcon: Icon(Icons.person_rounded),
                 label: 'Profil',
