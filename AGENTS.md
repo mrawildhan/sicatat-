@@ -51,6 +51,7 @@ This is the active handoff file for Codex. Follow it before editing.
 ## Current product and non-negotiable rules
 
 - Active app: `flutter_app/` (Flutter/Dart). The JavaScript/Capacitor files in the repository root are historical only.
+- Kesetaraan platform wajib: setiap pembaruan fitur, menu, label, dan status versi harus tersedia pada website dan Android dari revisi sumber yang sama. Tata letak dapat responsif (sidebar di desktop, navigasi bawah di ponsel), tetapi hierarki menu dan tujuan navigasinya harus setara.
 - Backend: Supabase Auth + PostgreSQL. Keep NIK/PIN login and session restore.
 - The product is **online-only**. SQLite in `flutter_app/lib/data/local/` is cache/sync queue only; do not turn it into an offline-first product.
 - Never put a Supabase service-role key in Flutter/Dart, APK, docs, or Git. Only the server-side edge function may use it.
