@@ -1,5 +1,11 @@
 # SICATAT — Codex Handoff
 
+## Rilis navigasi setara 2.6.9 — 2026-09-07
+
+- Website produksi 2.6.9: https://sicatat-5l5.pages.dev/?versi=2-6-9#/dashboard . Desktop kini memakai sidebar yang sama dengan Android: `Beranda`, `Operasional`, `Referensi`, dan `Profil`; klik Operasional/Referensi membuka submenu identik yang mengikuti hak akses akun. Preview Pages: https://d05fe1d7.sicatat-5l5.pages.dev.
+- APK 2.6.9+10269 dibangun serta diperiksa untuk tiga ABI (`arm64-v8a` code 12269, `armeabi-v7a` code 11269, `x86_64` code 14269), diunggah ke `app-releases`, kemudian tiga record aktif `app_release` dipublikasikan melalui migrasi `20260907050000_publish_sicatat_2_6_9_navigation_parity.sql`.
+- Validasi: `flutter analyze` bersih, 12 Flutter tests lulus, build web dan APK release berhasil. Cloudflare Pages dan endpoint produksi merespons HTTP 200. Sesi otomasi browser lokal gagal diinisialisasi, dan pemasangan fisik Android belum diuji; jangan mengklaim verifikasi visual/perangkat fisik sampai diuji ulang.
+
 ## Rilis Pusat Dokumen rapi 2.6.8 — 2026-09-07
 
 - Website produksi rilis 2.6.8: https://sicatat-5l5.pages.dev/?versi=2-6-8#/documents . Kartu Jawaban AI memisahkan bagian `Dalam…`/`Untuk…` menjadi langkah visual, membatasi excerpt sumber menjadi empat baris, dan memiliki padding bawah 120px + safe area agar tidak tertutup navigasi bawah.
