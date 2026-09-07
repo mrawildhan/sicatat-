@@ -126,7 +126,12 @@ class _DocumentCenterScreenState extends State<DocumentCenterScreen> {
             ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                18,
+                20,
+                120 + MediaQuery.paddingOf(context).bottom,
+              ),
               children: <Widget>[
                 const Text(
                   'Tanya dokumen',
@@ -246,7 +251,7 @@ class _AnswerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(answer.answer, style: const TextStyle(height: 1.5)),
+          _StructuredAnswerText(answer.answer),
           const SizedBox(height: 14),
           Text(
             answer.sourcesScanned > 0
@@ -268,7 +273,11 @@ class _AnswerCard extends StatelessWidget {
                 title: Text(citation.name),
                 subtitle: citation.excerpt == null || citation.excerpt!.isEmpty
                     ? null
-                    : Text(citation.excerpt!),
+                    : Text(
+                        citation.excerpt!,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                 trailing: const Icon(Icons.open_in_new_rounded, size: 18),
                 onTap: citation.url.isEmpty
                     ? null
@@ -279,4 +288,73 @@ class _AnswerCard extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _StructuredAnswerText extends StatelessWidget {
+  const _StructuredAnswerText(this.value);
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<String> sections = _sections(value);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (int index = 0; index < sections.length; index++) ...<Widget>[
+          if (index > 0) const SizedBox(height: 10),
+          if (index == 0)
+            Text(sections[index], style: const TextStyle(height: 1.55))
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.green.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 18,
+                      color: AppColors.green,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      sections[index],
+                      style: const TextStyle(height: 1.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+
+  static List<String> _sections(String value) {
+    final String clean = value
+        .replaceAll('**', '')
+        .replaceAll(RegExp(r'\s*\n\s*'), ' ')
+        .replaceAll(
+          RegExp(
+            r'(?<=[.!?])\s+(?=(?:Dalam|Untuk|Langkah|Catatan)\b)',
+            caseSensitive: false,
+          ),
+          '\n',
+        )
+        .trim();
+    return clean
+        .split('\n')
+        .map((String item) => item.trim())
+        .where((String item) => item.isNotEmpty)
+        .toList(growable: false);
+  }
 }

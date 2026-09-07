@@ -1,5 +1,11 @@
 # SICATAT — Codex Handoff
 
+## Rilis Pusat Dokumen rapi 2.6.8 — 2026-09-07
+
+- Website produksi rilis 2.6.8: https://sicatat-5l5.pages.dev/?versi=2-6-8#/documents . Kartu Jawaban AI memisahkan bagian `Dalam…`/`Untuk…` menjadi langkah visual, membatasi excerpt sumber menjadi empat baris, dan memiliki padding bawah 120px + safe area agar tidak tertutup navigasi bawah.
+- Worker `sicatat-document-ai` versi `7c5f0126-abd1-464e-a2ae-a715ff73d586` kini menginstruksikan AI untuk menjawab langsung hanya bagian yang ditanyakan, maksimal lima langkah atau 700 karakter. Jangan menambahkan mode/prosedur yang tidak diminta.
+- APK 2.6.8+10268 tiga ABI dibangun dan diverifikasi (arm64 code 12268, armeabi code 11268, x86_64 code 14268), diunggah ke `app-releases`, lalu tiga record aktif 2.6.8 telah diverifikasi di `app_release`. Validasi: `flutter analyze` bersih, 12 Flutter tests lulus, 5 Worker tests lulus, build web dan APK release sukses. Cloudflare Pages production selesai (preview: https://eead6112.sicatat-5l5.pages.dev). Pemasangan fisik Android belum diuji.
+
 ## Perbaikan kutipan AI dokumen — 2026-09-07
 
 - Worker `sicatat-document-ai` versi `e2ed523b-0ed9-4a92-931a-c40a7a4aa321` menambahkan fallback kutipan sumber. Jika model tidak menghasilkan sitasi JSON yang valid tetapi isi dokumen yang dipilih memuat istilah pertanyaan, Worker menampilkan cuplikan prosedur asli (maks. 900 karakter) beserta sumbernya. Ia tidak membuat jawaban baru atau menggunakan sumber di luar folder.
