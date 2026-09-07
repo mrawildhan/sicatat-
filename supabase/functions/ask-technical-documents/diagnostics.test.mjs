@@ -31,4 +31,11 @@ const entries = parseFolder('<div class="flip-entry" id="entry-document123456"><
 assert.equal(entries[0].name, 'ASM-COP-160 Sandblasting.pdf');
 assert.equal(entries[0].isFolder, false);
 assert.deepEqual(selectDocuments('berapa minimal orang untuk pekerjaan sandblasting', [...entries, {id:'other',name:'Untuk pekerjaan lain.pdf',path:'Pusat Dokumen'}]), entries);
+const vsd = selectDocuments('bagaimana cara prosedur Mode Auto vsd', [
+  { id: 'power-docx', name: 'ASM-COP-157 Penggantian Power Block VSD Siemens.docx', path: 'Pusat Dokumen/SOP' },
+  { id: 'power-pdf', name: 'ASM-COP-157 Penggantian Power Block VSD Siemens.pdf', path: 'Pusat Dokumen/SOP' },
+  { id: 'operation-docx', name: 'ASM-COP-158 Operasional VSD.docx', path: 'Pusat Dokumen/SOP' },
+  { id: 'operation-pdf', name: 'ASM-COP-158 Operasional VSD.pdf', path: 'Pusat Dokumen/SOP' },
+]);
+assert.deepEqual(vsd.map((entry) => entry.id), ['operation-docx', 'power-docx']);
 console.log('PASS: embedded Drive listing and relevant document selection');

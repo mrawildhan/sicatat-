@@ -198,14 +198,36 @@ function queryTerms(question: string) {
 
 function selectDocuments(question: string, documents: DriveEntry[]) {
   const terms = queryTerms(question);
-  return documents
+  const seeksOperation = terms.some((term) => [
+    'operasi', 'operasional', 'pengoperasian', 'prosedur', 'mode', 'auto',
+    'manual', 'start', 'stop', 'menjalankan', 'jalankan',
+  ].includes(term));
+  const baseName = (name: string) => name.toLowerCase().replace(/\.(?:docx|pdf|txt|md)$/i, '');
+  const formatPriority = (name: string) => /\.docx$/i.test(name) ? 2 : /\.pdf$/i.test(name) ? 1 : 0;
+  const ranked = documents
     .map((document) => {
       const haystack = `${document.name} ${document.path}`.toLowerCase();
-      const score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
+      let score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
+      // "Mode Auto", "start", and similar questions are operational intent.
+      // Prefer an operational SOP over a repair/replacement SOP with the same
+      // equipment acronym, e.g. Operasional VSD over Penggantian Power Block VSD.
+      if (seeksOperation && /\b(?:operasional|pengoperasian)\b/i.test(haystack)) score += 3;
       return { document, score };
     })
     .filter((item) => item.score > 0)
-    .sort((left, right) => right.score - left.score || left.document.name.localeCompare(right.document.name))
+    .sort((left, right) =>
+      right.score - left.score ||
+      formatPriority(right.document.name) - formatPriority(left.document.name) ||
+      left.document.name.localeCompare(right.document.name),
+    );
+  const seenDocument = new Set<string>();
+  return ranked
+    .filter((item) => {
+      const key = baseName(item.document.name);
+      if (seenDocument.has(key)) return false;
+      seenDocument.add(key);
+      return true;
+    })
     .slice(0, 8)
     .map((item) => item.document);
 }

@@ -20,23 +20,28 @@ function fallbackFromSource(documents, question) {
     const text = typeof doc.text === 'string' ? doc.text.trim() : '';
     const lower = normalize(text);
     let score = 0;
-    let firstMatch = -1;
+    let excerptStart = 0;
     for (const term of terms) {
-      const index = lower.indexOf(term);
-      if (index >= 0) {
-        score += 1;
-        if (firstMatch < 0) firstMatch = index;
+      let index = lower.indexOf(term);
+      while (index >= 0) {
+        const windowStart = Math.max(0, index - 180);
+        const window = lower.slice(windowStart, windowStart + 900);
+        const windowScore = terms.reduce((total, candidate) => total + (window.includes(candidate) ? 1 : 0), 0);
+        if (windowScore > score) {
+          score = windowScore;
+          excerptStart = windowStart;
+        }
+        index = lower.indexOf(term, index + term.length);
       }
     }
     if (score > 0 && (!best || score > best.score || (score === best.score && text.length > best.text.length))) {
-      best = { ...doc, text, score, firstMatch };
+      best = { ...doc, text, score, excerptStart };
     }
   }
   if (!best) return null;
   // This is intentionally a direct source excerpt, not a generated answer.
   // It keeps the response useful when a model omits a valid JSON citation.
-  const start = Math.max(0, best.firstMatch - 180);
-  const excerpt = best.text.slice(start, start + 900).trim();
+  const excerpt = best.text.slice(best.excerptStart, best.excerptStart + 900).trim();
   if (normalize(excerpt).length < 15) return null;
   return {
     answer: `Saya menemukan bagian prosedur berikut pada ${best.name}:\n\n${excerpt}`,
