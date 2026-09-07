@@ -128,19 +128,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     ),
   );
 
-  Widget _sidebarSectionLabel(String label) => Padding(
-    padding: const EdgeInsets.fromLTRB(12, 16, 12, 6),
-    child: Text(
-      label,
-      style: const TextStyle(
-        color: AppColors.muted,
-        fontSize: 10,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.1,
-      ),
-    ),
-  );
-
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
@@ -256,41 +243,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               onTap: () => selectDestination(0),
                             ),
                             if (hasTemperatureTab || hasReminderTab)
-                              _sidebarSectionLabel('OPERASIONAL'),
-                            if (hasTemperatureTab)
                               _desktopSidebarItem(
-                                label: 'Suhu',
-                                icon: Icons.thermostat_outlined,
-                                selectedIcon: Icons.thermostat_rounded,
-                                selected: selectedIndex == 1,
-                                onTap: () => selectDestination(1),
-                              ),
-                            if (hasReminderTab)
-                              _desktopSidebarItem(
-                                label: 'Pengingat',
-                                icon: Icons.notifications_none_rounded,
-                                selectedIcon:
-                                    Icons.notifications_active_rounded,
-                                selected: selectedIndex == reminderIndex,
-                                onTap: () => selectDestination(reminderIndex!),
-                              ),
-                            _sidebarSectionLabel('REFERENSI'),
-                            if (hasWarehouseTab)
-                              _desktopSidebarItem(
-                                label: 'Gudang',
-                                icon: Icons.inventory_2_outlined,
-                                selectedIcon: Icons.inventory_2_rounded,
-                                selected: selectedIndex == warehouseIndex,
-                                onTap: () => selectDestination(warehouseIndex!),
+                                label: 'Operasional',
+                                icon: Icons.fact_check_outlined,
+                                selectedIcon: Icons.fact_check,
+                                selected: false,
+                                onTap: () => openNavigationGroup(
+                                  context,
+                                  operational: true,
+                                  canTemperature: hasTemperatureTab,
+                                  canReminders: hasReminderTab,
+                                  canWarehouse: hasWarehouseTab,
+                                ),
                               ),
                             _desktopSidebarItem(
-                              label: 'Pusat Dokumen',
-                              icon: Icons.folder_shared_outlined,
-                              selectedIcon: Icons.folder_shared_rounded,
+                              label: 'Referensi',
+                              icon: Icons.folder_copy_outlined,
+                              selectedIcon: Icons.folder_copy,
                               selected: false,
-                              onTap: () => context.go('/documents'),
+                              onTap: () => openNavigationGroup(
+                                context,
+                                operational: false,
+                                canTemperature: hasTemperatureTab,
+                                canReminders: hasReminderTab,
+                                canWarehouse: hasWarehouseTab,
+                              ),
                             ),
-                            _sidebarSectionLabel('AKUN'),
                             _desktopSidebarItem(
                               label: 'Profil',
                               icon: Icons.person_outline_rounded,
