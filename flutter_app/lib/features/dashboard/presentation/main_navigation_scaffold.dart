@@ -5,11 +5,19 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/config/app_config.dart';
+import 'grouped_bottom_navigation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
 
-enum MainNavigationTab { home, temperature, reminders, warehouse, documents, profile }
+enum MainNavigationTab {
+  home,
+  temperature,
+  reminders,
+  warehouse,
+  documents,
+  profile,
+}
 
 class MainNavigationScaffold extends ConsumerWidget {
   const MainNavigationScaffold({
@@ -120,7 +128,9 @@ class MainNavigationScaffold extends ConsumerWidget {
           ),
         ];
         final items = useNavigationRail ? desktopItems : mobileItems;
-        final selectedIndex = items.indexWhere((item) => item.tab == selectedTab);
+        final selectedIndex = items.indexWhere(
+          (item) => item.tab == selectedTab,
+        );
         final safeSelectedIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
         void selectDestination(int index) {
@@ -237,7 +247,12 @@ class MainNavigationScaffold extends ConsumerWidget {
                               children: <Widget>[
                                 if (item.sectionLabel != null)
                                   Padding(
-                                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      12,
+                                      12,
+                                      6,
+                                    ),
                                     child: Text(
                                       item.sectionLabel!,
                                       style: const TextStyle(
@@ -264,7 +279,7 @@ class MainNavigationScaffold extends ConsumerWidget {
                       const Padding(
                         padding: EdgeInsets.fromLTRB(16, 8, 16, 18),
                         child: Text(
-                          '© 2026 WIL • Versi ${AppConfig.appVersion}',
+                          '© 2026 • Versi ${AppConfig.appVersion}',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 9, color: AppColors.muted),
                         ),
@@ -279,33 +294,11 @@ class MainNavigationScaffold extends ConsumerWidget {
           ),
           bottomNavigationBar: useNavigationRail
               ? null
-              : SafeArea(
-                  top: false,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      const Padding(
-                        padding: EdgeInsets.only(top: 6, bottom: 2),
-                        child: Text(
-                          '© 2026 WIL • Versi ${AppConfig.appVersion}',
-                          style: TextStyle(fontSize: 10, color: AppColors.muted),
-                        ),
-                      ),
-                      NavigationBar(
-                        selectedIndex: safeSelectedIndex,
-                        onDestinationSelected: selectDestination,
-                        destinations: items
-                            .map(
-                              (item) => NavigationDestination(
-                                icon: Icon(item.icon),
-                                selectedIcon: Icon(item.selectedIcon),
-                                label: item.label,
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ],
-                  ),
+              : GroupedBottomNavigation(
+                  selected: selectedTab.name,
+                  canTemperature: user?.role.canCreateTemperatureSheet == true,
+                  canReminders: user?.role.canUseReminders == true,
+                  canWarehouse: user?.role.canUseWarehouse == true,
                 ),
         );
       },

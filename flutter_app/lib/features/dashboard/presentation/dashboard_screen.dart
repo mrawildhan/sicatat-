@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/config/app_config.dart';
+import 'grouped_bottom_navigation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/app_update_service.dart';
 import '../../../core/widgets/status_chip.dart';
@@ -303,7 +304,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const Padding(
                         padding: EdgeInsets.fromLTRB(16, 8, 16, 18),
                         child: Text(
-                          '© 2026 WIL • Versi ${AppConfig.appVersion}',
+                          '© 2026 • Versi ${AppConfig.appVersion}',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 9, color: AppColors.muted),
                         ),
@@ -330,54 +331,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         bottomNavigationBar: useWebNavigationRail
             ? null
-            : SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6, bottom: 2),
-                      child: Text(
-                        '© 2026 WIL • Versi ${AppConfig.appVersion}',
-                        style: TextStyle(fontSize: 10, color: AppColors.muted),
-                      ),
-                    ),
-                    NavigationBar(
-                      selectedIndex: selectedIndex,
-                      onDestinationSelected: selectDestination,
-                      destinations: <NavigationDestination>[
-                        const NavigationDestination(
-                          icon: Icon(Icons.home_outlined),
-                          selectedIcon: Icon(Icons.home_rounded),
-                          label: 'Beranda',
-                        ),
-                        if (hasTemperatureTab)
-                          const NavigationDestination(
-                            icon: Icon(Icons.thermostat_outlined),
-                            selectedIcon: Icon(Icons.thermostat_rounded),
-                            label: 'Suhu',
-                          ),
-                        if (hasReminderTab)
-                          const NavigationDestination(
-                            icon: Icon(Icons.notifications_none_rounded),
-                            selectedIcon: Icon(Icons.notifications_active_rounded),
-                            label: 'Pengingat',
-                          ),
-                        if (hasWarehouseTab)
-                          const NavigationDestination(
-                            icon: Icon(Icons.inventory_2_outlined),
-                            selectedIcon: Icon(Icons.inventory_2_rounded),
-                            label: 'Gudang',
-                          ),
-                        const NavigationDestination(
-                          icon: Icon(Icons.person_outline_rounded),
-                          selectedIcon: Icon(Icons.person_rounded),
-                          label: 'Profil',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+            : GroupedBottomNavigation(
+                selected: _showProfile ? 'profile' : 'home',
+                canTemperature: hasTemperatureTab,
+                canReminders: hasReminderTab,
+                canWarehouse: hasWarehouseTab,
+                onHome: () => selectDestination(0),
+                onProfile: () => selectDestination(profileIndex),
               ),
       ),
     );

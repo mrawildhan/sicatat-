@@ -1,5 +1,12 @@
 # SICATAT — Codex Handoff
 
+## Rilis navigasi 2.6.6 — 2026-09-07
+
+- Website produksi rilis 2.6.6: https://sicatat-5l5.pages.dev/?versi=2-6-6#/dashboard . Tampilan langsung tervalidasi: copyright menjadi `© 2026 • Versi 2.6.6` tanpa WIL.
+- Navigasi bawah web/mobile berubah dari menu modul individual menjadi `Beranda`, `Operasional`, `Referensi`, `Profil`. Operasional membuka Suhu/Pengingat sesuai hak akses; Referensi membuka Gudang/Pusat Dokumen. Gunakan `GroupedBottomNavigation` untuk halaman baru agar konsisten.
+- APK 2.6.6+10266 tiga ABI sudah dibangun, diunggah ke bucket `app-releases`, dan tiga record aktif 2.6.6 telah diverifikasi di `app_release`: arm64 code 12266, armeabi code 11266, x86_64 code 14266. Update mobile kini dapat terdeteksi oleh aplikasi. Belum diuji pemasangan fisik pada perangkat Android.
+- Validasi rilis: `flutter analyze` bersih, 12 Flutter tests lulus (termasuk grouped bottom navigation), build web release dan tiga APK release sukses. Deploy Cloudflare Pages production `main` selesai (preview build URL https://21811392.sicatat-5l5.pages.dev).
+
 ## Cloudflare AI integration — 2026-09-07
 
 - Active AI provider is Cloudflare Workers AI via `cloudflare/document-ai/`, not the blocked Gemini project. Supabase function `ask-technical-documents` forwards only server-selected files from the approved Drive root. Worker URL: https://sicatat-document-ai.sicatat.workers.dev . Secrets are configured on both servers; never print them.

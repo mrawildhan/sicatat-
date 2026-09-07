@@ -1,5 +1,5 @@
 class AppConfig {
-  static const appVersion = '2.6.5';
+  static const appVersion = '2.6.6';
 
   static const supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
