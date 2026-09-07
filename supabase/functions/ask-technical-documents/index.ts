@@ -76,11 +76,16 @@ async function listDocuments(): Promise<DriveEntry[]> {
   documentIndexRequest = buildDocumentIndex();
   try {
     const documents = await documentIndexRequest;
-    documentIndexCache = {
-      documents,
-      // Public folder contents do not need to be rediscovered for every user.
-      expiresAt: Date.now() + 10 * 60 * 1000,
-    };
+    // Google Drive can occasionally return a transient, incomplete public
+    // listing. Never cache an empty result: the next question must retry the
+    // listing rather than telling every user that no source file exists.
+    if (documents.length > 0) {
+      documentIndexCache = {
+        documents,
+        // Public folder contents do not need to be rediscovered for every user.
+        expiresAt: Date.now() + 10 * 60 * 1000,
+      };
+    }
     return documents;
   } finally {
     documentIndexRequest = undefined;
