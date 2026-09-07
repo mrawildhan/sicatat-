@@ -38,4 +38,9 @@ const vsd = selectDocuments('bagaimana cara prosedur Mode Auto vsd', [
   { id: 'operation-pdf', name: 'ASM-COP-158 Operasional VSD.pdf', path: 'Pusat Dokumen/SOP' },
 ]);
 assert.deepEqual(vsd.map((entry) => entry.id), ['operation-docx', 'power-docx']);
+const bodyHarness = selectDocuments('kapan body harness wajib digunakan?', [
+  { id: 'roller', name: 'ASM-COP-150 Pergantian Roller & Frame Roller.docx', path: 'Pusat Dokumen/SOP' },
+  { id: 'other', name: 'ASM-COP-151 Penggantian Belt.docx', path: 'Pusat Dokumen/SOP' },
+]);
+assert.deepEqual(bodyHarness.map((entry) => entry.id), ['roller']);
 console.log('PASS: embedded Drive listing and relevant document selection');
