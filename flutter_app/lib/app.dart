@@ -304,6 +304,44 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/meeting-minutes/new',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.meetingMinutes,
+          child: MeetingMinuteEditorScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/meeting-minutes/:id',
+      builder: (_, state) => RoleGuard(
+        allowed: const <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.meetingMinutes,
+          child: MeetingMinuteEditorScreen(
+            meetingId: state.pathParameters['id'],
+          ),
+        ),
+      ),
+    ),
+    GoRoute(
       path: '/reports',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{

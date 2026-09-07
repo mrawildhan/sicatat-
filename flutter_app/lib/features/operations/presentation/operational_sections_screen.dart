@@ -1,8 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../data/models/meeting_minute_models.dart';
+import '../../../data/reports/meeting_minute_service.dart';
+import '../../auth/application/current_user_provider.dart';
 
 class BudgetOverviewScreen extends StatelessWidget {
   const BudgetOverviewScreen({super.key});
@@ -15,15 +23,179 @@ class BudgetOverviewScreen extends StatelessWidget {
   );
 }
 
-class MeetingMinutesScreen extends StatelessWidget {
-  const MeetingMinutesScreen({super.key});
+class MeetingMinutesScreen extends ConsumerStatefulWidget {
+  const MeetingMinutesScreen({this.service, super.key});
+
+  final MeetingMinuteService? service;
 
   @override
-  Widget build(BuildContext context) => const _OperationalSectionPage(
-    title: 'Notulen Rapat',
-    icon: Icons.assignment_rounded,
-    child: _MeetingMinutesBody(),
-  );
+  ConsumerState<MeetingMinutesScreen> createState() =>
+      _MeetingMinutesScreenState();
+}
+
+class _MeetingMinutesScreenState extends ConsumerState<MeetingMinutesScreen> {
+  MeetingMinuteService? _service;
+  List<MeetingMinute> _items = const <MeetingMinute>[];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      _service ??= widget.service ?? _createService();
+      final MeetingMinuteService? service = _service;
+      if (service == null) {
+        if (mounted) setState(() => _items = const <MeetingMinute>[]);
+        return;
+      }
+      final List<MeetingMinute> items = await service.loadAll();
+      if (mounted) setState(() => _items = items);
+    } on Object catch (error) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Notulen tidak dapat dimuat. Periksa koneksi lalu coba lagi.\n$error',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  MeetingMinuteService? _createService() {
+    try {
+      return MeetingMinuteService(Supabase.instance.client);
+    } on AssertionError {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final int draftCount = _items
+        .where((MeetingMinute item) => item.status == MeetingMinuteStatus.draft)
+        .length;
+    final int completedCount = _items.length - draftCount;
+    final bool desktop = kIsWeb && MediaQuery.sizeOf(context).width >= 920;
+    return AppBackScope(
+      fallbackRoute: '/dashboard',
+      child: Scaffold(
+        appBar: desktop
+            ? null
+            : AppBar(
+                leading: const AppBackButton(fallbackRoute: '/dashboard'),
+                title: const Text('Notulen Rapat'),
+              ),
+        floatingActionButton: _loading
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: () => context.go('/meeting-minutes/new'),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Buat notulen'),
+              ),
+        body: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              desktop ? 18 : 20,
+              20,
+              130 + MediaQuery.paddingOf(context).bottom,
+            ),
+            children: <Widget>[
+              if (desktop) ...<Widget>[
+                const Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.assignment_rounded,
+                      color: AppColors.green,
+                      size: 28,
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      'Notulen Rapat',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+              ],
+              const Text(
+                'Notulen inspeksi dan rapat lapangan',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Buat, simpan sebagai draf, lalu selesaikan dan ekspor menjadi Excel ketika informasi sudah lengkap.',
+                style: TextStyle(color: AppColors.muted, height: 1.45),
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: <Widget>[
+                  _MeetingStatusChip(
+                    label: 'Draf',
+                    count: '$draftCount',
+                    color: AppColors.orange,
+                  ),
+                  _MeetingStatusChip(
+                    label: 'Selesai',
+                    count: '$completedCount',
+                    color: AppColors.green,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              if (_loading)
+                const Padding(
+                  padding: EdgeInsets.all(30),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_error != null)
+                _MeetingNotice(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Notulen belum dapat dimuat',
+                  message: _error!,
+                  actionLabel: 'Coba lagi',
+                  onAction: _load,
+                )
+              else if (_items.isEmpty)
+                _MeetingNotice(
+                  icon: Icons.edit_note_rounded,
+                  title: 'Belum ada notulen',
+                  message: 'Gunakan format MOM yang sama dengan contoh Anda: identitas rapat, peserta, lalu daftar tindak lanjut.',
+                  actionLabel: 'Mulai notulen',
+                  onAction: () => context.go('/meeting-minutes/new'),
+                )
+              else
+                ..._items.map(
+                  (MeetingMinute item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _MeetingMinuteTile(
+                      item: item,
+                      onTap: () => context.go('/meeting-minutes/${item.id}'),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _OperationalSectionPage extends StatelessWidget {
@@ -246,87 +418,6 @@ class _BudgetMetricCard extends StatelessWidget {
   );
 }
 
-class _MeetingMinutesBody extends StatelessWidget {
-  const _MeetingMinutesBody();
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      const Text(
-        'Notulen inspeksi dan rapat lapangan',
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-      ),
-      const SizedBox(height: 6),
-      const Text(
-        'Buat, simpan sebagai draf, lalu selesaikan notulen ketika informasi sudah lengkap.',
-        style: TextStyle(color: AppColors.muted),
-      ),
-      const SizedBox(height: 18),
-      const Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: <Widget>[
-          _MeetingStatusChip(
-            label: 'Draf',
-            count: '0',
-            color: AppColors.orange,
-          ),
-          _MeetingStatusChip(
-            label: 'Selesai',
-            count: '0',
-            color: AppColors.green,
-          ),
-        ],
-      ),
-      const SizedBox(height: 18),
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            children: <Widget>[
-              const CircleAvatar(
-                radius: 30,
-                backgroundColor: AppColors.mint,
-                child: Icon(
-                  Icons.edit_note_rounded,
-                  color: AppColors.green,
-                  size: 34,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Belum ada notulen',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Format input MOM akan disesuaikan dari contoh yang Anda kirim. Draf dapat disimpan tanpa harus langsung diselesaikan.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.muted, height: 1.45),
-              ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Buat notulen'),
-              ),
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(height: 14),
-      const Card(
-        child: ListTile(
-          leading: Icon(Icons.save_as_outlined, color: AppColors.green),
-          title: Text('Alur kerja MOM'),
-          subtitle: Text('Buat → Simpan draf → Lengkapi → Selesaikan'),
-        ),
-      ),
-    ],
-  );
-}
-
 class _MeetingStatusChip extends StatelessWidget {
   const _MeetingStatusChip({
     required this.label,
@@ -351,3 +442,967 @@ class _MeetingStatusChip extends StatelessWidget {
     ),
   );
 }
+
+class _MeetingNotice extends StatelessWidget {
+  const _MeetingNotice({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: <Widget>[
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: AppColors.mint,
+            child: Icon(icon, color: AppColors.green, size: 34),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.muted, height: 1.45),
+          ),
+          const SizedBox(height: 18),
+          FilledButton(onPressed: onAction, child: Text(actionLabel)),
+        ],
+      ),
+    ),
+  );
+}
+
+class _MeetingMinuteTile extends StatelessWidget {
+  const _MeetingMinuteTile({required this.item, required this.onTap});
+
+  final MeetingMinute item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDraft = item.status == MeetingMinuteStatus.draft;
+    final String date = item.meetingDate == null
+        ? 'Tanggal belum diisi'
+        : _momDate(item.meetingDate!);
+    return Card(
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 10,
+        ),
+        leading: CircleAvatar(
+          backgroundColor: isDraft
+              ? AppColors.orange.withValues(alpha: 0.13)
+              : AppColors.mint,
+          child: Icon(
+            isDraft ? Icons.edit_note_rounded : Icons.task_alt_rounded,
+            color: isDraft ? AppColors.orange : AppColors.green,
+          ),
+        ),
+        title: Text(
+          item.title.trim().isEmpty ? 'Notulen tanpa judul' : item.title,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: Text('$date • ${item.actions.length} tindak lanjut'),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            _MeetingBadge(status: item.status),
+            const SizedBox(height: 4),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MeetingBadge extends StatelessWidget {
+  const _MeetingBadge({required this.status});
+
+  final MeetingMinuteStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool draft = status == MeetingMinuteStatus.draft;
+    final Color color = draft ? AppColors.orange : AppColors.green;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status.label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class MeetingMinuteEditorScreen extends ConsumerStatefulWidget {
+  const MeetingMinuteEditorScreen({this.meetingId, super.key});
+
+  final String? meetingId;
+
+  @override
+  ConsumerState<MeetingMinuteEditorScreen> createState() =>
+      _MeetingMinuteEditorScreenState();
+}
+
+class _MeetingMinuteEditorScreenState
+    extends ConsumerState<MeetingMinuteEditorScreen> {
+  final MeetingMinuteService _service = MeetingMinuteService(
+    Supabase.instance.client,
+  );
+  final TextEditingController _title = TextEditingController();
+  final TextEditingController _location = TextEditingController();
+  final TextEditingController _attendees = TextEditingController();
+  final TextEditingController _apologies = TextEditingController();
+  final TextEditingController _minuteTaker = TextEditingController();
+  final TextEditingController _distribution = TextEditingController();
+  final TextEditingController _agenda = TextEditingController();
+  final TextEditingController _proposedBy = TextEditingController();
+  final TextEditingController _note = TextEditingController();
+  final List<_ActionDraft> _actions = <_ActionDraft>[];
+  MeetingMinute? _minute;
+  DateTime? _date;
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  bool get _isNew => widget.meetingId == null;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _location.dispose();
+    _attendees.dispose();
+    _apologies.dispose();
+    _minuteTaker.dispose();
+    _distribution.dispose();
+    _agenda.dispose();
+    _proposedBy.dispose();
+    _note.dispose();
+    for (final _ActionDraft action in _actions) {
+      action.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      if (_isNew) {
+        _date = DateTime.now();
+        _minuteTaker.text = ref.read(currentUserProvider)?.name ?? '';
+        _actions.add(_ActionDraft(itemDate: _date));
+      } else {
+        final MeetingMinute minute = await _service.loadOne(widget.meetingId!);
+        _minute = minute;
+        _title.text = minute.title;
+        _date = minute.meetingDate;
+        _startTime = _parseTime(minute.startTime);
+        _endTime = _parseTime(minute.endTime);
+        _location.text = minute.location;
+        _attendees.text = minute.attendees;
+        _apologies.text = minute.apologies;
+        _minuteTaker.text = minute.minuteTaker;
+        _distribution.text = minute.distributionList;
+        _agenda.text = minute.newBusinessAgenda;
+        _proposedBy.text = minute.proposedBy;
+        _note.text = minute.note;
+        _actions.addAll(minute.actions.map(_ActionDraft.fromModel));
+        if (_actions.isEmpty) _actions.add(_ActionDraft(itemDate: _date));
+      }
+    } on Object catch (error) {
+      _error = 'Notulen tidak dapat dibuka. $error';
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  TimeOfDay? _parseTime(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final List<String> parts = raw.split(':');
+    if (parts.length < 2) return null;
+    final int? hour = int.tryParse(parts[0]);
+    final int? minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  void _message(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+
+  Future<void> _pickDate({required bool main, int? actionIndex}) async {
+    final DateTime initial = main
+        ? (_date ?? DateTime.now())
+        : (_actions[actionIndex!].itemDate ?? _date ?? DateTime.now());
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      helpText: main ? 'Pilih tanggal rapat' : 'Pilih tanggal item',
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (main) {
+        _date = picked;
+      } else {
+        _actions[actionIndex!].itemDate = picked;
+      }
+    });
+  }
+
+  Future<void> _pickDueDate(int index) async {
+    final _ActionDraft action = _actions[index];
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: action.dueDate ?? action.itemDate ?? _date ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      helpText: 'Pilih tenggat tindak lanjut',
+    );
+    if (picked != null && mounted) setState(() => action.dueDate = picked);
+  }
+
+  Future<void> _pickTime({required bool start}) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: (start ? _startTime : _endTime) ?? TimeOfDay.now(),
+      helpText: start ? 'Pilih jam mulai' : 'Pilih jam selesai',
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        if (start) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+      });
+    }
+  }
+
+  String? _completeValidation() {
+    if (_title.text.trim().isEmpty) {
+      return 'Judul rapat wajib diisi sebelum diselesaikan.';
+    }
+    if (_date == null) {
+      return 'Tanggal rapat wajib diisi sebelum diselesaikan.';
+    }
+    if (_location.text.trim().isEmpty) {
+      return 'Lokasi rapat wajib diisi sebelum diselesaikan.';
+    }
+    if (_minuteTaker.text.trim().isEmpty) {
+      return 'Nama pencatat notulen wajib diisi sebelum diselesaikan.';
+    }
+    final bool hasDiscussion = _actions.any(
+      (_ActionDraft action) => action.subject.text.trim().isNotEmpty,
+    );
+    if (!hasDiscussion) {
+      return 'Isi minimal satu pembahasan atau tindak lanjut sebelum diselesaikan.';
+    }
+    return null;
+  }
+
+  Future<void> _save(MeetingMinuteStatus status) async {
+    if (_saving) return;
+    final String? validation = status == MeetingMinuteStatus.completed
+        ? _completeValidation()
+        : null;
+    if (validation != null) {
+      _message(validation);
+      return;
+    }
+    final String? actorId = ref.read(currentUserProvider)?.id;
+    if (actorId == null) {
+      _message('Sesi akun tidak ditemukan. Silakan masuk kembali.');
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final MeetingMinute saved = await _service.save(
+        id: _minute?.id,
+        actorId: actorId,
+        title: _title.text,
+        meetingDate: _date,
+        startTime: _timeText(_startTime),
+        endTime: _timeText(_endTime),
+        location: _location.text,
+        attendees: _attendees.text,
+        apologies: _apologies.text,
+        minuteTaker: _minuteTaker.text,
+        distributionList: _distribution.text,
+        newBusinessAgenda: _agenda.text,
+        proposedBy: _proposedBy.text,
+        note: _note.text,
+        status: status,
+        actions: <MeetingMinuteAction>[
+          for (int index = 0; index < _actions.length; index++)
+            _actions[index].toModel(position: index),
+        ],
+      );
+      if (!mounted) return;
+      _message(
+        status == MeetingMinuteStatus.draft
+            ? 'Draf notulen tersimpan.'
+            : 'Notulen selesai disimpan.',
+      );
+      context.go('/meeting-minutes/${saved.id}');
+    } on Object catch (error) {
+      if (mounted) _message('Notulen tidak dapat disimpan. $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _export() async {
+    final MeetingMinute? minute = _minute;
+    if (minute == null) return;
+    try {
+      final List<int> bytes = MeetingMinuteExcelService().create(minute);
+      final String safeTitle = minute.title
+          .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '-')
+          .replaceAll(RegExp(r'^-+|-+$'), '')
+          .toLowerCase();
+      await Share.shareXFiles(<XFile>[
+        XFile.fromData(
+          Uint8List.fromList(bytes),
+          mimeType: MeetingMinuteExcelService.mimeType,
+          name: 'mom-${safeTitle.isEmpty ? 'notulen' : safeTitle}.xlsx',
+        ),
+      ]);
+    } on Object catch (error) {
+      if (mounted) _message('Excel notulen tidak dapat dibuat. $error');
+    }
+  }
+
+  Future<void> _delete() async {
+    final MeetingMinute? minute = _minute;
+    if (minute == null) return;
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('Hapus notulen?'),
+        content: const Text('Notulen dan semua tindak lanjutnya akan dihapus.'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _service.delete(minute.id);
+      if (mounted) context.go('/meeting-minutes');
+    } on Object catch (error) {
+      if (mounted) _message('Notulen tidak dapat dihapus. $error');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool desktop = kIsWeb && MediaQuery.sizeOf(context).width >= 920;
+    final String pageTitle = _isNew ? 'Buat Notulen' : 'Edit Notulen';
+    return AppBackScope(
+      fallbackRoute: '/meeting-minutes',
+      child: Scaffold(
+        appBar: desktop
+            ? null
+            : AppBar(
+                leading: const AppBackButton(fallbackRoute: '/meeting-minutes'),
+                title: Text(pageTitle),
+                actions: <Widget>[
+                  if (_minute != null)
+                    IconButton(
+                      tooltip: 'Ekspor Excel',
+                      onPressed: _export,
+                      icon: const Icon(Icons.ios_share_rounded),
+                    ),
+                ],
+              ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(_error!, textAlign: TextAlign.center),
+                ),
+              )
+            : ListView(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  desktop ? 18 : 20,
+                  20,
+                  120 + MediaQuery.paddingOf(context).bottom,
+                ),
+                children: <Widget>[
+                  if (desktop) ...<Widget>[
+                    Row(
+                      children: <Widget>[
+                        const Icon(
+                          Icons.edit_note_rounded,
+                          color: AppColors.green,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          pageTitle,
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_minute != null)
+                          OutlinedButton.icon(
+                            onPressed: _export,
+                            icon: const Icon(Icons.ios_share_rounded),
+                            label: const Text('Ekspor Excel'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  if (_minute != null) ...<Widget>[
+                    Row(
+                      children: <Widget>[
+                        _MeetingBadge(status: _minute!.status),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Terakhir disimpan ${_momDateTime(_minute!.updatedAt.toLocal())}',
+                          style: const TextStyle(color: AppColors.muted),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  _SectionCard(
+                    title: 'Identitas rapat',
+                    icon: Icons.calendar_month_rounded,
+                    child: Column(
+                      children: <Widget>[
+                        TextField(
+                          controller: _title,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: const InputDecoration(
+                            labelText: 'Judul rapat atau inspeksi',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _DateTimeFields(
+                          date: _date,
+                          startTime: _startTime,
+                          endTime: _endTime,
+                          onDate: () => _pickDate(main: true),
+                          onStart: () => _pickTime(start: true),
+                          onEnd: () => _pickTime(start: false),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _location,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Lokasi',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _SectionCard(
+                    title: 'Peserta dan distribusi',
+                    icon: Icons.groups_rounded,
+                    child: Column(
+                      children: <Widget>[
+                        TextField(
+                          controller: _attendees,
+                          minLines: 2,
+                          maxLines: 5,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Peserta',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _apologies,
+                          minLines: 1,
+                          maxLines: 3,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Berhalangan hadir',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _minuteTaker,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Pencatat notulen',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _distribution,
+                          minLines: 1,
+                          maxLines: 3,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Distribusi',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _SectionCard(
+                    title: 'Agenda baru',
+                    icon: Icons.topic_outlined,
+                    child: Column(
+                      children: <Widget>[
+                        TextField(
+                          controller: _agenda,
+                          minLines: 2,
+                          maxLines: 5,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: const InputDecoration(
+                            labelText: 'Agenda baru',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _proposedBy,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Diajukan oleh',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _SectionCard(
+                    title: 'Pembahasan dan tindak lanjut',
+                    icon: Icons.checklist_rounded,
+                    child: Column(
+                      children: <Widget>[
+                        for (
+                          int index = 0;
+                          index < _actions.length;
+                          index++
+                        ) ...<Widget>[
+                          _ActionEditor(
+                            index: index,
+                            action: _actions[index],
+                            onItemDate: () =>
+                                _pickDate(main: false, actionIndex: index),
+                            onDueDate: () => _pickDueDate(index),
+                            onRemove: _actions.length == 1
+                                ? null
+                                : () => setState(() {
+                                    final _ActionDraft removed = _actions
+                                        .removeAt(index);
+                                    removed.dispose();
+                                  }),
+                          ),
+                          if (index < _actions.length - 1)
+                            const Divider(height: 28),
+                        ],
+                        const SizedBox(height: 4),
+                        OutlinedButton.icon(
+                          onPressed: () => setState(
+                            () => _actions.add(_ActionDraft(itemDate: _date)),
+                          ),
+                          icon: const Icon(Icons.add_rounded),
+                          label: const Text('Tambah tindak lanjut'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _SectionCard(
+                    title: 'Catatan',
+                    icon: Icons.sticky_note_2_outlined,
+                    child: TextField(
+                      controller: _note,
+                      minLines: 2,
+                      maxLines: 6,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Catatan tambahan',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (_minute?.status == MeetingMinuteStatus.completed)
+                    FilledButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () => _save(MeetingMinuteStatus.completed),
+                      icon: _saving
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.save_rounded),
+                      label: const Text('Simpan perubahan'),
+                    )
+                  else ...<Widget>[
+                    OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () => _save(MeetingMinuteStatus.draft),
+                      icon: const Icon(Icons.save_as_outlined),
+                      label: const Text('Simpan sebagai draf'),
+                    ),
+                    const SizedBox(height: 10),
+                    FilledButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () => _save(MeetingMinuteStatus.completed),
+                      icon: _saving
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.task_alt_rounded),
+                      label: const Text('Selesaikan notulen'),
+                    ),
+                  ],
+                  if (_minute != null) ...<Widget>[
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      onPressed: _saving ? null : _delete,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.danger,
+                      ),
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: const Text('Hapus notulen'),
+                    ),
+                  ],
+                ],
+              ),
+      ),
+    );
+  }
+
+  String? _timeText(TimeOfDay? time) => time == null
+      ? null
+      : '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
+
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(icon, color: AppColors.green),
+              const SizedBox(width: 9),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    ),
+  );
+}
+
+class _DateTimeFields extends StatelessWidget {
+  const _DateTimeFields({
+    required this.date,
+    required this.startTime,
+    required this.endTime,
+    required this.onDate,
+    required this.onStart,
+    required this.onEnd,
+  });
+
+  final DateTime? date;
+  final TimeOfDay? startTime;
+  final TimeOfDay? endTime;
+  final VoidCallback onDate;
+  final VoidCallback onStart;
+  final VoidCallback onEnd;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 10,
+    runSpacing: 10,
+    children: <Widget>[
+      _PickerField(
+        label: 'Tanggal rapat',
+        value: date == null ? 'Pilih tanggal' : _momDate(date!),
+        icon: Icons.calendar_today_outlined,
+        onTap: onDate,
+      ),
+      _PickerField(
+        label: 'Jam mulai',
+        value: startTime?.format(context) ?? 'Pilih jam',
+        icon: Icons.schedule_rounded,
+        onTap: onStart,
+      ),
+      _PickerField(
+        label: 'Jam selesai',
+        value: endTime?.format(context) ?? 'Pilih jam',
+        icon: Icons.schedule_rounded,
+        onTap: onEnd,
+      ),
+    ],
+  );
+}
+
+class _PickerField extends StatelessWidget {
+  const _PickerField({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: MediaQuery.sizeOf(context).width >= 620 ? 220 : double.infinity,
+    child: OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(icon, color: AppColors.green),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                ),
+                const SizedBox(height: 3),
+                Text(value, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ActionEditor extends StatelessWidget {
+  const _ActionEditor({
+    required this.index,
+    required this.action,
+    required this.onItemDate,
+    required this.onDueDate,
+    this.onRemove,
+  });
+
+  final int index;
+  final _ActionDraft action;
+  final VoidCallback onItemDate;
+  final VoidCallback onDueDate;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Row(
+        children: <Widget>[
+          Text(
+            'Tindak lanjut ${index + 1}',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const Spacer(),
+          if (onRemove != null)
+            IconButton(
+              tooltip: 'Hapus tindak lanjut',
+              onPressed: onRemove,
+              icon: const Icon(
+                Icons.remove_circle_outline_rounded,
+                color: AppColors.danger,
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(height: 6),
+      TextField(
+        controller: action.subject,
+        minLines: 3,
+        maxLines: 8,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: const InputDecoration(
+          labelText: 'Pembahasan / tindakan yang disepakati',
+        ),
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: action.assignedTo,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(labelText: 'Penanggung jawab'),
+      ),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: <Widget>[
+          _PickerField(
+            label: 'Tanggal item',
+            value: action.itemDate == null
+                ? 'Pilih tanggal'
+                : _momShortDate(action.itemDate!),
+            icon: Icons.event_note_outlined,
+            onTap: onItemDate,
+          ),
+          _PickerField(
+            label: 'Tenggat',
+            value: action.dueDate == null
+                ? 'Belum ditentukan'
+                : _momShortDate(action.dueDate!),
+            icon: Icons.event_available_outlined,
+            onTap: onDueDate,
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+class _ActionDraft {
+  _ActionDraft({
+    this.itemDate,
+    this.dueDate,
+    String subject = '',
+    String assignedTo = '',
+  }) : subject = TextEditingController(text: subject),
+       assignedTo = TextEditingController(text: assignedTo);
+
+  factory _ActionDraft.fromModel(MeetingMinuteAction action) => _ActionDraft(
+    itemDate: action.itemDate,
+    dueDate: action.dueDate,
+    subject: action.subjectDiscussion,
+    assignedTo: action.assignedTo,
+  );
+
+  DateTime? itemDate;
+  DateTime? dueDate;
+  final TextEditingController subject;
+  final TextEditingController assignedTo;
+
+  MeetingMinuteAction toModel({required int position}) => MeetingMinuteAction(
+    itemDate: itemDate,
+    dueDate: dueDate,
+    subjectDiscussion: subject.text,
+    assignedTo: assignedTo.text,
+    position: position,
+  );
+
+  void dispose() {
+    subject.dispose();
+    assignedTo.dispose();
+  }
+}
+
+String _momDate(DateTime value) {
+  const List<String> months = <String>[
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+  ];
+  return '${value.day} ${months[value.month - 1]} ${value.year}';
+}
+
+String _momShortDate(DateTime value) =>
+    '${value.day.toString().padLeft(2, '0')}.${value.month.toString().padLeft(2, '0')}.${(value.year % 100).toString().padLeft(2, '0')}';
+
+String _momDateTime(DateTime value) =>
+    '${_momDate(value)} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';

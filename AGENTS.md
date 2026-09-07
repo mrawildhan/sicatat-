@@ -1,5 +1,13 @@
 # SICATAT — Codex Handoff
 
+## Rilis MOM draf & Excel 2.7.1 — 2026-09-07
+
+- Website produksi 2.7.1: https://sicatat-5l5.pages.dev/?versi=2-7-1-mom#/meeting-minutes . Pratinjau deployment: https://5fed7bbe.sicatat-5l5.pages.dev/?versi=2-7-1-mom#/meeting-minutes .
+- Notulen Rapat sekarang berfungsi: buat atau edit MOM, simpan draf tanpa mengisi seluruh kolom, kemudian selesaikan setelah judul, tanggal, lokasi, pencatat, dan minimal satu pembahasan tersedia. Setiap tindak lanjut memiliki tanggal item, pembahasan, PIC, serta tenggat.
+- Format ekspor `.xlsx` mengikuti contoh `260130_MoM_STI Muara Port Electrical Inspection.docx`: judul, tanggal/waktu, lokasi, peserta, berhalangan hadir, pencatat, distribusi, agenda baru, pengaju, catatan, lalu tabel `Item – Pembahasan – Penanggung Jawab – Tenggat`. Berkas dibuat di aplikasi, tanpa API AI atau layanan berbayar.
+- Server: migrasi `20260907070000_meeting_minutes_drafts.sql` telah diterapkan (tabel MOM, tindakan, draf/selesai, RLS pembuat dan pengelola global); cek `supabase db push --dry-run` menyatakan remote up to date.
+- APK 2.7.1+10271 tiga ABI dibangun dan diverifikasi (`arm64-v8a` code 12271, `armeabi-v7a` 11271, `x86_64` 14271), diunggah ke `app-releases`, kemudian tiga record aktif dipublikasikan lewat `20260907071000_publish_sicatat_2_7_1_mom_excel.sql`. Validasi query release mengonfirmasi tiga ABI aktif. `flutter analyze` bersih dan 15 Flutter tests lulus. Pemasangan fisik Android belum diuji pada perangkat.
+
 ## Rilis tampilan Anggaran & MOM 2.7.0 — 2026-09-07
 
 - Website produksi 2.7.0: https://sicatat-5l5.pages.dev/?versi=2-7-0#/dashboard . Dua section awal tersedia pada kelompok Operasional dan kartu Beranda: `Anggaran Operasional` (`#/budget`) dan `Notulen Rapat` (`#/meeting-minutes`).
