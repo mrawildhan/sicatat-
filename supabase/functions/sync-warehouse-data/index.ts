@@ -6,7 +6,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-warehouse-cron-secret",
 };
 
 const source = {
@@ -100,16 +100,35 @@ function dateValue(value: string) {
     .join("-");
 }
 
-type SheetRows = { headers: Map<string, number>; rows: string[][] };
+type SheetRows = {
+  headers: Map<string, number>;
+  rows: string[][];
+  fingerprint: string;
+};
+
+async function fingerprint(value: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 async function fetchRows(url: string, label: string, minimumRows: number): Promise<SheetRows> {
   const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error(`${label} could not be read (HTTP ${response.status}).`);
-  const rows = parseCsv(await response.text());
+  const raw = await response.text();
+  const rows = parseCsv(raw);
   if (rows.length - 1 < minimumRows) {
     throw new Error(`${label} has too few data rows. The previous Warehouse snapshot was kept.`);
   }
-  return { headers: headerIndex(rows[0]), rows: rows.slice(1) };
+  return {
+    headers: headerIndex(rows[0]),
+    rows: rows.slice(1),
+    fingerprint: await fingerprint(raw),
+  };
 }
 
 function requireColumns(sheet: SheetRows, label: string, names: string[]) {
@@ -141,32 +160,47 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const expectedCronSecret = Deno.env.get("WAREHOUSE_SYNC_CRON_SECRET");
+  const isScheduled = Boolean(
+    expectedCronSecret &&
+      req.headers.get("x-warehouse-cron-secret") === expectedCronSecret,
+  );
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json({ ok: false, error: "No login session." }, 401);
-
-  const callerClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error: authError } = await callerClient.auth.getUser();
-  if (authError || !user?.email) return json({ ok: false, error: "Invalid session." }, 401);
-
   const admin = createClient(supabaseUrl, serviceRoleKey);
-  const nik = user.email.replace("@sicatat.local", "");
-  const { data: caller, error: callerError } = await admin
-    .from("app_user")
-    .select("id,role,is_active")
-    .eq("nik", nik)
-    .single();
-  if (
-    callerError || !caller || !caller.is_active ||
-    !["admin", "supervisor_smg", "warehouseman"].includes(caller.role)
-  ) {
-    return json({ ok: false, error: "Your role is not allowed to synchronise Warehouse data." }, 403);
+  let triggeredBy: string | null = null;
+  let triggerSource = "scheduled";
+
+  if (!isScheduled) {
+    if (!authHeader) return json({ ok: false, error: "No login session." }, 401);
+    const callerClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: authError } = await callerClient.auth.getUser();
+    if (authError || !user?.email) return json({ ok: false, error: "Invalid session." }, 401);
+
+    const nik = user.email.replace("@sicatat.local", "");
+    const { data: caller, error: callerError } = await admin
+      .from("app_user")
+      .select("id,role,is_active")
+      .eq("nik", nik)
+      .single();
+    if (
+      callerError || !caller || !caller.is_active ||
+      !["admin", "supervisor_smg", "warehouseman"].includes(caller.role)
+    ) {
+      return json({ ok: false, error: "Your role is not allowed to synchronise Warehouse data." }, 403);
+    }
+    triggeredBy = caller.id;
+    triggerSource = "manual";
   }
 
   const { data: log, error: logError } = await admin
     .from("warehouse_sync_log")
-    .insert({ status: "running", triggered_by: caller.id })
+    .insert({
+      status: "running",
+      triggered_by: triggeredBy,
+      trigger_source: triggerSource,
+    })
     .select("id")
     .single();
   if (logError || !log) return json({ ok: false, error: "Unable to start the Warehouse sync." }, 500);
@@ -189,6 +223,40 @@ Deno.serve(async (req) => {
     requireColumns(kintapInventory, "DST Kintap inventory", [
       "WAREHOUSE ID", "STOCK CODE", "STOCK CODE DESCRIPTION", "BIN CODE", "UOI", "SOH", "ITEM PRICE",
     ]);
+    const sourceFingerprint = await fingerprint([
+      master.fingerprint,
+      stock.fingerprint,
+      receipts.fingerprint,
+      kintapInventory.fingerprint,
+      toolRegister.fingerprint,
+    ].join("|"));
+    const sourceSummary = {
+      scallsite_rows: stock.rows.length,
+      scmaster_rows: master.rows.length,
+      penerimaan_rows: receipts.rows.length,
+      dst_kintap_rows: kintapInventory.rows.length,
+      tool_register_rows: toolRegister.rows.length,
+    };
+    const { data: previousLog, error: previousLogError } = await admin
+      .from("warehouse_sync_log")
+      .select("source_fingerprint")
+      .eq("status", "completed")
+      .not("source_fingerprint", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (previousLogError) throw previousLogError;
+    if (previousLog?.source_fingerprint === sourceFingerprint) {
+      await admin.from("warehouse_sync_log").update({
+        status: "completed",
+        changed: false,
+        source_fingerprint: sourceFingerprint,
+        source_summary: sourceSummary,
+        detail: "No changes detected in the approved Google Sheets. The current Warehouse snapshot was kept.",
+        completed_at: new Date().toISOString(),
+      }).eq("id", log.id);
+      return json({ ok: true, changed: false, stock_rows: 0, receipt_rows: 0, tool_rows: 0 });
+    }
     const siteIdByName = new Map(
       (sitesResponse.data ?? []).map((site) => [site.name.toLowerCase(), site.id]),
     );
@@ -335,17 +403,19 @@ Deno.serve(async (req) => {
       stock_rows: stockRows.length,
       item_master_rows: masterByItem.size,
       tool_rows: tools.length,
-      source_summary: {
-        scallsite_rows: stock.rows.length,
-        scmaster_rows: masterByItem.size,
-        penerimaan_rows: receiptRows.length,
-        dst_kintap_rows: kintapInventory.rows.length,
-        tool_register_rows: tools.length,
-      },
+      changed: true,
+      source_fingerprint: sourceFingerprint,
+      source_summary: sourceSummary,
       detail: "Validated and read SCALLSITE, SCMASTER, PENERIMAAN, DST Kintap inventory, and PEMINJAMAMAN tool register.",
       completed_at: new Date().toISOString(),
     }).eq("id", log.id);
-    return json({ ok: true, stock_rows: stockRows.length, receipt_rows: receiptRows.length, tool_rows: tools.length });
+    return json({
+      ok: true,
+      changed: true,
+      stock_rows: stockRows.length,
+      receipt_rows: receiptRows.length,
+      tool_rows: tools.length,
+    });
   } catch (error) {
     const message = error instanceof Error
       ? error.message

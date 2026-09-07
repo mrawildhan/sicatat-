@@ -1,5 +1,14 @@
 # SICATAT — Codex Handoff
 
+## Rilis Gudang otomatis 2.6.7 — 2026-09-07
+
+- Website produksi rilis 2.6.7: https://sicatat-5l5.pages.dev/?versi=2-6-7#/warehouse . Gudang menampilkan status `Sinkron otomatis aktif · setiap hari 06.00 WITA`; tombol `Sinkronkan sekarang` tetap cadangan bagi pengelola Gudang.
+- Edge Function `sync-warehouse-data` menjalankan pemeriksaan yang sama untuk manual maupun terjadwal. Ia membandingkan SHA-256 gabungan lima CSV Google Sheets; data ditulis hanya bila sidik sumber berubah. Pembaruan manual masih memverifikasi sesi dan peran admin/supervisor SMG/warehouseman. Permintaan terjadwal hanya lolos dengan secret server `WAREHOUSE_SYNC_CRON_SECRET`—jangan pernah menaruhnya di Git, Flutter, atau APK.
+- Migrasi `20260907020000_warehouse_automatic_daily_sync.sql` telah diterapkan. Job Supabase Cron aktif: `sicatat-sync-warehouse-daily`, `0 22 * * *` UTC = 06.00 WITA. Nilai secret tersimpan di Supabase Vault sebagai `sicatat_warehouse_sync_cron_secret` dan Edge Function diterapkan dengan `--no-verify-jwt` karena autentikasi dilakukan di dalam fungsi untuk membedakan cron aman vs sesi pengguna.
+- Verifikasi produksi backend: pemanggilan terjadwal pertama sukses memperbarui 7.719 stok, 2.161 penerimaan, dan 155 alat. Pemanggilan kedua sukses dengan `changed: false` serta nol penulisan snapshot saat sumber tidak berubah. Jangan mengklaim jadwal telah berjalan sendiri sebelum eksekusi 06.00 WITA berikutnya tercatat.
+- APK 2.6.7+10267 tiga ABI sudah dibangun dan diverifikasi (`arm64-v8a` code 12267, `armeabi-v7a` 11267, `x86_64` 14267), diunggah ke `app-releases`, lalu ketiga record aktif 2.6.7 diverifikasi di `app_release`. Website dan APK berasal dari source revision yang sama. Pemasangan fisik Android belum diuji.
+- Validasi rilis: `flutter analyze` bersih, seluruh 12 Flutter tests lulus, build web release dan tiga APK release sukses. Cloudflare Pages production selesai pada `main` (preview: https://2f8f3aa3.sicatat-5l5.pages.dev).
+
 ## Rilis navigasi 2.6.6 — 2026-09-07
 
 - Website produksi rilis 2.6.6: https://sicatat-5l5.pages.dev/?versi=2-6-6#/dashboard . Tampilan langsung tervalidasi: copyright menjadi `© 2026 • Versi 2.6.6` tanpa WIL.

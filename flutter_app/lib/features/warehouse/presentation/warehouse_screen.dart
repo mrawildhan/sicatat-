@@ -30,11 +30,14 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
   bool _hasSearched = false;
   bool _loading = false;
   bool _syncing = false;
+  DateTime? _lastAutomaticCheck;
+  bool? _lastAutomaticCheckChanged;
 
   @override
   void initState() {
     super.initState();
     _search.addListener(_onSearchChanged);
+    _loadAutomaticSyncStatus();
   }
 
   @override
@@ -148,8 +151,13 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
         );
       }
       await _load();
+      await _loadAutomaticSyncStatus();
       if (mounted) {
-        _message('${data['stock_rows'] ?? 0} data stok tersinkron.');
+        _message(
+          data['changed'] == false
+              ? 'Data Gudang sudah terbaru.'
+              : '${data['stock_rows'] ?? 0} data stok tersinkron.',
+        );
       }
     } on TimeoutException {
       if (mounted) {
@@ -159,6 +167,32 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
       if (mounted) _message('Sinkronisasi Gudang gagal: $error');
     } finally {
       if (mounted) setState(() => _syncing = false);
+    }
+  }
+
+  Future<void> _loadAutomaticSyncStatus() async {
+    try {
+      final Object response = await _client
+          .from('warehouse_sync_log')
+          .select('completed_at,changed')
+          .eq('status', 'completed')
+          .order('completed_at', ascending: false)
+          .limit(1);
+      if (response is! List || response.isEmpty || !mounted) return;
+      final JsonMap row = requireJsonMap(response.first);
+      final String? completedAt = row.optionalString('completed_at');
+      setState(() {
+        _lastAutomaticCheck = completedAt == null
+            ? null
+            : DateTime.tryParse(completedAt)
+                  ?.toUtc()
+                  .add(const Duration(hours: 8));
+        _lastAutomaticCheckChanged = row['changed'] is bool
+            ? row['changed'] as bool
+            : null;
+      });
+    } on Object {
+      // Pencarian Gudang tetap tersedia bila status opsional ini gagal dimuat.
     }
   }
 
@@ -203,7 +237,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.sync_rounded),
-                      tooltip: 'Sinkronkan Google Sheets',
+                      tooltip: 'Sinkronkan sekarang',
                     ),
                   IconButton(
                     onPressed: _load,
@@ -215,6 +249,10 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
         body: Column(
           children: <Widget>[
             if (useDesktopHeader) _desktopHeader(canSync),
+            _WarehouseAutomaticSyncNotice(
+              checkedAt: _lastAutomaticCheck,
+              changed: _lastAutomaticCheckChanged,
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: TextField(
@@ -302,7 +340,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.sync_rounded),
-            tooltip: 'Sinkronkan Google Sheets',
+            tooltip: 'Sinkronkan sekarang',
           ),
         IconButton(
           onPressed: _load,
@@ -312,6 +350,63 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
       ],
     ),
   );
+}
+
+class _WarehouseAutomaticSyncNotice extends StatelessWidget {
+  const _WarehouseAutomaticSyncNotice({
+    required this.checkedAt,
+    required this.changed,
+  });
+
+  final DateTime? checkedAt;
+  final bool? changed;
+
+  @override
+  Widget build(BuildContext context) {
+    const Color color = AppColors.green;
+    final String status = checkedAt == null
+        ? 'Pemeriksaan terakhir belum tersedia'
+        : changed == true
+        ? 'Data diperbarui ${_formatDateTime(checkedAt!)}'
+        : 'Terakhir diperiksa ${_formatDateTime(checkedAt!)} · data sudah terbaru';
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.schedule_rounded, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'Sinkron otomatis aktif · setiap hari 06.00 WITA',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 2),
+                Text(status, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatDateTime(DateTime value) {
+    final String date =
+        '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+    final String time =
+        '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+    return '$date $time WITA';
+  }
 }
 
 class _WarehouseFilterBar extends StatelessWidget {
