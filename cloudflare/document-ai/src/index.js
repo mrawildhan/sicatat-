@@ -10,13 +10,49 @@ export function snippets(text, question) {
   }
   return chunks.sort((a,b) => b.score-a.score || a.index-b.index).slice(0, 4).sort((a,b) => a.index-b.index).map(c => c.content).join('\n[...]\n');
 }
-export function validateAnswer(parsed, documents) {
+
+function fallbackFromSource(documents, question) {
+  const terms = normalize(question)
+    .split(' ')
+    .filter(t => t.length > 2 && !['berapa','untuk','yang','dengan','pada','dari','pekerjaan','melakukan','bagaimana','cara','adalah','tentang'].includes(t));
+  let best = null;
+  for (const doc of documents) {
+    const text = typeof doc.text === 'string' ? doc.text.trim() : '';
+    const lower = normalize(text);
+    let score = 0;
+    let firstMatch = -1;
+    for (const term of terms) {
+      const index = lower.indexOf(term);
+      if (index >= 0) {
+        score += 1;
+        if (firstMatch < 0) firstMatch = index;
+      }
+    }
+    if (score > 0 && (!best || score > best.score || (score === best.score && text.length > best.text.length))) {
+      best = { ...doc, text, score, firstMatch };
+    }
+  }
+  if (!best) return null;
+  // This is intentionally a direct source excerpt, not a generated answer.
+  // It keeps the response useful when a model omits a valid JSON citation.
+  const start = Math.max(0, best.firstMatch - 180);
+  const excerpt = best.text.slice(start, start + 900).trim();
+  if (normalize(excerpt).length < 15) return null;
+  return {
+    answer: `Saya menemukan bagian prosedur berikut pada ${best.name}:\n\n${excerpt}`,
+    citations: [{ id: best.id, excerpt }],
+  };
+}
+
+export function validateAnswer(parsed, documents, question = '') {
   const citations = (Array.isArray(parsed.citations) ? parsed.citations : []).flatMap(c => {
     const doc = documents.find(d => d.id === c.id);
     if (!doc || typeof c.excerpt !== 'string' || normalize(c.excerpt).length < 15 || !normalize(doc.text).includes(normalize(c.excerpt))) return [];
     return [{ id: doc.id, excerpt: c.excerpt.slice(0, 600) }];
   });
   if (!citations.length || citations.length !== parsed.citations.length || typeof parsed.answer !== 'string') {
+    const fallback = fallbackFromSource(documents, question);
+    if (fallback) return fallback;
     return { answer: 'Saya belum menemukan jawaban yang dapat didukung kutipan dari dokumen yang diperiksa. Coba sebutkan nomor dokumen atau nama peralatan lebih spesifik.', citations: [] };
   }
   return { answer: parsed.answer.slice(0, 4000), citations };
@@ -66,7 +102,7 @@ export default {
       if (typeof raw !== 'string') throw new Error('OUTPUT_INVALID');
       const cleaned = raw.replace(/<think>[\s\S]*?<\/think>/g, '');
       const parsed = JSON.parse(cleaned.slice(cleaned.indexOf('{'), cleaned.lastIndexOf('}') + 1));
-      return Response.json({ ok: true, ...validateAnswer(parsed, converted), sources_scanned: converted.length });
+      return Response.json({ ok: true, ...validateAnswer(parsed, converted, body.question), sources_scanned: converted.length });
     } catch (error) {
       const quota = /quota|limit|neurons|429/i.test(String(error));
       console.error('document-ai', quota ? 'QUOTA_LIMIT' : 'PROCESSING_FAILED');

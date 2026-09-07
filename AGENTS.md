@@ -1,5 +1,10 @@
 # SICATAT — Codex Handoff
 
+## Perbaikan kutipan AI dokumen — 2026-09-07
+
+- Worker `sicatat-document-ai` versi `e2ed523b-0ed9-4a92-931a-c40a7a4aa321` menambahkan fallback kutipan sumber. Jika model tidak menghasilkan sitasi JSON yang valid tetapi isi dokumen yang dipilih memuat istilah pertanyaan, Worker menampilkan cuplikan prosedur asli (maks. 900 karakter) beserta sumbernya. Ia tidak membuat jawaban baru atau menggunakan sumber di luar folder.
+- Perbaikan ini menutup kasus VSD: file berhasil diperiksa tetapi jawaban sebelumnya ditolak seluruhnya karena sitasi model tidak valid. Uji Worker 5/5 lulus, termasuk fallback `Prosedur Mode Auto`. Backend berlaku langsung pada website dan Android 2.6.7; tidak ada APK/web bundle baru. Belum ada demo terautentikasi pascadeploy, jadi jangan mengklaim hasil VSD telah terlihat sampai pengguna mengujinya.
+
 ## Rilis Gudang otomatis 2.6.7 — 2026-09-07
 
 - Website produksi rilis 2.6.7: https://sicatat-5l5.pages.dev/?versi=2-6-7#/warehouse . Gudang menampilkan status `Sinkron otomatis aktif · setiap hari 06.00 WITA`; tombol `Sinkronkan sekarang` tetap cadangan bagi pengelola Gudang.
