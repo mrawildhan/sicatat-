@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -794,7 +795,12 @@ class _MeetingMinuteEditorScreenState
     final MeetingMinute? minute = _minute;
     if (minute == null) return;
     try {
-      final List<int> bytes = MeetingMinuteExcelService().create(minute);
+      final List<MeetingMinuteExportPhoto> photos = await _service
+          .downloadPhotos(minute);
+      final List<int> bytes = MeetingMinuteExcelService().create(
+        minute,
+        photos: photos,
+      );
       final String safeTitle = minute.title
           .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '-')
           .replaceAll(RegExp(r'^-+|-+$'), '')
@@ -809,6 +815,74 @@ class _MeetingMinuteEditorScreenState
     } on Object catch (error) {
       if (mounted) _message('Excel notulen tidak dapat dibuat. $error');
     }
+  }
+
+  Future<void> _addPhoto(int index) async {
+    final MeetingMinute? minute = _minute;
+    final _ActionDraft action = _actions[index];
+    if (minute == null || action.id == null) {
+      _message('Simpan draf terlebih dahulu sebelum menambahkan foto.');
+      return;
+    }
+    final FilePickerResult? selected = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const <String>['jpg', 'jpeg', 'png'],
+      withData: true,
+    );
+    if (selected == null || selected.files.isEmpty) return;
+    final PlatformFile file = selected.files.single;
+    final Uint8List? bytes = file.bytes;
+    if (bytes == null) {
+      _message('Foto tidak dapat dibaca. Coba pilih berkas lain.');
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await _service.uploadActionPhoto(
+        meetingId: minute.id,
+        actionId: action.id!,
+        bytes: bytes,
+        fileName: file.name,
+      );
+      final MeetingMinute updated = await _service.loadOne(minute.id);
+      if (!mounted) return;
+      _applyMinute(updated);
+      _message('Foto pembahasan ditambahkan.');
+    } on Object catch (error) {
+      if (mounted) _message('Foto tidak dapat ditambahkan. $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _deletePhoto(MeetingMinuteActionPhoto photo) async {
+    final MeetingMinute? minute = _minute;
+    if (minute == null || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await _service.deleteActionPhoto(photo);
+      final MeetingMinute updated = await _service.loadOne(minute.id);
+      if (!mounted) return;
+      _applyMinute(updated);
+      _message('Foto pembahasan dihapus.');
+    } on Object catch (error) {
+      if (mounted) _message('Foto tidak dapat dihapus. $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _applyMinute(MeetingMinute minute) {
+    for (final _ActionDraft action in _actions) {
+      action.dispose();
+    }
+    _actions
+      ..clear()
+      ..addAll(minute.actions.map(_ActionDraft.fromModel));
+    if (_actions.isEmpty) {
+      _actions.add(_ActionDraft(itemDate: minute.meetingDate));
+    }
+    _minute = minute;
   }
 
   Future<void> _delete() async {
@@ -1040,6 +1114,9 @@ class _MeetingMinuteEditorScreenState
                             onItemDate: () =>
                                 _pickDate(main: false, actionIndex: index),
                             onDueDate: () => _pickDueDate(index),
+                            onAddPhoto: _saving ? null : () => _addPhoto(index),
+                            onDeletePhoto: _saving ? null : _deletePhoto,
+                            photoUrl: _service.photoUrl,
                             onRemove: _actions.length == 1
                                 ? null
                                 : () => setState(() {
@@ -1274,6 +1351,9 @@ class _ActionEditor extends StatelessWidget {
     required this.action,
     required this.onItemDate,
     required this.onDueDate,
+    required this.onAddPhoto,
+    required this.onDeletePhoto,
+    required this.photoUrl,
     this.onRemove,
   });
 
@@ -1281,6 +1361,9 @@ class _ActionEditor extends StatelessWidget {
   final _ActionDraft action;
   final VoidCallback onItemDate;
   final VoidCallback onDueDate;
+  final VoidCallback? onAddPhoto;
+  final ValueChanged<MeetingMinuteActionPhoto>? onDeletePhoto;
+  final Future<String> Function(MeetingMinuteActionPhoto photo) photoUrl;
   final VoidCallback? onRemove;
 
   @override
@@ -1344,37 +1427,160 @@ class _ActionEditor extends StatelessWidget {
           ),
         ],
       ),
+      const SizedBox(height: 12),
+      Row(
+        children: <Widget>[
+          const Icon(Icons.photo_camera_back_outlined, color: AppColors.green),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Foto pembahasan (opsional)',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: onAddPhoto,
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+            label: const Text('Tambah foto'),
+          ),
+        ],
+      ),
+      if (action.photos.isEmpty)
+        const Text(
+          'Simpan sebagai draf terlebih dahulu, lalu foto dapat ditambahkan.',
+          style: TextStyle(fontSize: 12, color: AppColors.muted),
+        )
+      else
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: <Widget>[
+              for (final MeetingMinuteActionPhoto photo in action.photos)
+                _ActionPhotoTile(
+                  photo: photo,
+                  photoUrl: photoUrl,
+                  onDelete: onDeletePhoto == null
+                      ? null
+                      : () => onDeletePhoto!(photo),
+                ),
+            ],
+          ),
+        ),
     ],
+  );
+}
+
+class _ActionPhotoTile extends StatelessWidget {
+  const _ActionPhotoTile({
+    required this.photo,
+    required this.photoUrl,
+    this.onDelete,
+  });
+
+  final MeetingMinuteActionPhoto photo;
+  final Future<String> Function(MeetingMinuteActionPhoto photo) photoUrl;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 150,
+    child: FutureBuilder<String>(
+      future: photoUrl(photo),
+      builder: (BuildContext context, AsyncSnapshot<String> snapshot) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: snapshot.hasData
+                  ? Image.network(
+                      snapshot.data!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _photoPlaceholder(),
+                    )
+                  : _photoPlaceholder(loading: true),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  photo.fileName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              if (onDelete != null)
+                IconButton(
+                  tooltip: 'Hapus foto',
+                  onPressed: onDelete,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 18,
+                    color: AppColors.danger,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _photoPlaceholder({bool loading = false}) => ColoredBox(
+    color: AppColors.mint,
+    child: Center(
+      child: loading
+          ? const SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.broken_image_outlined, color: AppColors.muted),
+    ),
   );
 }
 
 class _ActionDraft {
   _ActionDraft({
+    this.id,
     this.itemDate,
     this.dueDate,
     String subject = '',
     String assignedTo = '',
+    this.photos = const <MeetingMinuteActionPhoto>[],
   }) : subject = TextEditingController(text: subject),
        assignedTo = TextEditingController(text: assignedTo);
 
   factory _ActionDraft.fromModel(MeetingMinuteAction action) => _ActionDraft(
+    id: action.id,
     itemDate: action.itemDate,
     dueDate: action.dueDate,
     subject: action.subjectDiscussion,
     assignedTo: action.assignedTo,
+    photos: action.photos,
   );
 
+  final String? id;
   DateTime? itemDate;
   DateTime? dueDate;
+  final List<MeetingMinuteActionPhoto> photos;
   final TextEditingController subject;
   final TextEditingController assignedTo;
 
   MeetingMinuteAction toModel({required int position}) => MeetingMinuteAction(
+    id: id,
     itemDate: itemDate,
     dueDate: dueDate,
     subjectDiscussion: subject.text,
     assignedTo: assignedTo.text,
     position: position,
+    photos: photos,
   );
 
   void dispose() {

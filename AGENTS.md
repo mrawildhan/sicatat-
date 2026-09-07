@@ -1,5 +1,12 @@
 # SICATAT — Codex Handoff
 
+## Rilis foto MOM & ekspor Excel 2.7.2 — 2026-09-07
+
+- Website produksi 2.7.2: https://sicatat-5l5.pages.dev/?versi=2-7-2-mom-foto#/meeting-minutes . Pratinjau deployment: https://65dd237f.sicatat-5l5.pages.dev/?versi=2-7-2-mom-foto#/meeting-minutes .
+- Setiap pembahasan/tindak lanjut Notulen Rapat kini dapat memiliki beberapa foto opsional JPG/JPEG/PNG maksimal 8 MB per foto. Pengguna perlu menyimpan draf terlebih dahulu agar tindakan memperoleh identitas, lalu dapat menambah atau menghapus foto. Foto disimpan privat di bucket `meeting-minute-photos` dengan RLS yang mengikuti akses notulen.
+- Penyimpanan tindakan tidak lagi menghapus lalu membuat ulang seluruh baris saat MOM diedit, sehingga foto tindakan tetap ada. Excel juga memuat foto pembahasan di bawah tindakan terkait dan menyesuaikan tinggi baris pembahasan panjang. Format metadata dan tabel meniru `260130_MoM_STI Muara Port Electrical Inspection.docx`.
+- Server: migrasi `20260907072000_meeting_minute_action_photos.sql` dan rilis Android `20260907073000_publish_sicatat_2_7_2_mom_photos.sql` telah diterapkan di produksi. APK 2.7.2+10272 tiga ABI dibangun, diunggah ke `app-releases`, dan diaktifkan (arm64 code 12272, armeabi-v7a code 11272, x86_64 code 14272). `flutter analyze` bersih dan seluruh test Flutter lulus. Website/preview HTTP 200; pemasangan fisik Android serta demo browser terautentikasi belum diuji.
+
 ## Rilis MOM draf & Excel 2.7.1 — 2026-09-07
 
 - Website produksi 2.7.1: https://sicatat-5l5.pages.dev/?versi=2-7-1-mom#/meeting-minutes . Pratinjau deployment: https://5fed7bbe.sicatat-5l5.pages.dev/?versi=2-7-1-mom#/meeting-minutes .

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,11 +28,31 @@ void main() {
             subjectDiscussion: 'Pengecekan panel dan switchgear',
             assignedTo: 'PLN dan TCI',
             dueDate: DateTime(2026, 2, 5),
+            id: 'action-1',
           ),
         ],
       );
 
-      final List<int> bytes = MeetingMinuteExcelService().create(minute);
+      final List<int> bytes = MeetingMinuteExcelService().create(
+        minute,
+        photos: <MeetingMinuteExportPhoto>[
+          MeetingMinuteExportPhoto(
+            actionId: 'action-1',
+            fileName: 'panel-lvmdp.png',
+            mimeType: 'image/png',
+            bytes: Uint8List.fromList(<int>[
+              0x89,
+              0x50,
+              0x4e,
+              0x47,
+              0x0d,
+              0x0a,
+              0x1a,
+              0x0a,
+            ]),
+          ),
+        ],
+      );
       final Archive archive = ZipDecoder().decodeBytes(bytes);
       final Map<String, ArchiveFile> files = <String, ArchiveFile>{
         for (final ArchiveFile file in archive) file.name: file,
@@ -45,6 +66,8 @@ void main() {
           'xl/workbook.xml',
           'xl/styles.xml',
           'xl/worksheets/sheet1.xml',
+          'xl/drawings/drawing1.xml',
+          'xl/media/image1.png',
         ]),
       );
       final String sheetXml = utf8.decode(
@@ -53,6 +76,11 @@ void main() {
       expect(sheetXml, contains('STI Muara Port Electrical Inspection'));
       expect(sheetXml, contains('Pengecekan panel dan switchgear'));
       expect(sheetXml, contains('PLN dan TCI'));
+      expect(sheetXml, contains('FOTO PEMBAHASAN'));
+      expect(
+        utf8.decode(files['xl/drawings/drawing1.xml']!.content),
+        contains('Foto pembahasan 1'),
+      );
     },
   );
 }

@@ -27,6 +27,7 @@ class MeetingMinuteAction {
     this.assignedTo = '',
     this.dueDate,
     this.position = 0,
+    this.photos = const <MeetingMinuteActionPhoto>[],
   });
 
   final String? id;
@@ -35,6 +36,7 @@ class MeetingMinuteAction {
   final String assignedTo;
   final DateTime? dueDate;
   final int position;
+  final List<MeetingMinuteActionPhoto> photos;
 
   factory MeetingMinuteAction.fromJson(JsonMap json) => MeetingMinuteAction(
     id: json.optionalString('id'),
@@ -43,6 +45,7 @@ class MeetingMinuteAction {
     assignedTo: json.optionalString('assigned_to') ?? '',
     dueDate: _date(json.optionalString('due_date')),
     position: json['position'] is num ? (json['position'] as num).toInt() : 0,
+    photos: _photos(json['meeting_minute_action_photo']),
   );
 
   Map<String, Object?> toJson({required String meetingMinuteId}) =>
@@ -62,6 +65,53 @@ class MeetingMinuteAction {
   static String? _dateText(DateTime? value) => value == null
       ? null
       : '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
+  static List<MeetingMinuteActionPhoto> _photos(Object? raw) {
+    if (raw is! List) return const <MeetingMinuteActionPhoto>[];
+    final List<MeetingMinuteActionPhoto> photos =
+        raw
+            .map(
+              (Object? item) => MeetingMinuteActionPhoto.fromJson(
+                requireJsonMap(item, source: 'meeting minute action photo'),
+              ),
+            )
+            .toList(growable: true)
+          ..sort(
+            (MeetingMinuteActionPhoto a, MeetingMinuteActionPhoto b) =>
+                a.position.compareTo(b.position),
+          );
+    return photos;
+  }
+}
+
+class MeetingMinuteActionPhoto {
+  const MeetingMinuteActionPhoto({
+    required this.id,
+    required this.actionId,
+    required this.storagePath,
+    required this.fileName,
+    required this.mimeType,
+    required this.position,
+  });
+
+  final String id;
+  final String actionId;
+  final String storagePath;
+  final String fileName;
+  final String mimeType;
+  final int position;
+
+  factory MeetingMinuteActionPhoto.fromJson(JsonMap json) =>
+      MeetingMinuteActionPhoto(
+        id: json.requiredString('id'),
+        actionId: json.requiredString('meeting_minute_action_id'),
+        storagePath: json.requiredString('storage_path'),
+        fileName: json.optionalString('file_name') ?? 'Foto pembahasan',
+        mimeType: json.optionalString('mime_type') ?? 'image/jpeg',
+        position: json['position'] is num
+            ? (json['position'] as num).toInt()
+            : 0,
+      );
 }
 
 class MeetingMinute {
