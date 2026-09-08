@@ -112,6 +112,13 @@ extension UserRoleX on UserRole {
 
   bool get canManageWarehouse => canUseWarehouse;
 
+  /// Planner access follows the existing operational roles; there is no
+  /// separate planner role in the current SICATAT user master.
+  bool get canManageMaterialRequests =>
+      this == UserRole.admin ||
+      this == UserRole.supervisorSmg ||
+      this == UserRole.foremanLv;
+
   bool get canManageUsers => this == UserRole.admin;
 
   bool get canManageMasterData =>

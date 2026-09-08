@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sicatat_flutter/features/operations/presentation/operational_sections_screen.dart';
 
@@ -22,19 +23,21 @@ void main() {
     expect(find.text('Buat notulen'), findsOneWidget);
   });
 
-  testWidgets('permintaan barang menampilkan status dan dua kategori', (
+  testWidgets('permintaan barang menampilkan status dan tombol pengajuan', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(home: MaterialRequestOverviewScreen()),
+      const ProviderScope(
+        child: MaterialApp(home: MaterialRequestOverviewScreen()),
+      ),
     );
 
     expect(find.text('Permintaan order barang LV & Drilling'), findsOneWidget);
     expect(find.text('Diajukan'), findsOneWidget);
     expect(find.text('Diproses'), findsOneWidget);
     expect(find.text('Ditolak'), findsOneWidget);
-    expect(find.text('LV'), findsOneWidget);
-    expect(find.text('Drilling'), findsOneWidget);
+    expect(find.text('Ajukan kebutuhan barang'), findsOneWidget);
+    expect(find.text('Pengajuan saya'), findsOneWidget);
   });
 
   testWidgets('outstanding menampilkan sumber dan tiga crew', (tester) async {

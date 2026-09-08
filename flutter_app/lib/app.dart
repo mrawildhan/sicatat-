@@ -322,6 +322,24 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/material-requests/new',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.materialRequests,
+          child: MaterialRequestFormScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
       path: '/outstanding-maintenance',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{

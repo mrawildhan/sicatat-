@@ -9,8 +9,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../data/models/app_user.dart';
+import '../../../data/models/material_request_models.dart';
 import '../../../data/models/meeting_minute_models.dart';
 import '../../../data/reports/meeting_minute_service.dart';
+import '../../../data/services/material_request_service.dart';
 import '../../auth/application/current_user_provider.dart';
 
 class BudgetOverviewScreen extends StatelessWidget {
@@ -24,15 +27,126 @@ class BudgetOverviewScreen extends StatelessWidget {
   );
 }
 
-class MaterialRequestOverviewScreen extends StatelessWidget {
-  const MaterialRequestOverviewScreen({super.key});
+class MaterialRequestOverviewScreen extends ConsumerStatefulWidget {
+  const MaterialRequestOverviewScreen({this.service, super.key});
+
+  final MaterialRequestService? service;
 
   @override
-  Widget build(BuildContext context) => const _OperationalSectionPage(
-    title: 'Permintaan Barang',
-    icon: Icons.handyman_outlined,
-    child: _MaterialRequestOverviewBody(),
-  );
+  ConsumerState<MaterialRequestOverviewScreen> createState() =>
+      _MaterialRequestOverviewScreenState();
+}
+
+class MaterialRequestFormScreen extends ConsumerStatefulWidget {
+  const MaterialRequestFormScreen({this.service, super.key});
+
+  final MaterialRequestService? service;
+
+  @override
+  ConsumerState<MaterialRequestFormScreen> createState() =>
+      _MaterialRequestFormScreenState();
+}
+
+class _MaterialRequestOverviewScreenState
+    extends ConsumerState<MaterialRequestOverviewScreen> {
+  MaterialRequestService? _service;
+  List<MaterialRequest> _items = const <MaterialRequest>[];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  MaterialRequestService? _createService() {
+    try {
+      return MaterialRequestService(Supabase.instance.client);
+    } on AssertionError {
+      return null;
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      _service ??= widget.service ?? _createService();
+      final MaterialRequestService? service = _service;
+      if (service == null) {
+        if (mounted) setState(() => _items = const <MaterialRequest>[]);
+        return;
+      }
+      final List<MaterialRequest> items = await service.loadAll();
+      if (mounted) setState(() => _items = items);
+    } on Object catch (error) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Permintaan barang tidak dapat dimuat. Periksa koneksi lalu coba lagi.\n$error',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _process(MaterialRequest item, AppUser user) async {
+    final _MaterialRequestDecision? decision =
+        await showModalBottomSheet<_MaterialRequestDecision>(
+          context: context,
+          isScrollControlled: true,
+          showDragHandle: true,
+          builder: (_) => _MaterialRequestProcessSheet(item: item),
+        );
+    if (decision == null || !mounted) return;
+    try {
+      await (_service ??= widget.service ?? _createService())!.updateStatus(
+        id: item.id,
+        plannerId: user.id,
+        status: decision.status,
+        plannerNote: decision.note,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Status ${decision.status.label.toLowerCase()} disimpan.',
+          ),
+        ),
+      );
+      await _load();
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Status belum tersimpan: $error')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppUser? user = ref.watch(currentUserProvider);
+    return _OperationalSectionPage(
+      title: 'Permintaan Barang',
+      icon: Icons.handyman_outlined,
+      child: _MaterialRequestOverviewBody(
+        items: _items,
+        loading: _loading,
+        error: _error,
+        isPlanner: user?.role.canManageMaterialRequests == true,
+        onRefresh: _load,
+        onCreate: user == null
+            ? null
+            : () => context.go('/material-requests/new'),
+        onProcess: user == null ? null : (item) => _process(item, user),
+      ),
+    );
+  }
 }
 
 class OutstandingMaintenanceScreen extends StatelessWidget {
@@ -368,104 +482,147 @@ class _BudgetOverviewBody extends StatelessWidget {
 }
 
 class _MaterialRequestOverviewBody extends StatelessWidget {
-  const _MaterialRequestOverviewBody();
+  const _MaterialRequestOverviewBody({
+    required this.items,
+    required this.loading,
+    required this.error,
+    required this.isPlanner,
+    required this.onRefresh,
+    required this.onCreate,
+    required this.onProcess,
+  });
+
+  final List<MaterialRequest> items;
+  final bool loading;
+  final String? error;
+  final bool isPlanner;
+  final Future<void> Function() onRefresh;
+  final VoidCallback? onCreate;
+  final ValueChanged<MaterialRequest>? onProcess;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      const Text(
-        'Permintaan order barang LV & Drilling',
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-      ),
-      const SizedBox(height: 6),
-      const Text(
-        'Crew mengajukan kebutuhan alat atau barang secara terstruktur. Planner memantau alasan serta status prosesnya.',
-        style: TextStyle(color: AppColors.muted, height: 1.45),
-      ),
-      const SizedBox(height: 18),
-      const Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: <Widget>[
-          _RequestStatusCard(
-            label: 'Diajukan',
-            caption: 'Menunggu proses',
-            icon: Icons.send_outlined,
-            color: AppColors.orange,
+  Widget build(BuildContext context) {
+    final int submitted = items
+        .where((item) => item.status == MaterialRequestStatus.submitted)
+        .length;
+    final int processed = items
+        .where((item) => item.status == MaterialRequestStatus.processed)
+        .length;
+    final int rejected = items
+        .where((item) => item.status == MaterialRequestStatus.rejected)
+        .length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text(
+          'Permintaan order barang LV & Drilling',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Crew mengajukan kebutuhan alat atau barang secara terstruktur. Planner memantau alasan serta status prosesnya.',
+          style: TextStyle(color: AppColors.muted, height: 1.45),
+        ),
+        const SizedBox(height: 18),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: <Widget>[
+            _RequestStatusCard(
+              label: 'Diajukan',
+              caption: 'Menunggu proses',
+              count: submitted,
+              icon: Icons.send_outlined,
+              color: AppColors.orange,
+            ),
+            _RequestStatusCard(
+              label: 'Diproses',
+              caption: 'Sedang ditindaklanjuti',
+              count: processed,
+              icon: Icons.hourglass_top_rounded,
+              color: AppColors.green,
+            ),
+            _RequestStatusCard(
+              label: 'Ditolak',
+              caption: 'Tidak dapat dipenuhi',
+              count: rejected,
+              icon: Icons.cancel_outlined,
+              color: AppColors.danger,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: onCreate,
+          icon: const Icon(Icons.add_shopping_cart_rounded),
+          label: const Text('Ajukan kebutuhan barang'),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.mint,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.green.withValues(alpha: 0.18)),
           ),
-          _RequestStatusCard(
-            label: 'Diproses',
-            caption: 'Sedang ditindaklanjuti',
-            icon: Icons.hourglass_top_rounded,
-            color: AppColors.green,
-          ),
-          _RequestStatusCard(
-            label: 'Ditolak',
-            caption: 'Tidak dapat dipenuhi',
-            icon: Icons.cancel_outlined,
-            color: AppColors.danger,
-          ),
-        ],
-      ),
-      const SizedBox(height: 16),
-      const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(Icons.category_outlined, color: AppColors.green),
-                  SizedBox(width: 10),
-                  Text(
-                    'Kategori permintaan',
-                    style: TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                ],
-              ),
-              SizedBox(height: 14),
-              _RequestCategoryRow(
-                icon: Icons.electrical_services_outlined,
-                title: 'LV',
-                subtitle: 'Peralatan dan kebutuhan pekerjaan LV',
-              ),
-              Divider(height: 22),
-              _RequestCategoryRow(
-                icon: Icons.construction_outlined,
-                title: 'Drilling',
-                subtitle: 'Peralatan dan kebutuhan pekerjaan drilling',
+              const Icon(Icons.fact_check_outlined, color: AppColors.green),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  isPlanner
+                      ? 'Anda melihat seluruh pengajuan. Gunakan tombol proses pada setiap pengajuan baru untuk mencatat tindak lanjut atau alasan penolakan.'
+                      : 'Anda hanya melihat pengajuan dari akun sendiri. Isi nama barang, jumlah, kondisi kebutuhan, dan alasan secara lengkap.',
+                  style: const TextStyle(height: 1.45),
+                ),
               ),
             ],
           ),
         ),
-      ),
-      const SizedBox(height: 14),
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.mint,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.green.withValues(alpha: 0.18)),
+        const SizedBox(height: 22),
+        Text(
+          isPlanner ? 'Semua pengajuan' : 'Pengajuan saya',
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
         ),
-        child: const Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Icon(Icons.fact_check_outlined, color: AppColors.green),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Form pengajuan akan mencatat nama barang, jumlah, kondisi kebutuhan (rusak atau belum tersedia), alasan, dan status proses. Database permintaan sudah disiapkan untuk tahap berikutnya.',
-                style: TextStyle(height: 1.45),
+        const SizedBox(height: 8),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.all(28),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (error != null)
+          _MaterialRequestNotice(
+            icon: Icons.cloud_off_outlined,
+            title: 'Pengajuan belum dapat dimuat',
+            message: error!,
+            actionLabel: 'Coba lagi',
+            onAction: onRefresh,
+          )
+        else if (items.isEmpty)
+          _MaterialRequestNotice(
+            icon: Icons.inventory_2_outlined,
+            title: 'Belum ada pengajuan',
+            message: 'Pengajuan yang dikirim melalui form akan muncul di sini beserta status prosesnya.',
+            actionLabel: 'Ajukan barang',
+            onAction: onCreate,
+          )
+        else
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _MaterialRequestTile(
+                item: item,
+                showRequester: isPlanner,
+                onProcess: isPlanner ? () => onProcess?.call(item) : null,
               ),
             ),
-          ],
-        ),
-      ),
-    ],
-  );
+          ),
+      ],
+    );
+  }
 }
 
 class _OutstandingMaintenanceBody extends StatelessWidget {
@@ -552,12 +709,14 @@ class _RequestStatusCard extends StatelessWidget {
   const _RequestStatusCard({
     required this.label,
     required this.caption,
+    required this.count,
     required this.icon,
     required this.color,
   });
 
   final String label;
   final String caption;
+  final int count;
   final IconData icon;
   final Color color;
 
@@ -572,9 +731,9 @@ class _RequestStatusCard extends StatelessWidget {
           children: <Widget>[
             Icon(icon, color: color),
             const SizedBox(height: 16),
-            const Text(
-              '—',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+            Text(
+              '$count',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 4),
             Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
@@ -590,36 +749,480 @@ class _RequestStatusCard extends StatelessWidget {
   );
 }
 
-class _RequestCategoryRow extends StatelessWidget {
-  const _RequestCategoryRow({
+class _MaterialRequestNotice extends StatelessWidget {
+  const _MaterialRequestNotice({
     required this.icon,
     required this.title,
-    required this.subtitle,
+    required this.message,
+    required this.actionLabel,
+    this.onAction,
   });
 
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String message;
+  final String actionLabel;
+  final VoidCallback? onAction;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: <Widget>[
-      CircleAvatar(
-        backgroundColor: AppColors.mint,
-        child: Icon(icon, color: AppColors.green),
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(icon, color: AppColors.green, size: 30),
+          const SizedBox(height: 12),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 5),
+          Text(message, style: const TextStyle(color: AppColors.muted)),
+          if (onAction != null) ...<Widget>[
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: onAction, child: Text(actionLabel)),
+          ],
+        ],
       ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    ),
+  );
+}
+
+class _MaterialRequestTile extends StatelessWidget {
+  const _MaterialRequestTile({
+    required this.item,
+    required this.showRequester,
+    this.onProcess,
+  });
+
+  final MaterialRequest item;
+  final bool showRequester;
+  final VoidCallback? onProcess;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  item.itemName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              _MaterialRequestStatusChip(status: item.status),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            '${_quantityText(item.quantity)} ${item.unit} • ${item.area.label}',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            item.needType.label,
+            style: const TextStyle(color: AppColors.muted),
+          ),
+          const SizedBox(height: 4),
+          Text(item.reason, style: const TextStyle(height: 1.35)),
+          if (showRequester && item.requesterName != null) ...<Widget>[
+            const SizedBox(height: 9),
+            Text(
+              'Diajukan oleh ${item.requesterName}',
+              style: const TextStyle(fontSize: 12, color: AppColors.muted),
+            ),
+          ],
+          if (item.plannerNote.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.mint,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('Catatan planner: ${item.plannerNote}'),
+            ),
+          ],
+          if (onProcess != null) ...<Widget>[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onProcess,
+              icon: const Icon(Icons.task_alt_outlined),
+              label: Text(
+                item.status == MaterialRequestStatus.submitted
+                    ? 'Proses pengajuan'
+                    : 'Ubah status',
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+class _MaterialRequestStatusChip extends StatelessWidget {
+  const _MaterialRequestStatusChip({required this.status});
+
+  final MaterialRequestStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color = switch (status) {
+      MaterialRequestStatus.submitted => AppColors.orange,
+      MaterialRequestStatus.processed => AppColors.green,
+      MaterialRequestStatus.rejected => AppColors.danger,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        status.label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _MaterialRequestProcessSheet extends StatefulWidget {
+  const _MaterialRequestProcessSheet({required this.item});
+
+  final MaterialRequest item;
+
+  @override
+  State<_MaterialRequestProcessSheet> createState() =>
+      _MaterialRequestProcessSheetState();
+}
+
+class _MaterialRequestProcessSheetState
+    extends State<_MaterialRequestProcessSheet> {
+  late MaterialRequestStatus _status;
+  late final TextEditingController _note;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = widget.item.status == MaterialRequestStatus.rejected
+        ? MaterialRequestStatus.rejected
+        : MaterialRequestStatus.processed;
+    _note = TextEditingController(text: widget.item.plannerNote);
+  }
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      20,
+      4,
+      20,
+      20 + MediaQuery.viewInsetsOf(context).bottom,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Proses ${widget.item.itemName}',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '${_quantityText(widget.item.quantity)} ${widget.item.unit} • ${widget.item.area.label}',
+          style: const TextStyle(color: AppColors.muted),
+        ),
+        const SizedBox(height: 18),
+        DropdownButtonFormField<MaterialRequestStatus>(
+          initialValue: _status,
+          decoration: const InputDecoration(labelText: 'Status'),
+          items:
+              const <MaterialRequestStatus>[
+                    MaterialRequestStatus.processed,
+                    MaterialRequestStatus.rejected,
+                  ]
+                  .map(
+                    (status) => DropdownMenuItem<MaterialRequestStatus>(
+                      value: status,
+                      child: Text(status.label),
+                    ),
+                  )
+                  .toList(growable: false),
+          onChanged: (value) {
+            if (value != null) setState(() => _status = value);
+          },
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _note,
+          minLines: 2,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Catatan planner',
+            hintText: 'Contoh: sedang dicarikan supplier atau alasan penolakan',
+          ),
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () => Navigator.pop(
+              context,
+              _MaterialRequestDecision(status: _status, note: _note.text),
+            ),
+            child: const Text('Simpan status'),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MaterialRequestDecision {
+  const _MaterialRequestDecision({required this.status, required this.note});
+
+  final MaterialRequestStatus status;
+  final String note;
+}
+
+String _quantityText(num value) => value == value.roundToDouble()
+    ? value.toInt().toString()
+    : value.toString();
+
+class _MaterialRequestFormScreenState
+    extends ConsumerState<MaterialRequestFormScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _itemName = TextEditingController();
+  final _quantity = TextEditingController(text: '1');
+  final _unit = TextEditingController(text: 'unit');
+  final _reason = TextEditingController();
+  MaterialRequestArea _area = MaterialRequestArea.lv;
+  MaterialNeedType _needType = MaterialNeedType.replacement;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _itemName.dispose();
+    _quantity.dispose();
+    _unit.dispose();
+    _reason.dispose();
+    super.dispose();
+  }
+
+  MaterialRequestService? _createService() {
+    try {
+      return MaterialRequestService(Supabase.instance.client);
+    } on AssertionError {
+      return null;
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_saving || !_formKey.currentState!.validate()) return;
+    final AppUser? user = ref.read(currentUserProvider);
+    if (user == null) return;
+    final num? quantity = num.tryParse(
+      _quantity.text.trim().replaceAll(',', '.'),
+    );
+    if (quantity == null || quantity <= 0) return;
+    setState(() => _saving = true);
+    try {
+      final MaterialRequestService? service =
+          widget.service ?? _createService();
+      if (service == null) {
+        throw const FormatException('Layanan pengajuan belum tersedia.');
+      }
+      await service.submit(
+        actorId: user.id,
+        area: _area,
+        itemName: _itemName.text,
+        quantity: quantity,
+        unit: _unit.text,
+        needType: _needType,
+        reason: _reason.text,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pengajuan barang berhasil dikirim.')),
+      );
+      context.go('/material-requests');
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pengajuan belum terkirim: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AppBackScope(
+    fallbackRoute: '/material-requests',
+    child: Scaffold(
+      appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: '/material-requests'),
+        title: const Text('Ajukan Barang'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            120 + MediaQuery.paddingOf(context).bottom,
+          ),
           children: <Widget>[
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 3),
-            Text(subtitle, style: const TextStyle(color: AppColors.muted)),
+            const Text(
+              'Ajukan kebutuhan barang',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Isi kebutuhan dengan jelas agar planner dapat menentukan tindak lanjutnya.',
+              style: TextStyle(color: AppColors.muted, height: 1.45),
+            ),
+            const SizedBox(height: 20),
+            DropdownButtonFormField<MaterialRequestArea>(
+              initialValue: _area,
+              decoration: const InputDecoration(labelText: 'Area pekerjaan'),
+              items: MaterialRequestArea.values
+                  .map(
+                    (area) => DropdownMenuItem<MaterialRequestArea>(
+                      value: area,
+                      child: Text(area.label),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: _saving
+                  ? null
+                  : (value) {
+                      if (value != null) setState(() => _area = value);
+                    },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _itemName,
+              enabled: !_saving,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Nama barang atau alat',
+                hintText: 'Contoh: Ban unit kendaraan ringan',
+              ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Nama barang atau alat wajib diisi.'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextFormField(
+                    controller: _quantity,
+                    enabled: !_saving,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(labelText: 'Jumlah'),
+                    validator: (value) {
+                      final num? amount = num.tryParse(
+                        (value ?? '').trim().replaceAll(',', '.'),
+                      );
+                      return amount == null || amount <= 0
+                          ? 'Jumlah harus lebih dari 0.'
+                          : null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _unit,
+                    enabled: !_saving,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Satuan',
+                      hintText: 'unit, pcs, set',
+                    ),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Satuan wajib diisi.'
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<MaterialNeedType>(
+              initialValue: _needType,
+              decoration: const InputDecoration(labelText: 'Kondisi kebutuhan'),
+              items: MaterialNeedType.values
+                  .map(
+                    (needType) => DropdownMenuItem<MaterialNeedType>(
+                      value: needType,
+                      child: Text(needType.label),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: _saving
+                  ? null
+                  : (value) {
+                      if (value != null) setState(() => _needType = value);
+                    },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _reason,
+              enabled: !_saving,
+              minLines: 4,
+              maxLines: 7,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Alasan kebutuhan',
+                hintText:
+                    'Jelaskan kondisi barang dan dampaknya terhadap pekerjaan.',
+              ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Alasan kebutuhan wajib diisi.'
+                  : null,
+            ),
+            const SizedBox(height: 22),
+            FilledButton.icon(
+              onPressed: _saving ? null : _submit,
+              icon: _saving
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.send_rounded),
+              label: const Text('Kirim pengajuan'),
+            ),
           ],
         ),
       ),
-    ],
+    ),
   );
 }
 

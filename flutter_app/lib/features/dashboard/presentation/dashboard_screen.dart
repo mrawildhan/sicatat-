@@ -690,66 +690,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   );
 
   Widget _home(BuildContext context, String crewName, AppUser? user) {
-    final List<Widget> actions = <Widget>[
-      if (user?.role.canCreateTemperatureSheet == true ||
-          user?.role.canReviewTemperature == true)
-        _homeMenuCard(
-          icon: Icons.thermostat_rounded,
-          title: 'Suhu',
-          subtitle: user?.role.canCreateTemperatureSheet == true
-              ? 'Buat atau lanjutkan sheet'
-              : 'Tinjau pekerjaan suhu',
-          onTap: () => context.go(
-            user?.role.canCreateTemperatureSheet == true
-                ? '/sheets/new'
-                : '/sheets',
-          ),
-        ),
-      if (user?.role.canUseReminders == true)
-        _homeMenuCard(
-          icon: Icons.notifications_active_rounded,
-          title: 'Pengingat',
-          subtitle: 'Tindak lanjut pekerjaan',
-          onTap: () => context.go('/reminders'),
-        ),
-      if (user?.role.canUseWarehouse == true)
-        _homeMenuCard(
-          icon: Icons.inventory_2_rounded,
-          title: 'Gudang',
-          subtitle: 'Cari stok & lokasi barang',
-          onTap: () => context.go('/warehouse'),
-        ),
-      _homeMenuCard(
-        icon: Icons.folder_shared_rounded,
-        title: 'Pusat Dokumen',
-        subtitle: 'Cari SOP, izin kerja, JSEA, manual, dan drawing',
-        onTap: () => context.go('/documents'),
-      ),
-      _homeMenuCard(
-        icon: Icons.account_balance_wallet_rounded,
-        title: 'Anggaran Operasional',
-        subtitle: 'Pantau budget, aktual, dan sisa anggaran',
-        onTap: () => context.go('/budget'),
-      ),
-      _homeMenuCard(
-        icon: Icons.handyman_outlined,
-        title: 'Permintaan Barang',
-        subtitle: 'Order kebutuhan LV dan Drilling',
-        onTap: () => context.go('/material-requests'),
-      ),
-      _homeMenuCard(
-        icon: Icons.pending_actions_outlined,
-        title: 'Outstanding PM & CM',
-        subtitle: 'Pantau pekerjaan yang belum selesai',
-        onTap: () => context.go('/outstanding-maintenance'),
-      ),
-      _homeMenuCard(
-        icon: Icons.assignment_rounded,
-        title: 'Notulen Rapat',
-        subtitle: 'Buat dan lanjutkan draf MOM',
-        onTap: () => context.go('/meeting-minutes'),
-      ),
-    ];
+    final bool hasTemperature =
+        user?.role.canCreateTemperatureSheet == true ||
+        user?.role.canReviewTemperature == true;
+    final bool hasReminders = user?.role.canUseReminders == true;
+    final bool hasWarehouse = user?.role.canUseWarehouse == true;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
@@ -786,28 +731,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         const SizedBox(height: 20),
         const Text(
-          'Menu utama',
+          'Akses cepat',
           style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 4),
         const Text(
-          'Informasi rinci muncul setelah Anda membuka menu.',
+          'Pilih kelompok menu untuk melihat fitur di dalamnya.',
           style: TextStyle(color: AppColors.muted, fontSize: 13),
         ),
         const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) => Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 10,
-            runSpacing: 10,
-            children: actions
-                .map(
-                  (Widget action) => SizedBox(
-                    width: (constraints.maxWidth - 10) / 2,
-                    child: action,
-                  ),
-                )
-                .toList(growable: false),
+        _homeMenuCard(
+          icon: Icons.fact_check_rounded,
+          title: 'Operasional',
+          subtitle: 'Suhu, pengingat, anggaran, permintaan barang, outstanding PM & CM, dan notulen',
+          onTap: () => openNavigationGroup(
+            context,
+            operational: true,
+            canTemperature: hasTemperature,
+            canReminders: hasReminders,
+            canWarehouse: hasWarehouse,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _homeMenuCard(
+          icon: Icons.folder_copy_rounded,
+          title: 'Referensi',
+          subtitle: 'Gudang, pusat dokumen, SOP, manual, dan drawing',
+          onTap: () => openNavigationGroup(
+            context,
+            operational: false,
+            canTemperature: hasTemperature,
+            canReminders: hasReminders,
+            canWarehouse: hasWarehouse,
           ),
         ),
         const SizedBox(height: 12),
@@ -827,28 +782,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     child: InkWell(
       onTap: onTap,
       child: SizedBox(
-        height: 116,
+        height: 96,
         child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              Icon(icon, color: AppColors.green, size: 25),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w800),
+              CircleAvatar(
+                backgroundColor: AppColors.mint,
+                child: Icon(icon, color: AppColors.green),
               ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted, fontSize: 12),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
             ],
           ),
         ),
