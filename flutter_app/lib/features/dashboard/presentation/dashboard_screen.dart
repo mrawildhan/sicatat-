@@ -732,6 +732,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         onTap: () => context.go('/budget'),
       ),
       _homeMenuCard(
+        icon: Icons.handyman_outlined,
+        title: 'Permintaan Barang',
+        subtitle: 'Order kebutuhan LV dan Drilling',
+        onTap: () => context.go('/material-requests'),
+      ),
+      _homeMenuCard(
+        icon: Icons.pending_actions_outlined,
+        title: 'Outstanding PM & CM',
+        subtitle: 'Pantau pekerjaan yang belum selesai',
+        onTap: () => context.go('/outstanding-maintenance'),
+      ),
+      _homeMenuCard(
         icon: Icons.assignment_rounded,
         title: 'Notulen Rapat',
         subtitle: 'Buat dan lanjutkan draf MOM',

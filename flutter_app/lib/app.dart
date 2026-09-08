@@ -304,6 +304,42 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/material-requests',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.materialRequests,
+          child: MaterialRequestOverviewScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/outstanding-maintenance',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.outstandingMaintenance,
+          child: OutstandingMaintenanceScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
       path: '/meeting-minutes/new',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{

@@ -17,6 +17,8 @@ enum MainNavigationTab {
   temperature,
   reminders,
   budget,
+  materialRequests,
+  outstandingMaintenance,
   meetingMinutes,
   warehouse,
   documents,
@@ -74,6 +76,8 @@ class MainNavigationScaffold extends ConsumerWidget {
           MainNavigationTab.temperature ||
           MainNavigationTab.reminders ||
           MainNavigationTab.budget ||
+          MainNavigationTab.materialRequests ||
+          MainNavigationTab.outstandingMaintenance ||
           MainNavigationTab.meetingMinutes => MainNavigationTab.operational,
           MainNavigationTab.warehouse ||
           MainNavigationTab.documents => MainNavigationTab.reference,
@@ -116,6 +120,12 @@ class MainNavigationScaffold extends ConsumerWidget {
               return;
             case MainNavigationTab.budget:
               context.go('/budget');
+              return;
+            case MainNavigationTab.materialRequests:
+              context.go('/material-requests');
+              return;
+            case MainNavigationTab.outstandingMaintenance:
+              context.go('/outstanding-maintenance');
               return;
             case MainNavigationTab.meetingMinutes:
               context.go('/meeting-minutes');

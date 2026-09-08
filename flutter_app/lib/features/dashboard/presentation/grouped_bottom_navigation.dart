@@ -56,6 +56,21 @@ Future<void> openNavigationGroup(
               ),
             if (operational)
               ListTile(
+                leading: const Icon(Icons.handyman_outlined),
+                title: const Text('Permintaan Barang'),
+                subtitle: const Text('Order barang LV dan Drilling'),
+                onTap: () => Navigator.pop(sheetContext, '/material-requests'),
+              ),
+            if (operational)
+              ListTile(
+                leading: const Icon(Icons.pending_actions_outlined),
+                title: const Text('Outstanding PM & CM'),
+                subtitle: const Text('Pantau pekerjaan yang belum selesai'),
+                onTap: () =>
+                    Navigator.pop(sheetContext, '/outstanding-maintenance'),
+              ),
+            if (operational)
+              ListTile(
                 leading: const Icon(Icons.assignment_outlined),
                 title: const Text('Notulen Rapat'),
                 subtitle: const Text('Buat dan lanjutkan draf MOM'),
@@ -113,7 +128,12 @@ class GroupedBottomNavigation extends StatelessWidget {
       'profile',
     ];
     final current = switch (selected) {
-      'temperature' || 'reminders' => 'operational',
+      'temperature' ||
+      'reminders' ||
+      'budget' ||
+      'materialRequests' ||
+      'outstandingMaintenance' ||
+      'meetingMinutes' => 'operational',
       'warehouse' || 'documents' => 'reference',
       _ => selected,
     };

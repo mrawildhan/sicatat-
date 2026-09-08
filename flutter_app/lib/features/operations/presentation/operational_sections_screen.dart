@@ -24,6 +24,28 @@ class BudgetOverviewScreen extends StatelessWidget {
   );
 }
 
+class MaterialRequestOverviewScreen extends StatelessWidget {
+  const MaterialRequestOverviewScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => const _OperationalSectionPage(
+    title: 'Permintaan Barang',
+    icon: Icons.handyman_outlined,
+    child: _MaterialRequestOverviewBody(),
+  );
+}
+
+class OutstandingMaintenanceScreen extends StatelessWidget {
+  const OutstandingMaintenanceScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => const _OperationalSectionPage(
+    title: 'Outstanding PM & CM',
+    icon: Icons.pending_actions_outlined,
+    child: _OutstandingMaintenanceBody(),
+  );
+}
+
 class MeetingMinutesScreen extends ConsumerStatefulWidget {
   const MeetingMinutesScreen({this.service, super.key});
 
@@ -342,6 +364,336 @@ class _BudgetOverviewBody extends StatelessWidget {
         ),
       ),
     ],
+  );
+}
+
+class _MaterialRequestOverviewBody extends StatelessWidget {
+  const _MaterialRequestOverviewBody();
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      const Text(
+        'Permintaan order barang LV & Drilling',
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+      ),
+      const SizedBox(height: 6),
+      const Text(
+        'Crew mengajukan kebutuhan alat atau barang secara terstruktur. Planner memantau alasan serta status prosesnya.',
+        style: TextStyle(color: AppColors.muted, height: 1.45),
+      ),
+      const SizedBox(height: 18),
+      const Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: <Widget>[
+          _RequestStatusCard(
+            label: 'Diajukan',
+            caption: 'Menunggu proses',
+            icon: Icons.send_outlined,
+            color: AppColors.orange,
+          ),
+          _RequestStatusCard(
+            label: 'Diproses',
+            caption: 'Sedang ditindaklanjuti',
+            icon: Icons.hourglass_top_rounded,
+            color: AppColors.green,
+          ),
+          _RequestStatusCard(
+            label: 'Ditolak',
+            caption: 'Tidak dapat dipenuhi',
+            icon: Icons.cancel_outlined,
+            color: AppColors.danger,
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+      const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(Icons.category_outlined, color: AppColors.green),
+                  SizedBox(width: 10),
+                  Text(
+                    'Kategori permintaan',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ],
+              ),
+              SizedBox(height: 14),
+              _RequestCategoryRow(
+                icon: Icons.electrical_services_outlined,
+                title: 'LV',
+                subtitle: 'Peralatan dan kebutuhan pekerjaan LV',
+              ),
+              Divider(height: 22),
+              _RequestCategoryRow(
+                icon: Icons.construction_outlined,
+                title: 'Drilling',
+                subtitle: 'Peralatan dan kebutuhan pekerjaan drilling',
+              ),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: 14),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.mint,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.green.withValues(alpha: 0.18)),
+        ),
+        child: const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(Icons.fact_check_outlined, color: AppColors.green),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Form pengajuan akan mencatat nama barang, jumlah, kondisi kebutuhan (rusak atau belum tersedia), alasan, dan status proses. Database permintaan sudah disiapkan untuk tahap berikutnya.',
+                style: TextStyle(height: 1.45),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _OutstandingMaintenanceBody extends StatelessWidget {
+  const _OutstandingMaintenanceBody();
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      const Text(
+        'Pantau PM dan CM yang masih outstanding',
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+      ),
+      const SizedBox(height: 6),
+      const Text(
+        'Memberi visibilitas mingguan kepada foreman sebelum pekerjaan atau dokumennya tertinggal.',
+        style: TextStyle(color: AppColors.muted, height: 1.45),
+      ),
+      const SizedBox(height: 18),
+      const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            children: <Widget>[
+              _OutstandingSourceRow(
+                icon: Icons.calendar_month_outlined,
+                title: 'Preventive Maintenance (PM)',
+                subtitle: 'Spreadsheet diperbarui setiap hari Jumat',
+              ),
+              Divider(height: 24),
+              _OutstandingSourceRow(
+                icon: Icons.build_circle_outlined,
+                title: 'Corrective Maintenance (CM)',
+                subtitle:
+                    'Spreadsheet diperbarui Jumat atau Senin setelah meeting',
+              ),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: 16),
+      const Text(
+        'Outstanding per crew',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+      ),
+      const SizedBox(height: 10),
+      const Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: <Widget>[
+          _OutstandingCrewCard(crew: 'Crew A'),
+          _OutstandingCrewCard(crew: 'Crew B'),
+          _OutstandingCrewCard(crew: 'Crew C'),
+        ],
+      ),
+      const SizedBox(height: 16),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.orange.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.orange.withValues(alpha: 0.22)),
+        ),
+        child: const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(Icons.table_chart_outlined, color: AppColors.orange),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Sumber spreadsheet PM dan CM belum dihubungkan. Setelah file tersedia, kartu ini akan menampilkan jumlah PM dan CM outstanding, termasuk pekerjaan yang sudah dikerjakan tetapi belum dikumpulkan.',
+                style: TextStyle(height: 1.45),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _RequestStatusCard extends StatelessWidget {
+  const _RequestStatusCard({
+    required this.label,
+    required this.caption,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String caption;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 186,
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(icon, color: color),
+            const SizedBox(height: 16),
+            const Text(
+              '—',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 4),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 3),
+            Text(
+              caption,
+              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _RequestCategoryRow extends StatelessWidget {
+  const _RequestCategoryRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: <Widget>[
+      CircleAvatar(
+        backgroundColor: AppColors.mint,
+        child: Icon(icon, color: AppColors.green),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 3),
+            Text(subtitle, style: const TextStyle(color: AppColors.muted)),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _OutstandingSourceRow extends StatelessWidget {
+  const _OutstandingSourceRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: <Widget>[
+      CircleAvatar(
+        backgroundColor: AppColors.mint,
+        child: Icon(icon, color: AppColors.green),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text(subtitle, style: const TextStyle(color: AppColors.muted)),
+          ],
+        ),
+      ),
+      const Icon(Icons.schedule_rounded, color: AppColors.muted),
+    ],
+  );
+}
+
+class _OutstandingCrewCard extends StatelessWidget {
+  const _OutstandingCrewCard({required this.crew});
+
+  final String crew;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 186,
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(crew, style: const TextStyle(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 14),
+            const Text(
+              'PM outstanding',
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+            const Text(
+              '—',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'CM outstanding',
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+            const Text(
+              '—',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
+      ),
+    ),
   );
 }
 

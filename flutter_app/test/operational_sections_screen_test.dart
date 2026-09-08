@@ -21,4 +21,31 @@ void main() {
     expect(find.text('Draf  0'), findsOneWidget);
     expect(find.text('Buat notulen'), findsOneWidget);
   });
+
+  testWidgets('permintaan barang menampilkan status dan dua kategori', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: MaterialRequestOverviewScreen()),
+    );
+
+    expect(find.text('Permintaan order barang LV & Drilling'), findsOneWidget);
+    expect(find.text('Diajukan'), findsOneWidget);
+    expect(find.text('Diproses'), findsOneWidget);
+    expect(find.text('Ditolak'), findsOneWidget);
+    expect(find.text('LV'), findsOneWidget);
+    expect(find.text('Drilling'), findsOneWidget);
+  });
+
+  testWidgets('outstanding menampilkan sumber dan tiga crew', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: OutstandingMaintenanceScreen()),
+    );
+
+    expect(find.text('Preventive Maintenance (PM)'), findsOneWidget);
+    expect(find.text('Corrective Maintenance (CM)'), findsOneWidget);
+    expect(find.text('Crew A'), findsOneWidget);
+    expect(find.text('Crew B'), findsOneWidget);
+    expect(find.text('Crew C'), findsOneWidget);
+  });
 }
