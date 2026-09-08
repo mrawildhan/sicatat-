@@ -523,7 +523,11 @@ class _MeetingMinuteTile extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 5),
-          child: Text('$date • ${item.actions.length} tindak lanjut'),
+          child: Text(
+            item.followUpSource == null
+                ? '$date • ${item.actions.length} tindak lanjut'
+                : '$date • Tindak lanjut dari ${item.followUpSource!.title.trim().isEmpty ? 'notulen sebelumnya' : item.followUpSource!.title}',
+          ),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -567,9 +571,10 @@ class _MeetingBadge extends StatelessWidget {
 }
 
 class MeetingMinuteEditorScreen extends ConsumerStatefulWidget {
-  const MeetingMinuteEditorScreen({this.meetingId, super.key});
+  const MeetingMinuteEditorScreen({this.meetingId, this.followUpOf, super.key});
 
   final String? meetingId;
+  final String? followUpOf;
 
   @override
   ConsumerState<MeetingMinuteEditorScreen> createState() =>
@@ -592,6 +597,7 @@ class _MeetingMinuteEditorScreenState
   final TextEditingController _note = TextEditingController();
   final List<_ActionDraft> _actions = <_ActionDraft>[];
   MeetingMinute? _minute;
+  MeetingMinute? _followUpSource;
   DateTime? _date;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
@@ -600,6 +606,7 @@ class _MeetingMinuteEditorScreenState
   String? _error;
 
   bool get _isNew => widget.meetingId == null;
+  bool get _isFollowUp => _isNew && widget.followUpOf != null;
 
   @override
   void initState() {
@@ -627,9 +634,43 @@ class _MeetingMinuteEditorScreenState
   Future<void> _load() async {
     try {
       if (_isNew) {
-        _date = DateTime.now();
-        _minuteTaker.text = ref.read(currentUserProvider)?.name ?? '';
-        _actions.add(_ActionDraft(itemDate: _date));
+        if (_isFollowUp) {
+          final MeetingMinute source = await _service.loadOne(
+            widget.followUpOf!,
+          );
+          _followUpSource = source;
+          _date = DateTime.now().add(const Duration(days: 7));
+          _title.text = source.title.trim().isEmpty
+              ? 'Tindak lanjut notulen'
+              : '${source.title.trim()} - Tindak lanjut';
+          _location.text = source.location;
+          _attendees.text = source.attendees;
+          _apologies.text = source.apologies;
+          _minuteTaker.text = source.minuteTaker.isEmpty
+              ? (ref.read(currentUserProvider)?.name ?? '')
+              : source.minuteTaker;
+          _distribution.text = source.distributionList;
+          _agenda.text = source.newBusinessAgenda;
+          _proposedBy.text = source.proposedBy;
+          _note.text =
+              'Tindak lanjut dari ${source.title.trim().isEmpty ? 'notulen sebelumnya' : source.title.trim()}.';
+          _actions.addAll(
+            source.actions.map(
+              (MeetingMinuteAction action) => _ActionDraft(
+                itemDate: action.itemDate,
+                issueDescription: action.issueDescription,
+                subject: action.subjectDiscussion,
+                assignedTo: action.assignedTo,
+                dueDate: action.dueDate,
+                progressRemark: action.progressRemark,
+              ),
+            ),
+          );
+        } else {
+          _date = DateTime.now();
+          _minuteTaker.text = ref.read(currentUserProvider)?.name ?? '';
+        }
+        if (_actions.isEmpty) _actions.add(_ActionDraft(itemDate: _date));
       } else {
         final MeetingMinute minute = await _service.loadOne(widget.meetingId!);
         _minute = minute;
@@ -771,6 +812,7 @@ class _MeetingMinuteEditorScreenState
         newBusinessAgenda: _agenda.text,
         proposedBy: _proposedBy.text,
         note: _note.text,
+        followUpOf: _minute?.followUpOf ?? widget.followUpOf,
         status: status,
         actions: <MeetingMinuteAction>[
           for (int index = 0; index < _actions.length; index++)
@@ -896,7 +938,9 @@ class _MeetingMinuteEditorScreenState
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         title: const Text('Hapus notulen?'),
-        content: const Text('Notulen dan semua tindak lanjutnya akan dihapus.'),
+        content: const Text(
+          'Notulen ini akan dihapus. Tindak lanjut yang sudah dibuat tetap tersimpan tanpa tautan ke notulen ini.',
+        ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -923,6 +967,15 @@ class _MeetingMinuteEditorScreenState
   Widget build(BuildContext context) {
     final bool desktop = kIsWeb && MediaQuery.sizeOf(context).width >= 920;
     final String pageTitle = _isNew ? 'Buat Notulen' : 'Edit Notulen';
+    final MeetingMinuteReference? linkedSource =
+        _minute?.followUpSource ??
+        (_followUpSource == null
+            ? null
+            : MeetingMinuteReference(
+                id: _followUpSource!.id,
+                title: _followUpSource!.title,
+                meetingDate: _followUpSource!.meetingDate,
+              ));
     return AppBackScope(
       fallbackRoute: '/meeting-minutes',
       child: Scaffold(
@@ -996,6 +1049,19 @@ class _MeetingMinuteEditorScreenState
                       ],
                     ),
                     const SizedBox(height: 16),
+                  ],
+                  if (linkedSource != null) ...<Widget>[
+                    Card(
+                      color: AppColors.mint,
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Text(
+                          'Tindak lanjut dari: ${linkedSource.title.trim().isEmpty ? 'notulen sebelumnya' : linkedSource.title}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                   ],
                   _SectionCard(
                     title: 'Identitas rapat',
@@ -1174,20 +1240,34 @@ class _MeetingMinuteEditorScreenState
                   ),
                   const SizedBox(height: 20),
                   if (_minute?.status == MeetingMinuteStatus.completed)
-                    FilledButton.icon(
-                      onPressed: _saving
-                          ? null
-                          : () => _save(MeetingMinuteStatus.completed),
-                      icon: _saving
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.save_rounded),
-                      label: const Text('Simpan perubahan'),
+                    Column(
+                      children: <Widget>[
+                        FilledButton.icon(
+                          onPressed: _saving
+                              ? null
+                              : () => _save(MeetingMinuteStatus.completed),
+                          icon: _saving
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.save_rounded),
+                          label: const Text('Simpan perubahan'),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: _saving
+                              ? null
+                              : () => context.go(
+                                  '/meeting-minutes/${_minute!.id}/follow-up',
+                                ),
+                          icon: const Icon(Icons.next_plan_outlined),
+                          label: const Text('Buat tindak lanjut'),
+                        ),
+                      ],
                     )
                   else ...<Widget>[
                     OutlinedButton.icon(

@@ -322,6 +322,26 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/meeting-minutes/:id/follow-up',
+      builder: (_, state) => RoleGuard(
+        allowed: const <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.meetingMinutes,
+          child: MeetingMinuteEditorScreen(
+            followUpOf: state.pathParameters['id'],
+          ),
+        ),
+      ),
+    ),
+    GoRoute(
       path: '/meeting-minutes/:id',
       builder: (_, state) => RoleGuard(
         allowed: const <UserRole>{

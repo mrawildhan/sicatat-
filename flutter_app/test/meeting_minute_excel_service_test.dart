@@ -22,6 +22,12 @@ void main() {
         location: 'Muara Port STI',
         attendees: 'Arutmin Indonesia, PLN, TCI',
         minuteTaker: 'Ilham Ananto',
+        followUpOf: 'mom-sebelumnya',
+        followUpSource: MeetingMinuteReference(
+          id: 'mom-sebelumnya',
+          title: 'MOM Ban Bocor Kendaraan Ringan',
+          meetingDate: DateTime(2026, 1, 23),
+        ),
         actions: <MeetingMinuteAction>[
           MeetingMinuteAction(
             itemDate: DateTime(2025, 9, 22),
@@ -110,18 +116,23 @@ void main() {
       expect(sheetXml, contains('Issues Description'));
       expect(sheetXml, contains('Action Plan'));
       expect(sheetXml, contains('Progress /\nRemark'));
+      expect(sheetXml, contains('Tindak lanjut dari'));
+      expect(
+        sheetXml,
+        contains('MOM Ban Bocor Kendaraan Ringan (23 Januari 2026)'),
+      );
       expect(sheetXml, contains('panel-lvmdp.png'));
       expect(sheetXml, contains('screenshot-email.png'));
-      expect(sheetXml, contains('<mergeCell ref="A14:A17"/>'));
-      expect(sheetXml, contains('<mergeCell ref="B14:B17"/>'));
+      expect(sheetXml, contains('<mergeCell ref="A15:A18"/>'));
+      expect(sheetXml, contains('<mergeCell ref="B15:B18"/>'));
       expect(
         utf8.decode(files['xl/drawings/drawing1.xml']!.content),
         allOf(
           contains('Foto pembahasan 1'),
           contains('Foto pembahasan 2'),
           contains('<xdr:col>2</xdr:col>'),
-          contains('<xdr:row>14</xdr:row>'),
           contains('<xdr:row>15</xdr:row>'),
+          contains('<xdr:row>16</xdr:row>'),
         ),
       );
       expect(

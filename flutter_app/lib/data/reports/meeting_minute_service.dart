@@ -11,7 +11,7 @@ class MeetingMinuteService {
   final SupabaseClient _client;
   static const String photoBucket = 'meeting-minute-photos';
   static const String _select =
-      'id,title,meeting_date,start_time,end_time,location,attendees,apologies,minute_taker,distribution_list,new_business_agenda,proposed_by,note,status,created_by,updated_at,meeting_minute_action(id,item_date,issue_description,subject_discussion,assigned_to,due_date,position,progress_remark,meeting_minute_action_photo(id,meeting_minute_action_id,storage_path,file_name,mime_type,position))';
+      'id,title,meeting_date,start_time,end_time,location,attendees,apologies,minute_taker,distribution_list,new_business_agenda,proposed_by,note,status,created_by,updated_at,follow_up_of,follow_up_source:meeting_minute!meeting_minute_follow_up_of_fkey(id,title,meeting_date),meeting_minute_action(id,item_date,issue_description,subject_discussion,assigned_to,due_date,position,progress_remark,meeting_minute_action_photo(id,meeting_minute_action_id,storage_path,file_name,mime_type,position))';
 
   Future<List<MeetingMinute>> loadAll() async {
     final Object response = await _client
@@ -56,6 +56,7 @@ class MeetingMinuteService {
     required String newBusinessAgenda,
     required String proposedBy,
     required String note,
+    String? followUpOf,
     required MeetingMinuteStatus status,
     required List<MeetingMinuteAction> actions,
   }) async {
@@ -73,6 +74,7 @@ class MeetingMinuteService {
       'proposed_by': proposedBy.trim(),
       'note': note.trim(),
       'status': status.storageValue,
+      'follow_up_of': followUpOf,
     };
     final String meetingId;
     if (id == null) {
@@ -321,7 +323,8 @@ class MeetingMinuteExcelService {
     sheet.metadata(8, 'Distribusi', minute.distributionList);
     sheet.metadata(9, 'Agenda baru', minute.newBusinessAgenda);
     sheet.metadata(10, 'Diajukan oleh', minute.proposedBy);
-    sheet.merge('A12:G12', 'ACTION PLAN', 4, 22);
+    sheet.metadata(11, 'Tindak lanjut dari', _followUpText(minute));
+    sheet.merge('A13:G13', 'ACTION PLAN', 4, 22);
     const List<String> headers = <String>[
       'No.',
       'Issues Description',
@@ -332,11 +335,11 @@ class MeetingMinuteExcelService {
       'Progress /\nRemark',
     ];
     for (int column = 0; column < headers.length; column++) {
-      sheet.cell(column, 13, headers[column], 5);
+      sheet.cell(column, 14, headers[column], 5);
     }
     final List<_XlsxPhoto> workbookPhotos = <_XlsxPhoto>[];
     int actionIndex = 0;
-    int row = 14;
+    int row = 15;
     int issueNumber = 1;
     while (actionIndex < actions.length) {
       final String issue = _issueText(actions[actionIndex]);
@@ -460,6 +463,16 @@ class MeetingMinuteExcelService {
         : '$start–$end';
     if (date.isEmpty) return range.isEmpty ? '' : '$range WITA';
     return range.isEmpty ? date : '$date, $range WITA';
+  }
+
+  static String _followUpText(MeetingMinute minute) {
+    final MeetingMinuteReference? source = minute.followUpSource;
+    if (source == null) return '—';
+    final String title = source.title.trim().isEmpty
+        ? 'Notulen sebelumnya'
+        : source.title.trim();
+    final String date = _date(source.meetingDate, format: 'd MMMM y');
+    return date.isEmpty ? title : '$title ($date)';
   }
 
   static String _issueText(MeetingMinuteAction action) {

@@ -122,6 +122,27 @@ class MeetingMinuteActionPhoto {
       );
 }
 
+class MeetingMinuteReference {
+  const MeetingMinuteReference({
+    required this.id,
+    required this.title,
+    this.meetingDate,
+  });
+
+  final String id;
+  final String title;
+  final DateTime? meetingDate;
+
+  factory MeetingMinuteReference.fromJson(JsonMap json) =>
+      MeetingMinuteReference(
+        id: json.requiredString('id'),
+        title: json.optionalString('title') ?? '',
+        meetingDate: MeetingMinuteAction._date(
+          json.optionalString('meeting_date'),
+        ),
+      );
+}
+
 class MeetingMinute {
   const MeetingMinute({
     required this.id,
@@ -141,6 +162,8 @@ class MeetingMinute {
     this.newBusinessAgenda = '',
     this.proposedBy = '',
     this.note = '',
+    this.followUpOf,
+    this.followUpSource,
   });
 
   final String id;
@@ -160,6 +183,8 @@ class MeetingMinute {
   final String newBusinessAgenda;
   final String proposedBy;
   final String note;
+  final String? followUpOf;
+  final MeetingMinuteReference? followUpSource;
 
   factory MeetingMinute.fromJson(JsonMap json) {
     final Object? rawActions = json['meeting_minute_action'];
@@ -196,6 +221,15 @@ class MeetingMinute {
       newBusinessAgenda: json.optionalString('new_business_agenda') ?? '',
       proposedBy: json.optionalString('proposed_by') ?? '',
       note: json.optionalString('note') ?? '',
+      followUpOf: json.optionalString('follow_up_of'),
+      followUpSource: json['follow_up_source'] is Map
+          ? MeetingMinuteReference.fromJson(
+              requireJsonMap(
+                json['follow_up_source'],
+                source: 'meeting minute follow up',
+              ),
+            )
+          : null,
     );
   }
 }
