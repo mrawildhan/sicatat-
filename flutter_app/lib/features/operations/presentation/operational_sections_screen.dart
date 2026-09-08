@@ -731,11 +731,11 @@ class _MeetingMinuteEditorScreenState
     if (_minuteTaker.text.trim().isEmpty) {
       return 'Nama pencatat notulen wajib diisi sebelum diselesaikan.';
     }
-    final bool hasDiscussion = _actions.any(
+    final bool hasActionPlan = _actions.any(
       (_ActionDraft action) => action.subject.text.trim().isNotEmpty,
     );
-    if (!hasDiscussion) {
-      return 'Isi minimal satu pembahasan atau tindak lanjut sebelum diselesaikan.';
+    if (!hasActionPlan) {
+      return 'Isi minimal satu action plan sebelum notulen diselesaikan.';
     }
     return null;
   }
@@ -824,8 +824,8 @@ class _MeetingMinuteEditorScreenState
       _message('Simpan draf terlebih dahulu sebelum menambahkan foto.');
       return;
     }
-    if (action.photos.isNotEmpty) {
-      _message('Setiap pembahasan hanya dapat memiliki satu foto.');
+    if (action.photos.length >= 2) {
+      _message('Setiap action plan maksimal dapat memiliki dua foto.');
       return;
     }
     final FilePickerResult? selected = await FilePicker.platform.pickFiles(
@@ -1103,7 +1103,7 @@ class _MeetingMinuteEditorScreenState
                   ),
                   const SizedBox(height: 14),
                   _SectionCard(
-                    title: 'Pembahasan dan tindak lanjut',
+                    title: 'Issues dan action plan',
                     icon: Icons.checklist_rounded,
                     child: Column(
                       children: <Widget>[
@@ -1135,10 +1135,25 @@ class _MeetingMinuteEditorScreenState
                         const SizedBox(height: 4),
                         OutlinedButton.icon(
                           onPressed: () => setState(
-                            () => _actions.add(_ActionDraft(itemDate: _date)),
+                            () => _actions.add(
+                              _ActionDraft(
+                                itemDate: _date,
+                                issueDescription: _actions.isEmpty
+                                    ? ''
+                                    : _actions.last.issue.text,
+                              ),
+                            ),
                           ),
                           icon: const Icon(Icons.add_rounded),
-                          label: const Text('Tambah tindak lanjut'),
+                          label: const Text('Tambah action plan'),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: () => setState(
+                            () => _actions.add(_ActionDraft(itemDate: _date)),
+                          ),
+                          icon: const Icon(Icons.add_comment_outlined),
+                          label: const Text('Tambah issue baru'),
                         ),
                       ],
                     ),
@@ -1377,13 +1392,13 @@ class _ActionEditor extends StatelessWidget {
       Row(
         children: <Widget>[
           Text(
-            'Tindak lanjut ${index + 1}',
+            'Action plan ${index + 1}',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const Spacer(),
           if (onRemove != null)
             IconButton(
-              tooltip: 'Hapus tindak lanjut',
+              tooltip: 'Hapus action plan',
               onPressed: onRemove,
               icon: const Icon(
                 Icons.remove_circle_outline_rounded,
@@ -1394,19 +1409,25 @@ class _ActionEditor extends StatelessWidget {
       ),
       const SizedBox(height: 6),
       TextField(
+        controller: action.issue,
+        minLines: 3,
+        maxLines: 8,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: const InputDecoration(labelText: 'Issues description'),
+      ),
+      const SizedBox(height: 12),
+      TextField(
         controller: action.subject,
         minLines: 3,
         maxLines: 8,
         textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(
-          labelText: 'Pembahasan / tindakan yang disepakati',
-        ),
+        decoration: const InputDecoration(labelText: 'Action plan'),
       ),
       const SizedBox(height: 12),
       TextField(
         controller: action.assignedTo,
         textCapitalization: TextCapitalization.words,
-        decoration: const InputDecoration(labelText: 'Penanggung jawab'),
+        decoration: const InputDecoration(labelText: 'Resp. person'),
       ),
       const SizedBox(height: 12),
       Wrap(
@@ -1414,7 +1435,7 @@ class _ActionEditor extends StatelessWidget {
         runSpacing: 10,
         children: <Widget>[
           _PickerField(
-            label: 'Tanggal item',
+            label: 'Date raised',
             value: action.itemDate == null
                 ? 'Pilih tanggal'
                 : _momShortDate(action.itemDate!),
@@ -1422,7 +1443,7 @@ class _ActionEditor extends StatelessWidget {
             onTap: onItemDate,
           ),
           _PickerField(
-            label: 'Tenggat',
+            label: 'Due date',
             value: action.dueDate == null
                 ? 'Belum ditentukan'
                 : _momShortDate(action.dueDate!),
@@ -1438,11 +1459,11 @@ class _ActionEditor extends StatelessWidget {
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
-              'Foto pembahasan (opsional, maksimal satu)',
+              'Foto bukti action plan (opsional, maksimal dua)',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
-          if (action.photos.isEmpty)
+          if (action.photos.length < 2)
             TextButton.icon(
               onPressed: onAddPhoto,
               icon: const Icon(Icons.add_photo_alternate_outlined),
@@ -1452,7 +1473,7 @@ class _ActionEditor extends StatelessWidget {
       ),
       if (action.photos.isEmpty)
         const Text(
-          'Simpan sebagai draf terlebih dahulu, lalu foto dapat ditambahkan.',
+          'Simpan sebagai draf terlebih dahulu, lalu maksimal dua foto dapat ditambahkan.',
           style: TextStyle(fontSize: 12, color: AppColors.muted),
         )
       else
@@ -1462,16 +1483,27 @@ class _ActionEditor extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: <Widget>[
-              _ActionPhotoTile(
-                photo: action.photos.first,
-                photoUrl: photoUrl,
-                onDelete: onDeletePhoto == null
-                    ? null
-                    : () => onDeletePhoto!(action.photos.first),
-              ),
+              for (final MeetingMinuteActionPhoto photo in action.photos.take(
+                2,
+              ))
+                _ActionPhotoTile(
+                  photo: photo,
+                  photoUrl: photoUrl,
+                  onDelete: onDeletePhoto == null
+                      ? null
+                      : () => onDeletePhoto!(photo),
+                ),
             ],
           ),
         ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: action.progress,
+        minLines: 2,
+        maxLines: 6,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: const InputDecoration(labelText: 'Progress / remark'),
+      ),
     ],
   );
 }
@@ -1555,18 +1587,24 @@ class _ActionDraft {
     this.id,
     this.itemDate,
     this.dueDate,
+    String issueDescription = '',
     String subject = '',
     String assignedTo = '',
+    String progressRemark = '',
     this.photos = const <MeetingMinuteActionPhoto>[],
-  }) : subject = TextEditingController(text: subject),
-       assignedTo = TextEditingController(text: assignedTo);
+  }) : issue = TextEditingController(text: issueDescription),
+       subject = TextEditingController(text: subject),
+       assignedTo = TextEditingController(text: assignedTo),
+       progress = TextEditingController(text: progressRemark);
 
   factory _ActionDraft.fromModel(MeetingMinuteAction action) => _ActionDraft(
     id: action.id,
     itemDate: action.itemDate,
     dueDate: action.dueDate,
+    issueDescription: action.issueDescription,
     subject: action.subjectDiscussion,
     assignedTo: action.assignedTo,
+    progressRemark: action.progressRemark,
     photos: action.photos,
   );
 
@@ -1574,22 +1612,28 @@ class _ActionDraft {
   DateTime? itemDate;
   DateTime? dueDate;
   final List<MeetingMinuteActionPhoto> photos;
+  final TextEditingController issue;
   final TextEditingController subject;
   final TextEditingController assignedTo;
+  final TextEditingController progress;
 
   MeetingMinuteAction toModel({required int position}) => MeetingMinuteAction(
     id: id,
     itemDate: itemDate,
     dueDate: dueDate,
+    issueDescription: issue.text,
     subjectDiscussion: subject.text,
     assignedTo: assignedTo.text,
     position: position,
+    progressRemark: progress.text,
     photos: photos,
   );
 
   void dispose() {
+    issue.dispose();
     subject.dispose();
     assignedTo.dispose();
+    progress.dispose();
   }
 }
 

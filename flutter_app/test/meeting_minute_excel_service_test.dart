@@ -8,7 +8,7 @@ import 'package:sicatat_flutter/data/reports/meeting_minute_service.dart';
 
 void main() {
   test(
-    'export MOM menempatkan satu foto opsional pada baris pembahasannya',
+    'export MOM mengelompokkan action plan dan foto di bawah action plan',
     () {
       final MeetingMinute minute = MeetingMinute(
         id: 'mom-1',
@@ -24,11 +24,22 @@ void main() {
         minuteTaker: 'Ilham Ananto',
         actions: <MeetingMinuteAction>[
           MeetingMinuteAction(
-            itemDate: DateTime(2026, 1, 30),
-            subjectDiscussion: 'Pengecekan panel dan switchgear',
-            assignedTo: 'PLN dan TCI',
-            dueDate: DateTime(2026, 2, 5),
+            itemDate: DateTime(2025, 9, 22),
+            issueDescription: 'Ban bocor kendaraan ringan di lapangan.',
+            subjectDiscussion: 'Komunikasi ke SHE Site untuk revisi prosedur.',
+            assignedTo: 'Aditio Y, Yoyon',
+            dueDate: DateTime(2026, 4, 6),
+            progressRemark: 'Pelatihan penggantian ban telah dilakukan.',
             id: 'action-1',
+          ),
+          MeetingMinuteAction(
+            itemDate: DateTime(2025, 12, 1),
+            issueDescription: 'Ban bocor kendaraan ringan di lapangan.',
+            subjectDiscussion: 'Kirim permintaan resmi pelatihan via email.',
+            assignedTo: 'Johan',
+            dueDate: DateTime(2025, 12, 12),
+            id: 'action-2',
+            position: 1,
           ),
         ],
       );
@@ -53,7 +64,7 @@ void main() {
           ),
           MeetingMinuteExportPhoto(
             actionId: 'action-1',
-            fileName: 'foto-lama-yang-tidak-diekspor.png',
+            fileName: 'screenshot-email.png',
             mimeType: 'image/png',
             bytes: Uint8List.fromList(<int>[
               0x89,
@@ -89,20 +100,34 @@ void main() {
         files['xl/worksheets/sheet1.xml']!.content,
       );
       expect(sheetXml, contains('STI Muara Port Electrical Inspection'));
-      expect(sheetXml, contains('Pengecekan panel dan switchgear'));
-      expect(sheetXml, contains('PLN dan TCI'));
-      expect(sheetXml, contains('SUBJECT\nDISCUSSIONS'));
-      expect(sheetXml, contains('PHOTO'));
-      expect(sheetXml, contains('ASSIGNED TO'));
-      expect(sheetXml, contains('DATE DUE'));
+      expect(sheetXml, contains('Ban bocor kendaraan ringan di lapangan.'));
+      expect(
+        sheetXml,
+        contains('Komunikasi ke SHE Site untuk revisi prosedur.'),
+      );
+      expect(sheetXml, contains('Kirim permintaan resmi pelatihan via email.'));
+      expect(sheetXml, contains('Pelatihan penggantian ban telah dilakukan.'));
+      expect(sheetXml, contains('Issues Description'));
+      expect(sheetXml, contains('Action Plan'));
+      expect(sheetXml, contains('Progress /\nRemark'));
       expect(sheetXml, contains('panel-lvmdp.png'));
-      expect(sheetXml, isNot(contains('FOTO PEMBAHASAN')));
-      expect(sheetXml, isNot(contains('foto-lama-yang-tidak-diekspor.png')));
+      expect(sheetXml, contains('screenshot-email.png'));
+      expect(sheetXml, contains('<mergeCell ref="A14:A17"/>'));
+      expect(sheetXml, contains('<mergeCell ref="B14:B17"/>'));
       expect(
         utf8.decode(files['xl/drawings/drawing1.xml']!.content),
-        allOf(contains('Foto pembahasan 1'), contains('<xdr:col>2</xdr:col>')),
+        allOf(
+          contains('Foto pembahasan 1'),
+          contains('Foto pembahasan 2'),
+          contains('<xdr:col>2</xdr:col>'),
+          contains('<xdr:row>14</xdr:row>'),
+          contains('<xdr:row>15</xdr:row>'),
+        ),
       );
-      expect(files.keys, isNot(contains('xl/media/image2.png')));
+      expect(
+        files.keys,
+        containsAll(<String>['xl/media/image1.png', 'xl/media/image2.png']),
+      );
     },
   );
 }

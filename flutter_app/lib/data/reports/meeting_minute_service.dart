@@ -11,7 +11,7 @@ class MeetingMinuteService {
   final SupabaseClient _client;
   static const String photoBucket = 'meeting-minute-photos';
   static const String _select =
-      'id,title,meeting_date,start_time,end_time,location,attendees,apologies,minute_taker,distribution_list,new_business_agenda,proposed_by,note,status,created_by,updated_at,meeting_minute_action(id,item_date,subject_discussion,assigned_to,due_date,position,meeting_minute_action_photo(id,meeting_minute_action_id,storage_path,file_name,mime_type,position))';
+      'id,title,meeting_date,start_time,end_time,location,attendees,apologies,minute_taker,distribution_list,new_business_agenda,proposed_by,note,status,created_by,updated_at,meeting_minute_action(id,item_date,issue_description,subject_discussion,assigned_to,due_date,position,progress_remark,meeting_minute_action_photo(id,meeting_minute_action_id,storage_path,file_name,mime_type,position))';
 
   Future<List<MeetingMinute>> loadAll() async {
     final Object response = await _client
@@ -108,7 +108,9 @@ class MeetingMinuteService {
         .where(
           (MeetingMinuteAction action) =>
               action.subjectDiscussion.trim().isNotEmpty ||
+              action.issueDescription.trim().isNotEmpty ||
               action.assignedTo.trim().isNotEmpty ||
+              action.progressRemark.trim().isNotEmpty ||
               action.itemDate != null ||
               action.dueDate != null,
         )
@@ -165,10 +167,10 @@ class MeetingMinuteService {
         .from('meeting_minute_action_photo')
         .select('id')
         .eq('meeting_minute_action_id', actionId)
-        .limit(1);
-    if (existing is List && existing.isNotEmpty) {
+        .limit(2);
+    if (existing is List && existing.length >= 2) {
       throw const FormatException(
-        'Setiap pembahasan hanya dapat memiliki satu foto.',
+        'Setiap action plan maksimal dapat memiliki dua foto.',
       );
     }
     final String extension = _imageExtension(fileName);
@@ -226,7 +228,7 @@ class MeetingMinuteService {
   ) async {
     final List<MeetingMinuteExportPhoto> output = <MeetingMinuteExportPhoto>[];
     for (final MeetingMinuteAction action in minute.actions) {
-      for (final MeetingMinuteActionPhoto photo in action.photos.take(1)) {
+      for (final MeetingMinuteActionPhoto photo in action.photos.take(2)) {
         final Uint8List bytes = await _client.storage
             .from(photoBucket)
             .download(photo.storagePath);
@@ -295,16 +297,18 @@ class MeetingMinuteExcelService {
         : (List<MeetingMinuteAction>.of(minute.actions)
             ..sort((a, b) => a.position.compareTo(b.position)));
     final _XlsxSheet sheet = _XlsxSheet();
-    final Map<String, MeetingMinuteExportPhoto> photoByActionId =
-        <String, MeetingMinuteExportPhoto>{};
+    final Map<String, List<MeetingMinuteExportPhoto>> photosByActionId =
+        <String, List<MeetingMinuteExportPhoto>>{};
     for (final MeetingMinuteExportPhoto photo in photos) {
       if ((photo.mimeType == 'image/jpeg' || photo.mimeType == 'image/png') &&
           photo.actionId.isNotEmpty) {
-        photoByActionId.putIfAbsent(photo.actionId, () => photo);
+        final List<MeetingMinuteExportPhoto> actionPhotos = photosByActionId
+            .putIfAbsent(photo.actionId, () => <MeetingMinuteExportPhoto>[]);
+        if (actionPhotos.length < 2) actionPhotos.add(photo);
       }
     }
     sheet.merge(
-      'A1:E1',
+      'A1:G1',
       minute.title.isEmpty ? 'NOTULEN RAPAT' : minute.title,
       1,
       30,
@@ -317,62 +321,82 @@ class MeetingMinuteExcelService {
     sheet.metadata(8, 'Distribusi', minute.distributionList);
     sheet.metadata(9, 'Agenda baru', minute.newBusinessAgenda);
     sheet.metadata(10, 'Diajukan oleh', minute.proposedBy);
-    sheet.merge('A12:E12', 'TINDAK LANJUT RAPAT', 4, 22);
+    sheet.merge('A12:G12', 'ACTION PLAN', 4, 22);
     const List<String> headers = <String>[
-      'ITEM [DD.MM.YY]',
-      'SUBJECT\nDISCUSSIONS',
-      'PHOTO',
-      'ASSIGNED TO',
-      'DATE DUE',
+      'No.',
+      'Issues Description',
+      'Action Plan',
+      'Date\nRaised',
+      'Due\nDate',
+      'Resp.\nPerson',
+      'Progress /\nRemark',
     ];
     for (int column = 0; column < headers.length; column++) {
       sheet.cell(column, 13, headers[column], 5);
     }
-    for (int index = 0; index < actions.length; index++) {
-      final MeetingMinuteAction action = actions[index];
-      final int row = 14 + index;
-      final MeetingMinuteExportPhoto? photo = action.id == null
-          ? null
-          : photoByActionId[action.id!];
-      final double height = _actionHeight(action, hasPhoto: photo != null);
-      sheet.cell(0, row, _date(action.itemDate), 6, height: height);
-      sheet.cell(1, row, action.subjectDiscussion, 6, height: height);
-      sheet.cell(
-        2,
-        row,
-        photo == null ? '' : photo.fileName,
-        6,
-        height: height,
-      );
-      sheet.cell(3, row, action.assignedTo, 6, height: height);
-      sheet.cell(4, row, _date(action.dueDate), 6, height: height);
+    final List<_XlsxPhoto> workbookPhotos = <_XlsxPhoto>[];
+    int actionIndex = 0;
+    int row = 14;
+    int issueNumber = 1;
+    while (actionIndex < actions.length) {
+      final String issue = _issueText(actions[actionIndex]);
+      final int groupStart = row;
+      int groupEnd = row;
+      do {
+        final MeetingMinuteAction action = actions[actionIndex];
+        final List<MeetingMinuteExportPhoto> actionPhotos = action.id == null
+            ? const <MeetingMinuteExportPhoto>[]
+            : (photosByActionId[action.id!] ??
+                  const <MeetingMinuteExportPhoto>[]);
+        final int actionRow = row;
+        final int actionEndRow = actionRow + actionPhotos.length;
+        final double actionHeight = _actionHeight(action);
+        sheet.cell(
+          2,
+          actionRow,
+          action.subjectDiscussion,
+          6,
+          height: actionHeight,
+        );
+        _mergeOrCell(sheet, 3, actionRow, actionEndRow, _date(action.itemDate));
+        _mergeOrCell(sheet, 4, actionRow, actionEndRow, _date(action.dueDate));
+        _mergeOrCell(sheet, 5, actionRow, actionEndRow, action.assignedTo);
+        _mergeOrCell(sheet, 6, actionRow, actionEndRow, action.progressRemark);
+        for (
+          int photoIndex = 0;
+          photoIndex < actionPhotos.length;
+          photoIndex++
+        ) {
+          final MeetingMinuteExportPhoto photo = actionPhotos[photoIndex];
+          final int photoRow = actionRow + photoIndex + 1;
+          sheet.cell(2, photoRow, photo.fileName, 6, height: 108);
+          workbookPhotos.add(
+            _XlsxPhoto(
+              row: photoRow - 1,
+              column: 2,
+              extension: photo.mimeType == 'image/png' ? 'png' : 'jpg',
+              bytes: photo.bytes,
+            ),
+          );
+        }
+        row = actionEndRow + 1;
+        groupEnd = actionEndRow;
+        actionIndex++;
+      } while (actionIndex < actions.length &&
+          _issueText(actions[actionIndex]) == issue);
+      _mergeOrCell(sheet, 0, groupStart, groupEnd, '$issueNumber');
+      _mergeOrCell(sheet, 1, groupStart, groupEnd, issue);
+      issueNumber++;
     }
-    final int noteRow = 15 + actions.length;
+    final int noteRow = row + 1;
     sheet.merge(
-      'A$noteRow:E$noteRow',
+      'A$noteRow:G$noteRow',
       minute.note.trim().isEmpty
           ? 'CATATAN: —'
           : 'CATATAN: ${minute.note.trim()}',
       3,
       42,
     );
-    final List<_XlsxPhoto> workbookPhotos = <_XlsxPhoto>[];
-    for (int index = 0; index < actions.length; index++) {
-      final MeetingMinuteAction action = actions[index];
-      final MeetingMinuteExportPhoto? photo = action.id == null
-          ? null
-          : photoByActionId[action.id!];
-      if (photo != null) {
-        workbookPhotos.add(
-          _XlsxPhoto(
-            row: 13 + index,
-            column: 2,
-            extension: photo.mimeType == 'image/png' ? 'png' : 'jpg',
-            bytes: photo.bytes,
-          ),
-        );
-      }
-    }
     final Archive archive = Archive()
       ..addFile(
         ArchiveFile.string(
@@ -438,22 +462,36 @@ class MeetingMinuteExcelService {
     return range.isEmpty ? date : '$date, $range WITA';
   }
 
-  static double _actionHeight(
-    MeetingMinuteAction action, {
-    required bool hasPhoto,
-  }) {
+  static String _issueText(MeetingMinuteAction action) {
+    final String issue = action.issueDescription.trim();
+    return issue.isEmpty ? action.subjectDiscussion.trim() : issue;
+  }
+
+  static void _mergeOrCell(
+    _XlsxSheet sheet,
+    int column,
+    int startRow,
+    int endRow,
+    String value,
+  ) {
+    if (startRow == endRow) {
+      sheet.cell(column, startRow, value, 6);
+      return;
+    }
+    final String letter = String.fromCharCode(65 + column);
+    sheet.merge('$letter$startRow:$letter$endRow', value, 6);
+  }
+
+  static double _actionHeight(MeetingMinuteAction action) {
     int estimatedLines(String text, int charactersPerLine) =>
         text.split('\n').fold<int>(0, (int total, String line) {
           final int characters = line.trim().isEmpty ? 1 : line.trim().length;
           return total + (characters / charactersPerLine).ceil().clamp(1, 50);
         });
-    final int discussionLines = estimatedLines(action.subjectDiscussion, 68);
-    final int ownerLines = estimatedLines(action.assignedTo, 28);
-    final int lines = discussionLines > ownerLines
-        ? discussionLines
-        : ownerLines;
-    final double textHeight = (lines * 15 + 12).clamp(52, 520).toDouble();
-    return hasPhoto && textHeight < 112 ? 112 : textHeight;
+    final int planLines = estimatedLines(action.subjectDiscussion, 42);
+    final int progressLines = estimatedLines(action.progressRemark, 22);
+    final int lines = planLines > progressLines ? planLines : progressLines;
+    return (lines * 15 + 12).clamp(52, 520).toDouble();
   }
 
   static String _date(DateTime? value, {String format = 'dd/MM/yyyy'}) {
@@ -497,7 +535,7 @@ class MeetingMinuteExcelService {
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>''';
   static const String _styles =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="16"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Arial"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B3D2E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F3ED"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs></styleSheet>''';
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="16"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Arial"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B3D2E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F3ED"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF16A9D6"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs></styleSheet>''';
 
   static const String _sheetRelationships =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -548,7 +586,7 @@ class _XlsxSheet {
   }
 
   void merge(String range, String value, int style, [double? height]) {
-    final RegExpMatch match = RegExp(r'^([A-E]+)(\d+):').firstMatch(range)!;
+    final RegExpMatch match = RegExp(r'^([A-G]+)(\d+):').firstMatch(range)!;
     final int row = int.parse(match.group(2)!);
     _add(
       row,
@@ -560,7 +598,7 @@ class _XlsxSheet {
 
   void metadata(int row, String label, String value) {
     cell(0, row, label, 2, height: 32);
-    merge('B$row:E$row', value.isEmpty ? '—' : value, 3);
+    merge('B$row:G$row', value.isEmpty ? '—' : value, 3);
   }
 
   void _add(int row, String content, double? height) {
@@ -587,7 +625,7 @@ class _XlsxSheet {
     }
     final int lastRow = keys.isEmpty ? 1 : keys.last;
     return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:E$lastRow"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="17" customWidth="1"/><col min="2" max="2" width="58" customWidth="1"/><col min="3" max="3" width="22" customWidth="1"/><col min="4" max="4" width="24" customWidth="1"/><col min="5" max="5" width="17" customWidth="1"/></cols><sheetData>$rows</sheetData><mergeCells count="${_merges.length}">${_merges.map((String range) => '<mergeCell ref="$range"/>').join()}</mergeCells>${hasPhotos ? '<drawing r:id="rId1"/>' : ''}</worksheet>''';
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:G$lastRow"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="6" customWidth="1"/><col min="2" max="2" width="38" customWidth="1"/><col min="3" max="3" width="48" customWidth="1"/><col min="4" max="4" width="13" customWidth="1"/><col min="5" max="5" width="13" customWidth="1"/><col min="6" max="6" width="16" customWidth="1"/><col min="7" max="7" width="24" customWidth="1"/></cols><sheetData>$rows</sheetData><mergeCells count="${_merges.length}">${_merges.map((String range) => '<mergeCell ref="$range"/>').join()}</mergeCells>${hasPhotos ? '<drawing r:id="rId1"/>' : ''}</worksheet>''';
   }
 
   static String _escape(String value) => value

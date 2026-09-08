@@ -23,28 +23,34 @@ class MeetingMinuteAction {
   const MeetingMinuteAction({
     this.id,
     this.itemDate,
+    this.issueDescription = '',
     this.subjectDiscussion = '',
     this.assignedTo = '',
     this.dueDate,
     this.position = 0,
+    this.progressRemark = '',
     this.photos = const <MeetingMinuteActionPhoto>[],
   });
 
   final String? id;
   final DateTime? itemDate;
+  final String issueDescription;
   final String subjectDiscussion;
   final String assignedTo;
   final DateTime? dueDate;
   final int position;
+  final String progressRemark;
   final List<MeetingMinuteActionPhoto> photos;
 
   factory MeetingMinuteAction.fromJson(JsonMap json) => MeetingMinuteAction(
     id: json.optionalString('id'),
     itemDate: _date(json.optionalString('item_date')),
+    issueDescription: json.optionalString('issue_description') ?? '',
     subjectDiscussion: json.optionalString('subject_discussion') ?? '',
     assignedTo: json.optionalString('assigned_to') ?? '',
     dueDate: _date(json.optionalString('due_date')),
     position: json['position'] is num ? (json['position'] as num).toInt() : 0,
+    progressRemark: json.optionalString('progress_remark') ?? '',
     photos: _photos(json['meeting_minute_action_photo']),
   );
 
@@ -53,10 +59,12 @@ class MeetingMinuteAction {
         if (id != null) 'id': id,
         'meeting_minute_id': meetingMinuteId,
         'item_date': _dateText(itemDate),
+        'issue_description': issueDescription.trim(),
         'subject_discussion': subjectDiscussion.trim(),
         'assigned_to': assignedTo.trim(),
         'due_date': _dateText(dueDate),
         'position': position,
+        'progress_remark': progressRemark.trim(),
       };
 
   static DateTime? _date(String? value) =>
