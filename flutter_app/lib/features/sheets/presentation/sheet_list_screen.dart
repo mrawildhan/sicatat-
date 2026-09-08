@@ -31,6 +31,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
   DateTime? _fromDate;
   DateTime? _toDate;
   _SheetListStatusFilter _statusFilter = _SheetListStatusFilter.all;
+  bool _syncing = false;
 
   @override
   void initState() {
@@ -221,7 +222,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       return ListView(
         padding: const EdgeInsets.all(24),
         children: <Widget>[
-          _temperatureSummary(),
+          _temperatureOverview(),
           const SizedBox(height: 80),
           const Icon(
             Icons.description_outlined,
@@ -255,7 +256,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       itemCount: sheets.length + (_hasFilter ? 1 : 0) + 1,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        if (index == 0) return _temperatureSummary();
+        if (index == 0) return _temperatureOverview();
         if (_hasFilter && index == 1) return _filterSummary(sheets.length);
         final sheetIndex = index - 1 - (_hasFilter ? 1 : 0);
         return _sheet(context, sheets[sheetIndex]);
@@ -298,6 +299,132 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       ],
     );
   }
+
+  Widget _temperatureOverview() {
+    final user = ref.watch(currentUserProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _temperatureSummary(),
+        const SizedBox(height: 20),
+        const Text(
+          'Aktivitas suhu',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Pencatatan, sinkronisasi, monitoring, dan laporan suhu.',
+          style: TextStyle(color: AppColors.muted, fontSize: 13),
+        ),
+        const SizedBox(height: 10),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 700 ? 3 : 2;
+            final actions = <_TemperatureAction>[
+              _TemperatureAction(
+                icon: Icons.description_rounded,
+                title: 'Sheet saya',
+                subtitle: 'Lihat sheet inspeksi',
+                onTap: () => context.go('/sheets'),
+              ),
+              _TemperatureAction(
+                icon: Icons.sync_rounded,
+                title: _syncing ? 'Memeriksa…' : 'Sinkronisasi',
+                subtitle: 'Periksa antrian data',
+                onTap: _syncing ? null : _syncPending,
+              ),
+              if (user?.role.canReviewTemperature == true)
+                _TemperatureAction(
+                  icon: Icons.assignment_late_outlined,
+                  title: 'Belum lengkap',
+                  subtitle: 'Sheet perlu dilengkapi',
+                  onTap: () => context.go('/incomplete'),
+                ),
+              if (user?.role.canReviewTemperature == true)
+                _TemperatureAction(
+                  icon: Icons.monitor_heart_outlined,
+                  title: 'Monitoring',
+                  subtitle: 'Pantau sheet tim',
+                  onTap: () => context.go('/monitoring'),
+                ),
+              if (user?.role.canReviewTemperature == true)
+                _TemperatureAction(
+                  icon: Icons.thermostat_auto_rounded,
+                  title: 'Suhu tinggi',
+                  subtitle: 'Laporan temperatur tinggi',
+                  onTap: () => context.go('/high-temperature'),
+                ),
+              if (user?.role.canReviewTemperature == true)
+                _TemperatureAction(
+                  icon: Icons.picture_as_pdf_outlined,
+                  title: 'Laporan periode',
+                  subtitle: 'Ekspor laporan suhu',
+                  onTap: () => context.go('/reports'),
+                ),
+            ];
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: columns == 3 ? 1.8 : 1.38,
+              ),
+              itemCount: actions.length,
+              itemBuilder: (_, index) => _temperatureActionCard(actions[index]),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _syncPending() async {
+    setState(() => _syncing = true);
+    try {
+      await ref.read(sicatatRepositoryProvider).syncPending();
+      await _loadSheets();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Antrian sinkronisasi diperiksa.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
+
+  Widget _temperatureActionCard(_TemperatureAction action) => Card(
+    margin: EdgeInsets.zero,
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: action.onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(action.icon, color: AppColors.green),
+            const Spacer(),
+            Text(
+              action.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              action.subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.muted, fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _temperatureSummaryTile({
     required String label,
@@ -602,6 +729,20 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       ),
     );
   }
+}
+
+class _TemperatureAction {
+  const _TemperatureAction({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
 }
 
 enum _SheetListStatusFilter { all, draft, submitted }

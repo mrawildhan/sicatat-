@@ -14,7 +14,6 @@ import '../../../core/widgets/status_chip.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/dashboard_activity.dart';
 import '../../../data/local/local_database.dart';
-import '../../../data/repositories/repository_providers.dart';
 import '../../auth/application/current_user_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -827,74 +826,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
       const Text(
-        'Aktivitas & pengaturan',
+        'Pengaturan & bantuan',
         style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
       ),
       const SizedBox(height: 4),
       const Text(
-        'Fitur pendukung dipisahkan menurut kegunaannya.',
+        'Akses umum aplikasi di luar pekerjaan Suhu.',
         style: TextStyle(color: AppColors.muted, fontSize: 13),
       ),
-      if (user?.role != UserRole.foremanLv) ...<Widget>[
-        const SizedBox(height: 10),
-        _homeActionGroup(
-          icon: Icons.assignment_turned_in_outlined,
-          title: 'Pencatatan saya',
-          subtitle: 'Sheet kerja dan status sinkronisasi',
-          actions: <_DashboardAction>[
-            _DashboardAction(
-              icon: Icons.description_rounded,
-              label: 'Sheet saya',
-              onTap: () => context.go('/sheets'),
-            ),
-            _DashboardAction(
-              icon: Icons.sync_rounded,
-              label: 'Periksa sinkronisasi',
-              onTap: () async {
-                await ref.read(sicatatRepositoryProvider).syncPending();
-                await _loadActivity();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Antrian sinkronisasi diperiksa.'),
-                    ),
-                  );
-                }
-              },
-            ),
-          ],
-        ),
-      ],
-      if (user?.role.canReviewTemperature == true) ...<Widget>[
-        const SizedBox(height: 10),
-        _homeActionGroup(
-          icon: Icons.monitor_heart_outlined,
-          title: 'Monitoring & laporan',
-          subtitle: 'Tinjau pekerjaan yang perlu ditindaklanjuti',
-          actions: <_DashboardAction>[
-            _DashboardAction(
-              icon: Icons.assignment_late_outlined,
-              label: 'Sheet belum lengkap',
-              onTap: () => context.go('/incomplete'),
-            ),
-            _DashboardAction(
-              icon: Icons.monitor_heart_outlined,
-              label: 'Monitoring sheet',
-              onTap: () => context.go('/monitoring'),
-            ),
-            _DashboardAction(
-              icon: Icons.thermostat_auto_rounded,
-              label: 'Laporan suhu tinggi',
-              onTap: () => context.go('/high-temperature'),
-            ),
-            _DashboardAction(
-              icon: Icons.picture_as_pdf_outlined,
-              label: 'Laporan periode',
-              onTap: () => context.go('/reports'),
-            ),
-          ],
-        ),
-      ],
       if (user?.role.canManageMasterData == true) ...<Widget>[
         const SizedBox(height: 10),
         _homeActionGroup(
