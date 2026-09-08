@@ -23,7 +23,7 @@ void main() {
     expect(find.text('Buat notulen'), findsOneWidget);
   });
 
-  testWidgets('permintaan barang menampilkan status dan tombol pengajuan', (
+  testWidgets('permintaan barang dapat difilter dari ringkasan status', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -32,13 +32,19 @@ void main() {
       ),
     );
 
-    expect(find.text('Butuh barang atau alat?'), findsOneWidget);
+    expect(find.text('Butuh barang atau alat?'), findsNothing);
     expect(find.text('Ringkasan status'), findsOneWidget);
     expect(find.text('Diajukan'), findsOneWidget);
     expect(find.text('Diproses'), findsOneWidget);
     expect(find.text('Ditolak'), findsOneWidget);
     expect(find.text('Ajukan kebutuhan barang'), findsOneWidget);
     expect(find.text('Pengajuan saya'), findsOneWidget);
+
+    await tester.tap(find.text('Diproses'));
+    await tester.pump();
+
+    expect(find.text('Pengajuan: Diproses'), findsOneWidget);
+    expect(find.text('Semua'), findsOneWidget);
   });
 
   testWidgets('outstanding menampilkan sumber dan tiga crew', (tester) async {

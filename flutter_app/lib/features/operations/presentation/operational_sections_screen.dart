@@ -53,6 +53,7 @@ class _MaterialRequestOverviewScreenState
   List<MaterialRequest> _items = const <MaterialRequest>[];
   bool _loading = true;
   String? _error;
+  MaterialRequestStatus? _selectedStatus;
 
   @override
   void initState() {
@@ -138,8 +139,15 @@ class _MaterialRequestOverviewScreenState
         items: _items,
         loading: _loading,
         error: _error,
+        selectedStatus: _selectedStatus,
         isPlanner: user?.role.canManageMaterialRequests == true,
         onRefresh: _load,
+        onSelectStatus: (MaterialRequestStatus status) {
+          setState(
+            () => _selectedStatus = _selectedStatus == status ? null : status,
+          );
+        },
+        onClearStatus: () => setState(() => _selectedStatus = null),
         onCreate: user == null
             ? null
             : () => context.go('/material-requests/new'),
@@ -486,8 +494,11 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
     required this.items,
     required this.loading,
     required this.error,
+    required this.selectedStatus,
     required this.isPlanner,
     required this.onRefresh,
+    required this.onSelectStatus,
+    required this.onClearStatus,
     required this.onCreate,
     required this.onProcess,
   });
@@ -495,13 +506,17 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
   final List<MaterialRequest> items;
   final bool loading;
   final String? error;
+  final MaterialRequestStatus? selectedStatus;
   final bool isPlanner;
   final Future<void> Function() onRefresh;
+  final ValueChanged<MaterialRequestStatus> onSelectStatus;
+  final VoidCallback onClearStatus;
   final VoidCallback? onCreate;
   final ValueChanged<MaterialRequest>? onProcess;
 
   @override
   Widget build(BuildContext context) {
+    final MaterialRequestStatus? selectedStatus = this.selectedStatus;
     final int submitted = items
         .where((item) => item.status == MaterialRequestStatus.submitted)
         .length;
@@ -511,64 +526,34 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
     final int rejected = items
         .where((item) => item.status == MaterialRequestStatus.rejected)
         .length;
+    final List<MaterialRequest> visibleItems = selectedStatus == null
+        ? items
+        : items
+              .where((item) => item.status == selectedStatus)
+              .toList(growable: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Container(
+        SizedBox(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.greenDark,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const CircleAvatar(
-                backgroundColor: AppColors.mint,
-                child: Icon(
-                  Icons.inventory_2_outlined,
-                  color: AppColors.greenDark,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Butuh barang atau alat?',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                'Ajukan kebutuhan LV atau Drilling. Statusnya dapat dipantau dari halaman ini.',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.78),
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: onCreate,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.greenDark,
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  icon: const Icon(Icons.add_shopping_cart_rounded),
-                  label: const Text('Ajukan kebutuhan barang'),
-                ),
-              ),
-            ],
+          child: FilledButton.icon(
+            onPressed: onCreate,
+            icon: const Icon(Icons.add_shopping_cart_rounded),
+            label: const Text('Ajukan kebutuhan barang'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
           ),
         ),
         const SizedBox(height: 16),
         const Text(
           'Ringkasan status',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 3),
+        const Text(
+          'Tekan status untuk melihat pengajuan yang sesuai.',
+          style: TextStyle(color: AppColors.muted, fontSize: 13),
         ),
         const SizedBox(height: 8),
         Card(
@@ -582,6 +567,9 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
                     count: submitted,
                     icon: Icons.send_outlined,
                     color: AppColors.orange,
+                    selected: selectedStatus == MaterialRequestStatus.submitted,
+                    onTap: () =>
+                        onSelectStatus(MaterialRequestStatus.submitted),
                   ),
                 ),
                 _StatusDivider(),
@@ -591,6 +579,9 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
                     count: processed,
                     icon: Icons.hourglass_top_rounded,
                     color: AppColors.green,
+                    selected: selectedStatus == MaterialRequestStatus.processed,
+                    onTap: () =>
+                        onSelectStatus(MaterialRequestStatus.processed),
                   ),
                 ),
                 _StatusDivider(),
@@ -600,6 +591,8 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
                     count: rejected,
                     icon: Icons.cancel_outlined,
                     color: AppColors.danger,
+                    selected: selectedStatus == MaterialRequestStatus.rejected,
+                    onTap: () => onSelectStatus(MaterialRequestStatus.rejected),
                   ),
                 ),
               ],
@@ -607,15 +600,30 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-        Text(
-          isPlanner ? 'Semua pengajuan' : 'Pengajuan saya',
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                selectedStatus == null
+                    ? (isPlanner ? 'Semua pengajuan' : 'Pengajuan saya')
+                    : 'Pengajuan: ${selectedStatus.label}',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            if (selectedStatus != null)
+              TextButton(onPressed: onClearStatus, child: const Text('Semua')),
+          ],
         ),
         const SizedBox(height: 3),
         Text(
-          isPlanner
-              ? 'Pilih pengajuan untuk memperbarui prosesnya.'
-              : 'Pantau perkembangan kebutuhan yang sudah Anda kirim.',
+          selectedStatus == null
+              ? (isPlanner
+                    ? 'Pilih pengajuan untuk memperbarui prosesnya.'
+                    : 'Pantau perkembangan kebutuhan yang sudah Anda kirim.')
+              : 'Hanya pengajuan berstatus ${selectedStatus.label.toLowerCase()} yang ditampilkan.',
           style: const TextStyle(color: AppColors.muted, fontSize: 13),
         ),
         const SizedBox(height: 10),
@@ -632,16 +640,22 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
             actionLabel: 'Coba lagi',
             onAction: onRefresh,
           )
-        else if (items.isEmpty)
+        else if (visibleItems.isEmpty)
           _MaterialRequestNotice(
             icon: Icons.inventory_2_outlined,
-            title: 'Belum ada pengajuan',
-            message: 'Ajukan barang atau alat untuk mencatat kebutuhan pekerjaan Anda.',
-            actionLabel: 'Ajukan barang',
-            onAction: onCreate,
+            title: selectedStatus == null
+                ? 'Belum ada pengajuan'
+                : 'Belum ada pengajuan ${selectedStatus.label.toLowerCase()}',
+            message: selectedStatus == null
+                ? 'Ajukan barang atau alat untuk mencatat kebutuhan pekerjaan Anda.'
+                : 'Pilih status lain atau tampilkan semua pengajuan.',
+            actionLabel: selectedStatus == null
+                ? 'Ajukan barang'
+                : 'Tampilkan semua',
+            onAction: selectedStatus == null ? onCreate : onClearStatus,
           )
         else
-          ...items.map(
+          ...visibleItems.map(
             (item) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _MaterialRequestTile(
@@ -742,30 +756,54 @@ class _RequestStatusCard extends StatelessWidget {
     required this.count,
     required this.icon,
     required this.color,
+    required this.selected,
+    required this.onTap,
   });
 
   final String label;
   final int count;
   final IconData icon;
   final Color color;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: <Widget>[
-      Icon(icon, color: color, size: 21),
-      const SizedBox(height: 7),
-      Text(
-        '$count',
-        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+  Widget build(BuildContext context) => Semantics(
+    label: 'Filter: $label',
+    button: true,
+    selected: selected,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 3),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: selected
+              ? Border.all(color: color.withValues(alpha: 0.45))
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, color: color, size: 21),
+            const SizedBox(height: 7),
+            Text(
+              '$count',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            ),
+          ],
+        ),
       ),
-      const SizedBox(height: 2),
-      Text(
-        label,
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-      ),
-    ],
+    ),
   );
 }
 
