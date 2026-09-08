@@ -514,80 +514,111 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const Text(
-          'Permintaan order barang LV & Drilling',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Crew mengajukan kebutuhan alat atau barang secara terstruktur. Planner memantau alasan serta status prosesnya.',
-          style: TextStyle(color: AppColors.muted, height: 1.45),
-        ),
-        const SizedBox(height: 18),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: <Widget>[
-            _RequestStatusCard(
-              label: 'Diajukan',
-              caption: 'Menunggu proses',
-              count: submitted,
-              icon: Icons.send_outlined,
-              color: AppColors.orange,
-            ),
-            _RequestStatusCard(
-              label: 'Diproses',
-              caption: 'Sedang ditindaklanjuti',
-              count: processed,
-              icon: Icons.hourglass_top_rounded,
-              color: AppColors.green,
-            ),
-            _RequestStatusCard(
-              label: 'Ditolak',
-              caption: 'Tidak dapat dipenuhi',
-              count: rejected,
-              icon: Icons.cancel_outlined,
-              color: AppColors.danger,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-          onPressed: onCreate,
-          icon: const Icon(Icons.add_shopping_cart_rounded),
-          label: const Text('Ajukan kebutuhan barang'),
-        ),
-        const SizedBox(height: 14),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.mint,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.green.withValues(alpha: 0.18)),
+            color: AppColors.greenDark,
+            borderRadius: BorderRadius.circular(24),
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Icon(Icons.fact_check_outlined, color: AppColors.green),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  isPlanner
-                      ? 'Anda melihat seluruh pengajuan. Gunakan tombol proses pada setiap pengajuan baru untuk mencatat tindak lanjut atau alasan penolakan.'
-                      : 'Anda hanya melihat pengajuan dari akun sendiri. Isi nama barang, jumlah, kondisi kebutuhan, dan alasan secara lengkap.',
-                  style: const TextStyle(height: 1.45),
+              const CircleAvatar(
+                backgroundColor: AppColors.mint,
+                child: Icon(
+                  Icons.inventory_2_outlined,
+                  color: AppColors.greenDark,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Butuh barang atau alat?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Ajukan kebutuhan LV atau Drilling. Statusnya dapat dipantau dari halaman ini.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onCreate,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.greenDark,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                  icon: const Icon(Icons.add_shopping_cart_rounded),
+                  label: const Text('Ajukan kebutuhan barang'),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
+        const Text(
+          'Ringkasan status',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: _RequestStatusCard(
+                    label: 'Diajukan',
+                    count: submitted,
+                    icon: Icons.send_outlined,
+                    color: AppColors.orange,
+                  ),
+                ),
+                _StatusDivider(),
+                Expanded(
+                  child: _RequestStatusCard(
+                    label: 'Diproses',
+                    count: processed,
+                    icon: Icons.hourglass_top_rounded,
+                    color: AppColors.green,
+                  ),
+                ),
+                _StatusDivider(),
+                Expanded(
+                  child: _RequestStatusCard(
+                    label: 'Ditolak',
+                    count: rejected,
+                    icon: Icons.cancel_outlined,
+                    color: AppColors.danger,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
         Text(
           isPlanner ? 'Semua pengajuan' : 'Pengajuan saya',
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 3),
+        Text(
+          isPlanner
+              ? 'Pilih pengajuan untuk memperbarui prosesnya.'
+              : 'Pantau perkembangan kebutuhan yang sudah Anda kirim.',
+          style: const TextStyle(color: AppColors.muted, fontSize: 13),
+        ),
+        const SizedBox(height: 10),
         if (loading)
           const Padding(
             padding: EdgeInsets.all(28),
@@ -605,7 +636,7 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
           _MaterialRequestNotice(
             icon: Icons.inventory_2_outlined,
             title: 'Belum ada pengajuan',
-            message: 'Pengajuan yang dikirim melalui form akan muncul di sini beserta status prosesnya.',
+            message: 'Ajukan barang atau alat untuk mencatat kebutuhan pekerjaan Anda.',
             actionLabel: 'Ajukan barang',
             onAction: onCreate,
           )
@@ -708,45 +739,40 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
 class _RequestStatusCard extends StatelessWidget {
   const _RequestStatusCard({
     required this.label,
-    required this.caption,
     required this.count,
     required this.icon,
     required this.color,
   });
 
   final String label;
-  final String caption;
   final int count;
   final IconData icon;
   final Color color;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 186,
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Icon(icon, color: color),
-            const SizedBox(height: 16),
-            Text(
-              '$count',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 3),
-            Text(
-              caption,
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
-          ],
-        ),
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      Icon(icon, color: color, size: 21),
+      const SizedBox(height: 7),
+      Text(
+        '$count',
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
       ),
-    ),
+      const SizedBox(height: 2),
+      Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+      ),
+    ],
   );
+}
+
+class _StatusDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) =>
+      Container(width: 1, height: 54, color: AppColors.line);
 }
 
 class _MaterialRequestNotice extends StatelessWidget {

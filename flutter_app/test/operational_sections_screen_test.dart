@@ -32,7 +32,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Permintaan order barang LV & Drilling'), findsOneWidget);
+    expect(find.text('Butuh barang atau alat?'), findsOneWidget);
+    expect(find.text('Ringkasan status'), findsOneWidget);
     expect(find.text('Diajukan'), findsOneWidget);
     expect(find.text('Diproses'), findsOneWidget);
     expect(find.text('Ditolak'), findsOneWidget);
