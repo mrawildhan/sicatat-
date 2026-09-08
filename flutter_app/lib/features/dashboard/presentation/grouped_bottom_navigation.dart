@@ -14,89 +14,180 @@ Future<void> openNavigationGroup(
   required bool canReminders,
   required bool canWarehouse,
 }) async {
+  final List<_NavigationGroupOption> options = <_NavigationGroupOption>[
+    if (operational && canTemperature)
+      const _NavigationGroupOption(
+        icon: Icons.thermostat_rounded,
+        title: 'Suhu',
+        subtitle: 'Pencatatan dan pemeriksaan suhu',
+        route: '/sheets',
+      ),
+    if (operational && canReminders)
+      const _NavigationGroupOption(
+        icon: Icons.notifications_none_rounded,
+        title: 'Pengingat',
+        subtitle: 'Tindak lanjut pekerjaan',
+        route: '/reminders',
+      ),
+    if (operational)
+      const _NavigationGroupOption(
+        icon: Icons.account_balance_wallet_outlined,
+        title: 'Anggaran Operasional',
+        subtitle: 'Pantau anggaran dan aktual',
+        route: '/budget',
+      ),
+    if (operational)
+      const _NavigationGroupOption(
+        icon: Icons.handyman_outlined,
+        title: 'Permintaan Barang',
+        subtitle: 'Order kebutuhan LV dan Drilling',
+        route: '/material-requests',
+      ),
+    if (operational)
+      const _NavigationGroupOption(
+        icon: Icons.pending_actions_outlined,
+        title: 'Outstanding PM & CM',
+        subtitle: 'Pantau pekerjaan yang belum selesai',
+        route: '/outstanding-maintenance',
+      ),
+    if (operational)
+      const _NavigationGroupOption(
+        icon: Icons.assignment_outlined,
+        title: 'Notulen Rapat',
+        subtitle: 'Buat dan lanjutkan draf MOM',
+        route: '/meeting-minutes',
+      ),
+    if (!operational && canWarehouse)
+      const _NavigationGroupOption(
+        icon: Icons.inventory_2_outlined,
+        title: 'Gudang',
+        subtitle: 'Cari stok dan lokasi barang',
+        route: '/warehouse',
+      ),
+    if (!operational)
+      const _NavigationGroupOption(
+        icon: Icons.folder_shared_outlined,
+        title: 'Pusat Dokumen',
+        subtitle: 'Cari SOP, manual, dan drawing',
+        route: '/documents',
+      ),
+  ];
   final route = await showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
     useSafeArea: true,
-    builder: (sheetContext) => SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Text(
-                operational ? 'Operasional' : 'Referensi',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-            if (operational && canTemperature)
-              ListTile(
-                leading: const Icon(Icons.thermostat_rounded),
-                title: const Text('Suhu'),
-                subtitle: const Text('Pencatatan dan pemeriksaan suhu'),
-                onTap: () => Navigator.pop(sheetContext, '/sheets'),
-              ),
-            if (operational && canReminders)
-              ListTile(
-                leading: const Icon(Icons.notifications_none_rounded),
-                title: const Text('Pengingat'),
-                subtitle: const Text('Tindak lanjut pekerjaan'),
-                onTap: () => Navigator.pop(sheetContext, '/reminders'),
-              ),
-            if (operational)
-              ListTile(
-                leading: const Icon(Icons.account_balance_wallet_outlined),
-                title: const Text('Anggaran Operasional'),
-                subtitle: const Text(
-                  'Pantau budget, aktual, dan sisa anggaran',
+    builder: (sheetContext) {
+      final bool tablet = MediaQuery.sizeOf(sheetContext).width >= 600;
+      return SafeArea(
+        top: false,
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * 0.76,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Text(
+                  operational ? 'Operasional' : 'Referensi',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-                onTap: () => Navigator.pop(sheetContext, '/budget'),
               ),
-            if (operational)
-              ListTile(
-                leading: const Icon(Icons.handyman_outlined),
-                title: const Text('Permintaan Barang'),
-                subtitle: const Text('Order barang LV dan Drilling'),
-                onTap: () => Navigator.pop(sheetContext, '/material-requests'),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Text(
+                  'Pilih kartu sesuai pekerjaan yang ingin dibuka.',
+                  style: TextStyle(color: AppColors.muted),
+                ),
               ),
-            if (operational)
-              ListTile(
-                leading: const Icon(Icons.pending_actions_outlined),
-                title: const Text('Outstanding PM & CM'),
-                subtitle: const Text('Pantau pekerjaan yang belum selesai'),
-                onTap: () =>
-                    Navigator.pop(sheetContext, '/outstanding-maintenance'),
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: tablet ? 3 : 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: tablet ? 1.28 : 1.03,
+                  ),
+                  itemCount: options.length,
+                  itemBuilder: (_, index) => _NavigationGroupCard(
+                    option: options[index],
+                    onTap: () =>
+                        Navigator.pop(sheetContext, options[index].route),
+                  ),
+                ),
               ),
-            if (operational)
-              ListTile(
-                leading: const Icon(Icons.assignment_outlined),
-                title: const Text('Notulen Rapat'),
-                subtitle: const Text('Buat dan lanjutkan draf MOM'),
-                onTap: () => Navigator.pop(sheetContext, '/meeting-minutes'),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+  if (route != null && context.mounted) context.go(route);
+}
+
+class _NavigationGroupOption {
+  const _NavigationGroupOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.route,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String route;
+}
+
+class _NavigationGroupCard extends StatelessWidget {
+  const _NavigationGroupCard({required this.option, required this.onTap});
+
+  final _NavigationGroupOption option;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: '${option.title}. ${option.subtitle}',
+    child: Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.mint,
+                child: Icon(option.icon, color: AppColors.green),
               ),
-            if (!operational && canWarehouse)
-              ListTile(
-                leading: const Icon(Icons.inventory_2_outlined),
-                title: const Text('Gudang'),
-                subtitle: const Text('Cari stok dan lokasi barang'),
-                onTap: () => Navigator.pop(sheetContext, '/warehouse'),
+              const Spacer(),
+              Text(
+                option.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
-            if (!operational)
-              ListTile(
-                leading: const Icon(Icons.folder_shared_outlined),
-                title: const Text('Pusat Dokumen'),
-                subtitle: const Text('Tanya AI dan cari dokumen kerja'),
-                onTap: () => Navigator.pop(sheetContext, '/documents'),
+              const SizedBox(height: 4),
+              Text(
+                option.subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 12,
+                  height: 1.25,
+                ),
               ),
-            const SizedBox(height: 16),
-          ],
+            ],
+          ),
         ),
       ),
     ),
   );
-  if (route != null && context.mounted) context.go(route);
 }
 
 /// Shared by the dashboard and all module pages so mobile menus stay identical.

@@ -28,6 +28,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Gudang'), findsOneWidget);
       expect(find.text('Pusat Dokumen'), findsOneWidget);
+      expect(find.byType(GridView), findsOneWidget);
+      expect(find.byType(ListTile), findsNothing);
     },
   );
   testWidgets('kelompok operasional mengikuti hak akses', (tester) async {

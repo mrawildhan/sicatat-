@@ -823,74 +823,178 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     ),
   );
 
-  Widget _homeMoreActions(BuildContext context, AppUser? user) => Card(
-    margin: EdgeInsets.zero,
-    child: ExpansionTile(
-      leading: const Icon(Icons.bolt_rounded, color: AppColors.green),
-      title: const Text(
-        'Aksi lainnya',
-        style: TextStyle(fontWeight: FontWeight.w800),
+  Widget _homeMoreActions(BuildContext context, AppUser? user) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      const Text(
+        'Aktivitas & pengaturan',
+        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
       ),
-      subtitle: const Text('Sheet, sinkronisasi, laporan, dan panduan'),
-      children: <Widget>[
-        if (user?.role != UserRole.foremanLv)
-          ListTile(
-            leading: const Icon(Icons.description_rounded),
-            title: const Text('Sheet saya'),
-            onTap: () => context.go('/sheets'),
-          ),
-        if (user?.role != UserRole.foremanLv)
-          ListTile(
-            leading: const Icon(Icons.sync_rounded),
-            title: const Text('Periksa sinkronisasi'),
-            onTap: () async {
-              await ref.read(sicatatRepositoryProvider).syncPending();
-              await _loadActivity();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Antrian sinkronisasi diperiksa.'),
-                  ),
-                );
-              }
-            },
-          ),
-        if (user?.role.canReviewTemperature == true) ...<Widget>[
-          ListTile(
-            leading: const Icon(Icons.assignment_late_outlined),
-            title: const Text('Sheet belum lengkap'),
-            onTap: () => context.go('/incomplete'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.monitor_heart_outlined),
-            title: const Text('Monitoring sheet'),
-            onTap: () => context.go('/monitoring'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.thermostat_auto_rounded),
-            title: const Text('Laporan suhu tinggi'),
-            onTap: () => context.go('/high-temperature'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.picture_as_pdf_outlined),
-            title: const Text('Laporan periode'),
-            onTap: () => context.go('/reports'),
-          ),
-        ],
-        if (user?.role.canManageMasterData == true)
-          ListTile(
-            leading: const Icon(Icons.manage_accounts_outlined),
-            title: const Text('Data master & pengguna'),
-            onTap: () => context.go('/admin'),
-          ),
-        ListTile(
-          leading: const Icon(Icons.help_outline_rounded),
-          title: const Text('Panduan pengguna'),
-          onTap: () => context.go('/guide'),
+      const SizedBox(height: 4),
+      const Text(
+        'Fitur pendukung dipisahkan menurut kegunaannya.',
+        style: TextStyle(color: AppColors.muted, fontSize: 13),
+      ),
+      if (user?.role != UserRole.foremanLv) ...<Widget>[
+        const SizedBox(height: 10),
+        _homeActionGroup(
+          icon: Icons.assignment_turned_in_outlined,
+          title: 'Pencatatan saya',
+          subtitle: 'Sheet kerja dan status sinkronisasi',
+          actions: <_DashboardAction>[
+            _DashboardAction(
+              icon: Icons.description_rounded,
+              label: 'Sheet saya',
+              onTap: () => context.go('/sheets'),
+            ),
+            _DashboardAction(
+              icon: Icons.sync_rounded,
+              label: 'Periksa sinkronisasi',
+              onTap: () async {
+                await ref.read(sicatatRepositoryProvider).syncPending();
+                await _loadActivity();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Antrian sinkronisasi diperiksa.'),
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
         ),
       ],
+      if (user?.role.canReviewTemperature == true) ...<Widget>[
+        const SizedBox(height: 10),
+        _homeActionGroup(
+          icon: Icons.monitor_heart_outlined,
+          title: 'Monitoring & laporan',
+          subtitle: 'Tinjau pekerjaan yang perlu ditindaklanjuti',
+          actions: <_DashboardAction>[
+            _DashboardAction(
+              icon: Icons.assignment_late_outlined,
+              label: 'Sheet belum lengkap',
+              onTap: () => context.go('/incomplete'),
+            ),
+            _DashboardAction(
+              icon: Icons.monitor_heart_outlined,
+              label: 'Monitoring sheet',
+              onTap: () => context.go('/monitoring'),
+            ),
+            _DashboardAction(
+              icon: Icons.thermostat_auto_rounded,
+              label: 'Laporan suhu tinggi',
+              onTap: () => context.go('/high-temperature'),
+            ),
+            _DashboardAction(
+              icon: Icons.picture_as_pdf_outlined,
+              label: 'Laporan periode',
+              onTap: () => context.go('/reports'),
+            ),
+          ],
+        ),
+      ],
+      if (user?.role.canManageMasterData == true) ...<Widget>[
+        const SizedBox(height: 10),
+        _homeActionGroup(
+          icon: Icons.manage_accounts_outlined,
+          title: 'Administrasi',
+          subtitle: 'Kelola data master dan pengguna',
+          actions: <_DashboardAction>[
+            _DashboardAction(
+              icon: Icons.manage_accounts_outlined,
+              label: 'Data master & pengguna',
+              onTap: () => context.go('/admin'),
+            ),
+          ],
+        ),
+      ],
+      const SizedBox(height: 10),
+      _homeActionGroup(
+        icon: Icons.help_outline_rounded,
+        title: 'Bantuan',
+        subtitle: 'Panduan penggunaan aplikasi',
+        actions: <_DashboardAction>[
+          _DashboardAction(
+            icon: Icons.help_outline_rounded,
+            label: 'Panduan pengguna',
+            onTap: () => context.go('/guide'),
+          ),
+        ],
+      ),
+    ],
+  );
+
+  Widget _homeActionGroup({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required List<_DashboardAction> actions,
+  }) => Card(
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+            child: Row(
+              children: <Widget>[
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.mint,
+                  child: Icon(icon, color: AppColors.green, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ...actions.map(
+            (_DashboardAction action) => ListTile(
+              leading: Icon(action.icon, color: AppColors.green),
+              title: Text(action.label),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: action.onTap,
+            ),
+          ),
+        ],
+      ),
     ),
   );
+}
+
+class _DashboardAction {
+  const _DashboardAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 }
 
 class _ChangePasswordSheet extends StatefulWidget {
