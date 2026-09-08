@@ -824,6 +824,10 @@ class _MeetingMinuteEditorScreenState
       _message('Simpan draf terlebih dahulu sebelum menambahkan foto.');
       return;
     }
+    if (action.photos.isNotEmpty) {
+      _message('Setiap pembahasan hanya dapat memiliki satu foto.');
+      return;
+    }
     final FilePickerResult? selected = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const <String>['jpg', 'jpeg', 'png'],
@@ -1434,15 +1438,16 @@ class _ActionEditor extends StatelessWidget {
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
-              'Foto pembahasan (opsional)',
+              'Foto pembahasan (opsional, maksimal satu)',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
-          TextButton.icon(
-            onPressed: onAddPhoto,
-            icon: const Icon(Icons.add_photo_alternate_outlined),
-            label: const Text('Tambah foto'),
-          ),
+          if (action.photos.isEmpty)
+            TextButton.icon(
+              onPressed: onAddPhoto,
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+              label: const Text('Tambah foto'),
+            ),
         ],
       ),
       if (action.photos.isEmpty)
@@ -1457,14 +1462,13 @@ class _ActionEditor extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: <Widget>[
-              for (final MeetingMinuteActionPhoto photo in action.photos)
-                _ActionPhotoTile(
-                  photo: photo,
-                  photoUrl: photoUrl,
-                  onDelete: onDeletePhoto == null
-                      ? null
-                      : () => onDeletePhoto!(photo),
-                ),
+              _ActionPhotoTile(
+                photo: action.photos.first,
+                photoUrl: photoUrl,
+                onDelete: onDeletePhoto == null
+                    ? null
+                    : () => onDeletePhoto!(action.photos.first),
+              ),
             ],
           ),
         ),

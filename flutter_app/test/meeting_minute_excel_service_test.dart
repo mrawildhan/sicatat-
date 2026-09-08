@@ -8,7 +8,7 @@ import 'package:sicatat_flutter/data/reports/meeting_minute_service.dart';
 
 void main() {
   test(
-    'export MOM menghasilkan berkas XLSX dengan metadata dan tindak lanjut',
+    'export MOM menempatkan satu foto opsional pada baris pembahasannya',
     () {
       final MeetingMinute minute = MeetingMinute(
         id: 'mom-1',
@@ -51,6 +51,21 @@ void main() {
               0x0a,
             ]),
           ),
+          MeetingMinuteExportPhoto(
+            actionId: 'action-1',
+            fileName: 'foto-lama-yang-tidak-diekspor.png',
+            mimeType: 'image/png',
+            bytes: Uint8List.fromList(<int>[
+              0x89,
+              0x50,
+              0x4e,
+              0x47,
+              0x0d,
+              0x0a,
+              0x1a,
+              0x0a,
+            ]),
+          ),
         ],
       );
       final Archive archive = ZipDecoder().decodeBytes(bytes);
@@ -76,11 +91,18 @@ void main() {
       expect(sheetXml, contains('STI Muara Port Electrical Inspection'));
       expect(sheetXml, contains('Pengecekan panel dan switchgear'));
       expect(sheetXml, contains('PLN dan TCI'));
-      expect(sheetXml, contains('FOTO PEMBAHASAN'));
+      expect(sheetXml, contains('SUBJECT\nDISCUSSIONS'));
+      expect(sheetXml, contains('PHOTO'));
+      expect(sheetXml, contains('ASSIGNED TO'));
+      expect(sheetXml, contains('DATE DUE'));
+      expect(sheetXml, contains('panel-lvmdp.png'));
+      expect(sheetXml, isNot(contains('FOTO PEMBAHASAN')));
+      expect(sheetXml, isNot(contains('foto-lama-yang-tidak-diekspor.png')));
       expect(
         utf8.decode(files['xl/drawings/drawing1.xml']!.content),
-        contains('Foto pembahasan 1'),
+        allOf(contains('Foto pembahasan 1'), contains('<xdr:col>2</xdr:col>')),
       );
+      expect(files.keys, isNot(contains('xl/media/image2.png')));
     },
   );
 }

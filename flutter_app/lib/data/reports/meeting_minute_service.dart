@@ -161,6 +161,16 @@ class MeetingMinuteService {
     if (bytes.lengthInBytes > 8 * 1024 * 1024) {
       throw const FormatException('Ukuran foto maksimal 8 MB.');
     }
+    final Object existing = await _client
+        .from('meeting_minute_action_photo')
+        .select('id')
+        .eq('meeting_minute_action_id', actionId)
+        .limit(1);
+    if (existing is List && existing.isNotEmpty) {
+      throw const FormatException(
+        'Setiap pembahasan hanya dapat memiliki satu foto.',
+      );
+    }
     final String extension = _imageExtension(fileName);
     final String mimeType = extension == 'png' ? 'image/png' : 'image/jpeg';
     final String safeName = fileName.replaceAll(
@@ -216,7 +226,7 @@ class MeetingMinuteService {
   ) async {
     final List<MeetingMinuteExportPhoto> output = <MeetingMinuteExportPhoto>[];
     for (final MeetingMinuteAction action in minute.actions) {
-      for (final MeetingMinuteActionPhoto photo in action.photos) {
+      for (final MeetingMinuteActionPhoto photo in action.photos.take(1)) {
         final Uint8List bytes = await _client.storage
             .from(photoBucket)
             .download(photo.storagePath);
@@ -285,8 +295,16 @@ class MeetingMinuteExcelService {
         : (List<MeetingMinuteAction>.of(minute.actions)
             ..sort((a, b) => a.position.compareTo(b.position)));
     final _XlsxSheet sheet = _XlsxSheet();
+    final Map<String, MeetingMinuteExportPhoto> photoByActionId =
+        <String, MeetingMinuteExportPhoto>{};
+    for (final MeetingMinuteExportPhoto photo in photos) {
+      if ((photo.mimeType == 'image/jpeg' || photo.mimeType == 'image/png') &&
+          photo.actionId.isNotEmpty) {
+        photoByActionId.putIfAbsent(photo.actionId, () => photo);
+      }
+    }
     sheet.merge(
-      'A1:D1',
+      'A1:E1',
       minute.title.isEmpty ? 'NOTULEN RAPAT' : minute.title,
       1,
       30,
@@ -299,12 +317,13 @@ class MeetingMinuteExcelService {
     sheet.metadata(8, 'Distribusi', minute.distributionList);
     sheet.metadata(9, 'Agenda baru', minute.newBusinessAgenda);
     sheet.metadata(10, 'Diajukan oleh', minute.proposedBy);
-    sheet.merge('A12:D12', 'TINDAK LANJUT RAPAT', 4, 22);
+    sheet.merge('A12:E12', 'TINDAK LANJUT RAPAT', 4, 22);
     const List<String> headers = <String>[
       'ITEM [DD.MM.YY]',
-      'PEMBAHASAN',
-      'PENANGGUNG JAWAB',
-      'TENGGAT',
+      'SUBJECT\nDISCUSSIONS',
+      'PHOTO',
+      'ASSIGNED TO',
+      'DATE DUE',
     ];
     for (int column = 0; column < headers.length; column++) {
       sheet.cell(column, 13, headers[column], 5);
@@ -312,50 +331,47 @@ class MeetingMinuteExcelService {
     for (int index = 0; index < actions.length; index++) {
       final MeetingMinuteAction action = actions[index];
       final int row = 14 + index;
-      final double height = _actionHeight(action);
+      final MeetingMinuteExportPhoto? photo = action.id == null
+          ? null
+          : photoByActionId[action.id!];
+      final double height = _actionHeight(action, hasPhoto: photo != null);
       sheet.cell(0, row, _date(action.itemDate), 6, height: height);
       sheet.cell(1, row, action.subjectDiscussion, 6, height: height);
-      sheet.cell(2, row, action.assignedTo, 6, height: height);
-      sheet.cell(3, row, _date(action.dueDate), 6, height: height);
+      sheet.cell(
+        2,
+        row,
+        photo == null ? '' : photo.fileName,
+        6,
+        height: height,
+      );
+      sheet.cell(3, row, action.assignedTo, 6, height: height);
+      sheet.cell(4, row, _date(action.dueDate), 6, height: height);
     }
     final int noteRow = 15 + actions.length;
     sheet.merge(
-      'A$noteRow:D$noteRow',
+      'A$noteRow:E$noteRow',
       minute.note.trim().isEmpty
           ? 'CATATAN: —'
           : 'CATATAN: ${minute.note.trim()}',
       3,
       42,
     );
-    final Map<String, int> actionRows = <String, int>{
-      for (int index = 0; index < actions.length; index++)
-        if (actions[index].id != null) actions[index].id!: 14 + index,
-    };
     final List<_XlsxPhoto> workbookPhotos = <_XlsxPhoto>[];
-    int photoRow = noteRow + 2;
-    for (final MeetingMinuteExportPhoto photo in photos) {
-      if (photo.mimeType != 'image/jpeg' && photo.mimeType != 'image/png') {
-        continue;
+    for (int index = 0; index < actions.length; index++) {
+      final MeetingMinuteAction action = actions[index];
+      final MeetingMinuteExportPhoto? photo = action.id == null
+          ? null
+          : photoByActionId[action.id!];
+      if (photo != null) {
+        workbookPhotos.add(
+          _XlsxPhoto(
+            row: 13 + index,
+            column: 2,
+            extension: photo.mimeType == 'image/png' ? 'png' : 'jpg',
+            bytes: photo.bytes,
+          ),
+        );
       }
-      final int? actionRow = actionRows[photo.actionId];
-      sheet.merge(
-        'A$photoRow:D$photoRow',
-        actionRow == null
-            ? 'FOTO PEMBAHASAN'
-            : 'FOTO PEMBAHASAN — tindak lanjut ${actionRow - 13}',
-        4,
-        22,
-      );
-      final int imageRow = photoRow + 1;
-      sheet.merge('A$imageRow:D$imageRow', photo.fileName, 3, 136);
-      workbookPhotos.add(
-        _XlsxPhoto(
-          row: imageRow - 1,
-          extension: photo.mimeType == 'image/png' ? 'png' : 'jpg',
-          bytes: photo.bytes,
-        ),
-      );
-      photoRow = imageRow + 2;
     }
     final Archive archive = Archive()
       ..addFile(
@@ -422,7 +438,10 @@ class MeetingMinuteExcelService {
     return range.isEmpty ? date : '$date, $range WITA';
   }
 
-  static double _actionHeight(MeetingMinuteAction action) {
+  static double _actionHeight(
+    MeetingMinuteAction action, {
+    required bool hasPhoto,
+  }) {
     int estimatedLines(String text, int charactersPerLine) =>
         text.split('\n').fold<int>(0, (int total, String line) {
           final int characters = line.trim().isEmpty ? 1 : line.trim().length;
@@ -433,7 +452,8 @@ class MeetingMinuteExcelService {
     final int lines = discussionLines > ownerLines
         ? discussionLines
         : ownerLines;
-    return (lines * 15 + 12).clamp(52, 520).toDouble();
+    final double textHeight = (lines * 15 + 12).clamp(52, 520).toDouble();
+    return hasPhoto && textHeight < 112 ? 112 : textHeight;
   }
 
   static String _date(DateTime? value, {String format = 'dd/MM/yyyy'}) {
@@ -492,7 +512,7 @@ class MeetingMinuteExcelService {
     for (int index = 0; index < photos.length; index++) {
       final _XlsxPhoto photo = photos[index];
       anchors.write(
-        '''<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${photo.row}</xdr:row><xdr:rowOff>114300</xdr:rowOff></xdr:from><xdr:to><xdr:col>3</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${photo.row + 1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${index + 1}" name="Foto pembahasan ${index + 1}"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${index + 1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:twoCellAnchor>''',
+        '''<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>${photo.column}</xdr:col><xdr:colOff>114300</xdr:colOff><xdr:row>${photo.row}</xdr:row><xdr:rowOff>114300</xdr:rowOff></xdr:from><xdr:to><xdr:col>${photo.column + 1}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${photo.row + 1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${index + 1}" name="Foto pembahasan ${index + 1}"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${index + 1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:twoCellAnchor>''',
       );
     }
     return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -503,11 +523,13 @@ class MeetingMinuteExcelService {
 class _XlsxPhoto {
   const _XlsxPhoto({
     required this.row,
+    required this.column,
     required this.extension,
     required this.bytes,
   });
 
   final int row;
+  final int column;
   final String extension;
   final Uint8List bytes;
 }
@@ -526,7 +548,7 @@ class _XlsxSheet {
   }
 
   void merge(String range, String value, int style, [double? height]) {
-    final RegExpMatch match = RegExp(r'^([A-D]+)(\d+):').firstMatch(range)!;
+    final RegExpMatch match = RegExp(r'^([A-E]+)(\d+):').firstMatch(range)!;
     final int row = int.parse(match.group(2)!);
     _add(
       row,
@@ -538,7 +560,7 @@ class _XlsxSheet {
 
   void metadata(int row, String label, String value) {
     cell(0, row, label, 2, height: 32);
-    merge('B$row:D$row', value.isEmpty ? '—' : value, 3);
+    merge('B$row:E$row', value.isEmpty ? '—' : value, 3);
   }
 
   void _add(int row, String content, double? height) {
@@ -565,7 +587,7 @@ class _XlsxSheet {
     }
     final int lastRow = keys.isEmpty ? 1 : keys.last;
     return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:D$lastRow"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="17" customWidth="1"/><col min="2" max="2" width="58" customWidth="1"/><col min="3" max="3" width="24" customWidth="1"/><col min="4" max="4" width="17" customWidth="1"/></cols><sheetData>$rows</sheetData><mergeCells count="${_merges.length}">${_merges.map((String range) => '<mergeCell ref="$range"/>').join()}</mergeCells>${hasPhotos ? '<drawing r:id="rId1"/>' : ''}</worksheet>''';
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:E$lastRow"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="17" customWidth="1"/><col min="2" max="2" width="58" customWidth="1"/><col min="3" max="3" width="22" customWidth="1"/><col min="4" max="4" width="24" customWidth="1"/><col min="5" max="5" width="17" customWidth="1"/></cols><sheetData>$rows</sheetData><mergeCells count="${_merges.length}">${_merges.map((String range) => '<mergeCell ref="$range"/>').join()}</mergeCells>${hasPhotos ? '<drawing r:id="rId1"/>' : ''}</worksheet>''';
   }
 
   static String _escape(String value) => value
