@@ -23,11 +23,8 @@ void main() {
         attendees: 'Arutmin Indonesia, PLN, TCI',
         minuteTaker: 'Ilham Ananto',
         followUpOf: 'mom-sebelumnya',
-        followUpSource: MeetingMinuteReference(
-          id: 'mom-sebelumnya',
-          title: 'MOM Ban Bocor Kendaraan Ringan',
-          meetingDate: DateTime(2026, 1, 23),
-        ),
+        followUpSourceTitle: 'MOM Ban Bocor Kendaraan Ringan',
+        followUpSourceDate: DateTime(2026, 1, 23),
         actions: <MeetingMinuteAction>[
           MeetingMinuteAction(
             itemDate: DateTime(2025, 9, 22),

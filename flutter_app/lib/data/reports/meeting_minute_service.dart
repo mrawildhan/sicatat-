@@ -11,7 +11,7 @@ class MeetingMinuteService {
   final SupabaseClient _client;
   static const String photoBucket = 'meeting-minute-photos';
   static const String _select =
-      'id,title,meeting_date,start_time,end_time,location,attendees,apologies,minute_taker,distribution_list,new_business_agenda,proposed_by,note,status,created_by,updated_at,follow_up_of,follow_up_source:meeting_minute!meeting_minute_follow_up_of_fkey(id,title,meeting_date),meeting_minute_action(id,item_date,issue_description,subject_discussion,assigned_to,due_date,position,progress_remark,meeting_minute_action_photo(id,meeting_minute_action_id,storage_path,file_name,mime_type,position))';
+      'id,title,meeting_date,start_time,end_time,location,attendees,apologies,minute_taker,distribution_list,new_business_agenda,proposed_by,note,status,created_by,updated_at,follow_up_of,follow_up_source_title,follow_up_source_date,meeting_minute_action(id,item_date,issue_description,subject_discussion,assigned_to,due_date,position,progress_remark,meeting_minute_action_photo(id,meeting_minute_action_id,storage_path,file_name,mime_type,position))';
 
   Future<List<MeetingMinute>> loadAll() async {
     final Object response = await _client
@@ -57,6 +57,8 @@ class MeetingMinuteService {
     required String proposedBy,
     required String note,
     String? followUpOf,
+    String followUpSourceTitle = '',
+    DateTime? followUpSourceDate,
     required MeetingMinuteStatus status,
     required List<MeetingMinuteAction> actions,
   }) async {
@@ -75,6 +77,8 @@ class MeetingMinuteService {
       'note': note.trim(),
       'status': status.storageValue,
       'follow_up_of': followUpOf,
+      'follow_up_source_title': followUpSourceTitle.trim(),
+      'follow_up_source_date': _dateText(followUpSourceDate),
     };
     final String meetingId;
     if (id == null) {

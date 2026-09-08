@@ -813,6 +813,11 @@ class _MeetingMinuteEditorScreenState
         proposedBy: _proposedBy.text,
         note: _note.text,
         followUpOf: _minute?.followUpOf ?? widget.followUpOf,
+        followUpSourceTitle:
+            _minute?.followUpSource?.title ?? _followUpSource?.title ?? '',
+        followUpSourceDate:
+            _minute?.followUpSource?.meetingDate ??
+            _followUpSource?.meetingDate,
         status: status,
         actions: <MeetingMinuteAction>[
           for (int index = 0; index < _actions.length; index++)

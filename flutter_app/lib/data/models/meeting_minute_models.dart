@@ -163,7 +163,8 @@ class MeetingMinute {
     this.proposedBy = '',
     this.note = '',
     this.followUpOf,
-    this.followUpSource,
+    this.followUpSourceTitle = '',
+    this.followUpSourceDate,
   });
 
   final String id;
@@ -184,7 +185,16 @@ class MeetingMinute {
   final String proposedBy;
   final String note;
   final String? followUpOf;
-  final MeetingMinuteReference? followUpSource;
+  final String followUpSourceTitle;
+  final DateTime? followUpSourceDate;
+
+  MeetingMinuteReference? get followUpSource => followUpOf == null
+      ? null
+      : MeetingMinuteReference(
+          id: followUpOf!,
+          title: followUpSourceTitle,
+          meetingDate: followUpSourceDate,
+        );
 
   factory MeetingMinute.fromJson(JsonMap json) {
     final Object? rawActions = json['meeting_minute_action'];
@@ -222,14 +232,10 @@ class MeetingMinute {
       proposedBy: json.optionalString('proposed_by') ?? '',
       note: json.optionalString('note') ?? '',
       followUpOf: json.optionalString('follow_up_of'),
-      followUpSource: json['follow_up_source'] is Map
-          ? MeetingMinuteReference.fromJson(
-              requireJsonMap(
-                json['follow_up_source'],
-                source: 'meeting minute follow up',
-              ),
-            )
-          : null,
+      followUpSourceTitle: json.optionalString('follow_up_source_title') ?? '',
+      followUpSourceDate: MeetingMinuteAction._date(
+        json.optionalString('follow_up_source_date'),
+      ),
     );
   }
 }
