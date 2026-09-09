@@ -82,22 +82,21 @@ Future<void> openNavigationGroup(
       return SafeArea(
         top: false,
         child: SizedBox(
-          height: MediaQuery.sizeOf(sheetContext).height * 0.72,
+          height:
+              MediaQuery.sizeOf(sheetContext).height *
+              (tablet
+                  ? 0.5
+                  : operational
+                  ? 0.5
+                  : 0.4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                 child: Text(
                   operational ? 'Operasional' : 'Referensi',
                   style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: Text(
-                  'Pilih kartu sesuai pekerjaan yang ingin dibuka.',
-                  style: TextStyle(color: AppColors.muted),
                 ),
               ),
               Expanded(
@@ -107,11 +106,7 @@ Future<void> openNavigationGroup(
                     crossAxisCount: tablet || compactOperationalGrid ? 3 : 2,
                     mainAxisSpacing: compactOperationalGrid ? 8 : 12,
                     crossAxisSpacing: compactOperationalGrid ? 8 : 12,
-                    childAspectRatio: tablet
-                        ? 1.28
-                        : compactOperationalGrid
-                        ? 0.98
-                        : 1.03,
+                    childAspectRatio: tablet ? 1.7 : 1.08,
                   ),
                   itemCount: options.length,
                   physics: const NeverScrollableScrollPhysics(),
@@ -160,45 +155,35 @@ class _NavigationGroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
-    label: '${option.title}. ${option.subtitle}',
+    label: option.title,
     child: Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.all(compact ? 10 : 14),
+          padding: const EdgeInsets.all(8),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               CircleAvatar(
-                radius: compact ? 17 : 20,
+                radius: compact ? 15 : 16,
                 backgroundColor: AppColors.mint,
                 child: Icon(
                   option.icon,
                   color: AppColors.green,
-                  size: compact ? 19 : null,
+                  size: compact ? 17 : 18,
                 ),
               ),
-              const Spacer(),
               Text(
                 option.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: compact ? 13 : null,
+                  fontSize: compact ? 12 : 13,
+                  height: 1.15,
                   fontWeight: FontWeight.w900,
-                ),
-              ),
-              SizedBox(height: compact ? 2 : 4),
-              Text(
-                option.subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 11,
-                  height: 1.25,
                 ),
               ),
             ],

@@ -57,13 +57,15 @@ void main() {
 
     expect(find.text('PM'), findsOneWidget);
     expect(find.text('CM'), findsOneWidget);
-    expect(find.text('Crew A · CPP'), findsOneWidget);
-    expect(find.text('Crew B · PORT'), findsOneWidget);
-    expect(find.text('Crew C · CPP'), findsOneWidget);
+    expect(find.text('CPP'), findsOneWidget);
+    expect(find.text('PORT'), findsOneWidget);
+    expect(find.text('Crew A'), findsNWidgets(2));
+    expect(find.text('Crew B'), findsNWidgets(2));
+    expect(find.text('Crew C'), findsNWidgets(2));
     expect(find.text('CM CPP'), findsOneWidget);
     expect(find.text('CM PORT'), findsOneWidget);
 
-    await tester.tap(find.text('Crew A · CPP'));
+    await tester.tap(find.text('Crew A').first);
     await tester.pumpAndSettle();
 
     expect(find.text('PM Crew A · CPP'), findsOneWidget);

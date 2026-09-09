@@ -785,16 +785,6 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const Text(
-          'Pantau PM dan CM yang masih outstanding',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Memberi visibilitas mingguan kepada foreman sebelum pekerjaan atau dokumennya tertinggal.',
-          style: TextStyle(color: AppColors.muted, height: 1.45),
-        ),
-        const SizedBox(height: 18),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -826,7 +816,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         const Text(
-          'PM per crew & lokasi',
+          'PM per lokasi',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
         ),
         if (loading)
@@ -838,47 +828,35 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
           _OutstandingPmNotice(message: error!, onRetry: onRefresh)
         else ...<Widget>[
           Text(
-            '${items.length} PM outstanding. Tekan kartu untuk melihat daftar work order.',
+            '${items.length} PM outstanding. Tekan crew untuk melihat daftar.',
             style: const TextStyle(color: AppColors.muted, fontSize: 13),
           ),
           const SizedBox(height: 6),
-          Column(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              _OutstandingPmCard(
-                crew: 'A',
-                site: 'CPP',
-                count: _count('A', 'CPP'),
-                onTap: () => onOpenPmList('A', 'CPP'),
+              Expanded(
+                child: _OutstandingPmLocationGroup(
+                  site: 'CPP',
+                  counts: <String, int>{
+                    'A': _count('A', 'CPP'),
+                    'B': _count('B', 'CPP'),
+                    'C': _count('C', 'CPP'),
+                  },
+                  onOpen: (crew) => onOpenPmList(crew, 'CPP'),
+                ),
               ),
-              _OutstandingPmCard(
-                crew: 'A',
-                site: 'PORT',
-                count: _count('A', 'PORT'),
-                onTap: () => onOpenPmList('A', 'PORT'),
-              ),
-              _OutstandingPmCard(
-                crew: 'B',
-                site: 'CPP',
-                count: _count('B', 'CPP'),
-                onTap: () => onOpenPmList('B', 'CPP'),
-              ),
-              _OutstandingPmCard(
-                crew: 'B',
-                site: 'PORT',
-                count: _count('B', 'PORT'),
-                onTap: () => onOpenPmList('B', 'PORT'),
-              ),
-              _OutstandingPmCard(
-                crew: 'C',
-                site: 'CPP',
-                count: _count('C', 'CPP'),
-                onTap: () => onOpenPmList('C', 'CPP'),
-              ),
-              _OutstandingPmCard(
-                crew: 'C',
-                site: 'PORT',
-                count: _count('C', 'PORT'),
-                onTap: () => onOpenPmList('C', 'PORT'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OutstandingPmLocationGroup(
+                  site: 'PORT',
+                  counts: <String, int>{
+                    'A': _count('A', 'PORT'),
+                    'B': _count('B', 'PORT'),
+                    'C': _count('C', 'PORT'),
+                  },
+                  onOpen: (crew) => onOpenPmList(crew, 'PORT'),
+                ),
               ),
             ],
           ),
@@ -1638,7 +1616,7 @@ class _OutstandingPmCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Crew $crew · $site',
+                      'Crew $crew',
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     const Text(
@@ -1662,6 +1640,39 @@ class _OutstandingPmCard extends StatelessWidget {
         ),
       ),
     ),
+  );
+}
+
+class _OutstandingPmLocationGroup extends StatelessWidget {
+  const _OutstandingPmLocationGroup({
+    required this.site,
+    required this.counts,
+    required this.onOpen,
+  });
+
+  final String site;
+  final Map<String, int> counts;
+  final ValueChanged<String> onOpen;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 5),
+        child: Text(
+          site,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+        ),
+      ),
+      for (final String crew in <String>['A', 'B', 'C'])
+        _OutstandingPmCard(
+          crew: crew,
+          site: site,
+          count: counts[crew] ?? 0,
+          onTap: () => onOpen(crew),
+        ),
+    ],
   );
 }
 
@@ -1706,7 +1717,9 @@ class _OutstandingPmNotice extends StatelessWidget {
   );
 }
 
-class _PreventiveMaintenanceListSheet extends StatelessWidget {
+enum _PmDateOrder { oldest, newest }
+
+class _PreventiveMaintenanceListSheet extends StatefulWidget {
   const _PreventiveMaintenanceListSheet({
     required this.crew,
     required this.site,
@@ -1716,6 +1729,34 @@ class _PreventiveMaintenanceListSheet extends StatelessWidget {
   final String crew;
   final String site;
   final List<PreventiveMaintenanceWorkOrder> items;
+
+  @override
+  State<_PreventiveMaintenanceListSheet> createState() =>
+      _PreventiveMaintenanceListSheetState();
+}
+
+class _PreventiveMaintenanceListSheetState
+    extends State<_PreventiveMaintenanceListSheet> {
+  _PmDateOrder _dateOrder = _PmDateOrder.oldest;
+
+  DateTime? _sortDate(PreventiveMaintenanceWorkOrder item) =>
+      item.plannedStartOn ?? item.raisedOn;
+
+  List<PreventiveMaintenanceWorkOrder> get _sortedItems {
+    final List<PreventiveMaintenanceWorkOrder> result = List.of(widget.items);
+    result.sort((a, b) {
+      final DateTime? first = _sortDate(a);
+      final DateTime? second = _sortDate(b);
+      if (first == null && second == null) {
+        return a.workOrder.compareTo(b.workOrder);
+      }
+      if (first == null) return 1;
+      if (second == null) return -1;
+      final int comparison = first.compareTo(second);
+      return _dateOrder == _PmDateOrder.oldest ? comparison : -comparison;
+    });
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -1729,21 +1770,46 @@ class _PreventiveMaintenanceListSheet extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
         children: <Widget>[
           Text(
-            'PM Crew $crew · $site',
+            'PM Crew ${widget.crew} · ${widget.site}',
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 4),
           Text(
-            '${items.length} work order masih outstanding',
+            '${widget.items.length} work order masih outstanding',
             style: const TextStyle(color: AppColors.muted),
           ),
-          const SizedBox(height: 14),
-          if (items.isEmpty)
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<_PmDateOrder>(
+                value: _dateOrder,
+                isDense: true,
+                borderRadius: BorderRadius.circular(12),
+                icon: const Icon(Icons.unfold_more_rounded, size: 18),
+                onChanged: (_PmDateOrder? value) {
+                  if (value != null) setState(() => _dateOrder = value);
+                },
+                items: const <DropdownMenuItem<_PmDateOrder>>[
+                  DropdownMenuItem(
+                    value: _PmDateOrder.oldest,
+                    child: Text('Tanggal: terlama'),
+                  ),
+                  DropdownMenuItem(
+                    value: _PmDateOrder.newest,
+                    child: Text('Tanggal: terbaru'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (widget.items.isEmpty)
             const _EmptyPmList()
           else
-            ...items.map(
+            ..._sortedItems.map(
               (PreventiveMaintenanceWorkOrder item) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.only(bottom: 7),
                 child: _PreventiveMaintenanceTile(item: item),
               ),
             ),
@@ -1779,7 +1845,7 @@ class _PreventiveMaintenanceTile extends StatelessWidget {
     final String? priority = item.priorityDescription ?? item.priority;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -1795,26 +1861,35 @@ class _PreventiveMaintenanceTile extends StatelessWidget {
                   _PmPriorityChip(label: priority),
               ],
             ),
-            const SizedBox(height: 5),
-            Text(item.description, style: const TextStyle(height: 1.35)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              runSpacing: 6,
+            const SizedBox(height: 3),
+            Text(
+              item.description,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 7),
+            Row(
               children: <Widget>[
-                _PmDetail(
-                  icon: Icons.precision_manufacturing_outlined,
-                  text: item.equipmentReference,
+                Expanded(
+                  child: _PmDetail(
+                    icon: Icons.precision_manufacturing_outlined,
+                    text: item.equipmentReference,
+                  ),
                 ),
-                _PmDetail(
-                  icon: Icons.event_outlined,
-                  text: item.plannedStartOn == null
-                      ? 'Belum dijadwalkan'
-                      : 'Rencana ${_pmShortDate(item.plannedStartOn!)}',
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _PmDetail(
+                    icon: Icons.event_outlined,
+                    text: item.plannedStartOn == null
+                        ? 'Belum dijadwalkan'
+                        : _pmShortDate(item.plannedStartOn!),
+                  ),
                 ),
-                _PmDetail(icon: Icons.person_outline_rounded, text: assigned),
               ],
             ),
+            const SizedBox(height: 4),
+            _PmDetail(icon: Icons.person_outline_rounded, text: assigned),
           ],
         ),
       ),
@@ -1852,21 +1927,20 @@ class _PmDetail extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 210,
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Icon(icon, size: 16, color: AppColors.muted),
-        const SizedBox(width: 5),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
-          ),
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Icon(icon, size: 16, color: AppColors.muted),
+      const SizedBox(width: 5),
+      Expanded(
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: AppColors.muted, fontSize: 12),
         ),
-      ],
-    ),
+      ),
+    ],
   );
 }
 
