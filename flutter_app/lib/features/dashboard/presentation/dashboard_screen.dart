@@ -713,7 +713,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Text(
                     'Selamat datang, $crewName',
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -728,17 +728,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             SyncChip(_syncState),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         const Text(
           'Akses cepat',
-          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 4),
         const Text(
           'Pilih kelompok menu untuk melihat fitur di dalamnya.',
           style: TextStyle(color: AppColors.muted, fontSize: 13),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         _homeMenuCard(
           icon: Icons.fact_check_rounded,
           title: 'Operasional',
@@ -751,7 +751,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             canWarehouse: hasWarehouse,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         _homeMenuCard(
           icon: Icons.folder_copy_rounded,
           title: 'Referensi',
@@ -764,7 +764,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             canWarehouse: hasWarehouse,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _homeMoreActions(context, user),
       ],
     );
@@ -781,18 +781,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     child: InkWell(
       onTap: onTap,
       child: SizedBox(
-        height: 90,
+        height: 78,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               CircleAvatar(
-                radius: 20,
+                radius: 18,
                 backgroundColor: AppColors.mint,
-                child: Icon(icon, color: AppColors.green, size: 21),
+                child: Icon(icon, color: AppColors.green, size: 20),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -801,7 +801,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -831,7 +831,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     children: <Widget>[
       const Text(
         'Pengaturan & bantuan',
-        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
       ),
       const SizedBox(height: 4),
       const Text(
@@ -839,7 +839,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         style: TextStyle(color: AppColors.muted, fontSize: 13),
       ),
       if (user?.role.canManageMasterData == true) ...<Widget>[
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         _homeUtilityCard(
           icon: Icons.manage_accounts_outlined,
           title: 'Data master & pengguna',
@@ -847,7 +847,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           onTap: () => context.go('/admin'),
         ),
       ],
-      const SizedBox(height: 10),
+      const SizedBox(height: 8),
       _homeUtilityCard(
         icon: Icons.help_outline_rounded,
         title: 'Panduan pengguna',
@@ -868,13 +868,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     child: InkWell(
       onTap: onTap,
       child: SizedBox(
-        height: 78,
+        height: 70,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: <Widget>[
               CircleAvatar(
-                radius: 19,
+                radius: 18,
                 backgroundColor: AppColors.mint,
                 child: Icon(icon, color: AppColors.green, size: 20),
               ),
@@ -887,7 +887,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
                     ),

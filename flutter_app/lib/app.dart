@@ -535,25 +535,34 @@ class _SicatatAppState extends State<SicatatApp> {
               debugShowCheckedModeBanner: false,
               theme: AppTheme.light,
               routerConfig: _router,
-              builder: (BuildContext context, Widget? child) => OnlineOnlyGate(
-                child: Stack(
-                  children: <Widget>[
-                    child ?? const SizedBox.shrink(),
-                    if (status.updateAvailable && !_noticeDismissed)
-                      _VersionNotice(
-                        latestVersion: status.latestVersion ?? '',
-                        releaseNotes: status.releaseNotes,
-                        onDismiss: () =>
-                            setState(() => _noticeDismissed = true),
-                      ),
-                    if (status.blocked)
-                      _VersionBlock(
-                        latestVersion: status.latestVersion ?? '',
-                        releaseNotes: status.releaseNotes,
-                      ),
-                  ],
-                ),
-              ),
+              builder: (BuildContext context, Widget? child) {
+                final MediaQueryData mediaQuery = MediaQuery.of(context);
+                final double requestedScale = mediaQuery.textScaler.scale(1);
+                return MediaQuery(
+                  data: mediaQuery.copyWith(
+                    textScaler: TextScaler.linear(requestedScale * .92),
+                  ),
+                  child: OnlineOnlyGate(
+                    child: Stack(
+                      children: <Widget>[
+                        child ?? const SizedBox.shrink(),
+                        if (status.updateAvailable && !_noticeDismissed)
+                          _VersionNotice(
+                            latestVersion: status.latestVersion ?? '',
+                            releaseNotes: status.releaseNotes,
+                            onDismiss: () =>
+                                setState(() => _noticeDismissed = true),
+                          ),
+                        if (status.blocked)
+                          _VersionBlock(
+                            latestVersion: status.latestVersion ?? '',
+                            releaseNotes: status.releaseNotes,
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             );
           },
     );
