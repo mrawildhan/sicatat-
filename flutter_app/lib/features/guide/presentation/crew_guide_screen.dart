@@ -125,60 +125,87 @@ class CrewGuideScreen extends StatelessWidget {
                   Icons.picture_as_pdf_outlined,
                   color: AppColors.green,
                 ),
-                title: const Text('Download Indonesian PDF'),
-                subtitle: const Text('Panduan aplikasi dalam Bahasa Indonesia'),
+                title: const Text('Unduh PDF Bahasa Indonesia'),
+                subtitle: const Text(
+                  'Simpan panduan untuk dibaca tanpa membuka aplikasi',
+                ),
                 trailing: const Icon(Icons.download_rounded),
                 onTap: _downloadIndonesianPdf,
               ),
             ),
             const SizedBox(height: 12),
-            const _GuideSection(
-              'A. Pencatatan temperatur',
-              'Buka menu Temperature, lalu pilih New sheet. Pilih tanggal inspeksi dan shift yang benar. Satu sheet digunakan untuk satu kombinasi tanggal, shift, modul, dan site.',
+            const _GuideGroup(
+              title: 'Suhu',
+              icon: Icons.thermostat_rounded,
+              initiallyExpanded: true,
+              sections: <_GuideEntry>[
+                _GuideEntry(
+                  'Pencatatan',
+                  'Buka menu Suhu, lalu pilih Buat sheet. Pilih tanggal inspeksi dan shift yang benar. Satu sheet digunakan untuk satu kombinasi tanggal, shift, modul, dan site.',
+                ),
+                _GuideEntry(
+                  'Round 1 dan Round 2',
+                  'Pilih unit serta sisi West atau East, kemudian simpan setiap sisi. Waktu round tercatat otomatis saat data pertama disimpan. Sheet dapat tetap berupa draf dan dilanjutkan sebelum shift berakhir.',
+                ),
+                _GuideEntry(
+                  'Kondisi unit',
+                  'Pilih Beroperasi untuk mengisi seluruh titik suhu. Jika unit Tidak beroperasi atau Tidak dapat diakses, isi alasannya.',
+                ),
+                _GuideEntry(
+                  'Warna suhu',
+                  'Hijau berarti di bawah 60°C. Oranye berarti 60–69°C dan perlu perhatian. Merah berarti 70°C atau lebih dan harus segera dilaporkan.',
+                ),
+                _GuideEntry(
+                  'Ringkasan dan kirim',
+                  'Buka Ringkasan sheet untuk meninjau bagian yang lengkap atau belum lengkap. Ketuk kartu merah untuk membuka data yang masih kurang. Sheet yang diverifikasi akan terkunci.',
+                ),
+              ],
             ),
-            const _GuideSection(
-              'B. Round 1 dan Round 2',
-              'Pilih unit serta sisi West atau East, kemudian simpan setiap sisi. Waktu round tercatat otomatis saat data pertama disimpan. Sheet dapat tetap berupa draft dan dilanjutkan sebelum shift berakhir.',
+            const _GuideGroup(
+              title: 'Pengingat',
+              icon: Icons.notifications_none_rounded,
+              sections: <_GuideEntry>[
+                _GuideEntry(
+                  'Membuat pengingat',
+                  'Pengguna dengan akses Pengingat dapat menambahkan judul, aset, tindakan, PIC, lokasi, jatuh tempo, prioritas, penerima, dan jadwal email.',
+                ),
+                _GuideEntry(
+                  'Menyelesaikan pengingat',
+                  'Setelah pekerjaan selesai, ketuk Tandai selesai dan isi catatan bila perlu. Gunakan Buka kembali bila pekerjaan perlu dilanjutkan.',
+                ),
+              ],
             ),
-            const _GuideSection(
-              'C. Kondisi unit',
-              'Pilih Operating untuk mengisi seluruh titik temperatur. Jika unit Not operating atau Not accessible, isi alasannya. Jangan mengganti alasan wajib dengan nilai temperatur.',
+            const _GuideGroup(
+              title: 'Gudang',
+              icon: Icons.inventory_2_outlined,
+              sections: <_GuideEntry>[
+                _GuideEntry(
+                  'Mencari stok',
+                  'Buka Gudang, lalu ketik minimal dua karakter untuk mencari nama item, kode SC, atau lokasi bin. Gunakan filter gudang bila perlu.',
+                ),
+                _GuideEntry(
+                  'Melihat detail',
+                  'Ketuk kartu item untuk melihat kode SC, site, lokasi bin, satuan, stok, harga unit, serta tanggal pembaruan spreadsheet.',
+                ),
+              ],
             ),
-            const _GuideSection(
-              'D. Warna temperatur',
-              'Hijau berarti di bawah 60°C. Oranye berarti 60–69°C dan perlu perhatian. Merah berarti 70°C atau lebih dan harus segera dilaporkan sesuai prosedur operasi.',
-            ),
-            const _GuideSection(
-              'E. Ringkasan dan submit',
-              'Buka Sheet summary untuk meninjau bagian yang lengkap atau belum lengkap. Ketuk kartu merah untuk membuka data yang masih kurang. Kirim data hanya jika sudah siap; sheet yang diverifikasi akan terkunci.',
-            ),
-            const _GuideSection(
-              'F. Reminder operasional',
-              'Pengguna dengan akses Reminder dapat menambahkan judul, aset, tindakan, PIC, lokasi, tanggal jatuh tempo, prioritas, penerima, dan jadwal email. Pilih weekly, monthly, atau jumlah hari custom sebelum jatuh tempo.',
-            ),
-            const _GuideSection(
-              'G. Menyelesaikan reminder',
-              'Setelah pekerjaan selesai, ketuk Mark complete dan isi catatan bila perlu. Gunakan Reopen jika pekerjaan perlu dibuka kembali. Gunakan ikon riwayat untuk melihat pengiriman email dan perubahan.',
-            ),
-            const _GuideSection(
-              'H. Mencari stok Warehouse',
-              'Buka Warehouse, lalu ketik minimal dua karakter untuk mencari nama item, kode SC, atau lokasi bin. Hasil stok baru muncul setelah pencarian. Gunakan filter warehouse bila perlu, lalu pilih Stock & Price atau Tools sesuai kebutuhan.',
-            ),
-            const _GuideSection(
-              'I. Detail item Warehouse',
-              'Ketuk nama atau kartu item untuk melihat detail dari Google Sheet: kode SC, site, lokasi bin, satuan, stok, harga unit, tanggal pembaruan sheet, dan waktu sinkronisasi.',
-            ),
-            const _GuideSection(
-              'J. Ganti password',
-              'Buka Profile lalu pilih Ganti password. Masukkan password lama, kemudian buat password baru minimal delapan karakter dengan gabungan huruf dan angka. Setelah berhasil, semua perangkat yang masih login akan dikeluarkan dan Anda perlu masuk kembali.',
-            ),
-            const _GuideSection(
-              'K. Memperbarui aplikasi Android',
-              'Buka Profile, pilih App updates, lalu ketuk Check update. Jika ada versi baru, pilih Download & install dan izinkan pemasangan saat Android meminta persetujuan. Jangan hapus aplikasi lama.',
-            ),
-            const _GuideSection(
-              'L. Akses dan koneksi',
-              'SICATAT hanya dapat digunakan saat online. Menu yang tersedia mengikuti peran dan cakupan site akun. Jika data tidak dapat dimuat, periksa koneksi internet dan ketuk Refresh; jangan menghapus aplikasi.',
+            const _GuideGroup(
+              title: 'Profil dan aplikasi',
+              icon: Icons.person_outline_rounded,
+              sections: <_GuideEntry>[
+                _GuideEntry(
+                  'Ganti password',
+                  'Buka Profil lalu pilih Ganti password. Buat password baru minimal delapan karakter dengan gabungan huruf dan angka.',
+                ),
+                _GuideEntry(
+                  'Memperbarui Android',
+                  'Buka Profil, pilih Pembaruan aplikasi, lalu ketuk Periksa pembaruan. Jika ada versi baru, pilih Unduh dan pasang.',
+                ),
+                _GuideEntry(
+                  'Akses dan koneksi',
+                  'SICATAT digunakan saat online. Jika data tidak dapat dimuat, periksa internet lalu ketuk Muat ulang.',
+                ),
+              ],
             ),
           ],
         ),
@@ -187,35 +214,66 @@ class CrewGuideScreen extends StatelessWidget {
   }
 }
 
-class _GuideSection extends StatelessWidget {
-  const _GuideSection(this.title, this.description);
+class _GuideEntry {
+  const _GuideEntry(this.title, this.description);
 
   final String title;
   final String description;
+}
+
+class _GuideGroup extends StatelessWidget {
+  const _GuideGroup({
+    required this.title,
+    required this.icon,
+    required this.sections,
+    this.initiallyExpanded = false,
+  });
+
+  final String title;
+  final IconData icon;
+  final List<_GuideEntry> sections;
+  final bool initiallyExpanded;
 
   @override
   Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 12),
-    child: Padding(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.greenDark,
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
+    margin: const EdgeInsets.only(bottom: 10),
+    clipBehavior: Clip.antiAlias,
+    child: ExpansionTile(
+      initiallyExpanded: initiallyExpanded,
+      leading: CircleAvatar(
+        backgroundColor: AppColors.mint,
+        child: Icon(icon, color: AppColors.green),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+      subtitle: Text(
+        '${sections.length} panduan',
+        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+      ),
+      children: <Widget>[
+        const Divider(height: 1),
+        for (final _GuideEntry section in sections)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  section.title,
+                  style: const TextStyle(
+                    color: AppColors.greenDark,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  section.description,
+                  style: const TextStyle(color: AppColors.muted, height: 1.4),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: const TextStyle(color: AppColors.muted, height: 1.45),
-          ),
-        ],
-      ),
+        const SizedBox(height: 14),
+      ],
     ),
   );
 }

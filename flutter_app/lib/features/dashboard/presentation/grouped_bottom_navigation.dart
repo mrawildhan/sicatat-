@@ -78,10 +78,11 @@ Future<void> openNavigationGroup(
     useSafeArea: true,
     builder: (sheetContext) {
       final bool tablet = MediaQuery.sizeOf(sheetContext).width >= 600;
+      final bool compactOperationalGrid = operational && !tablet;
       return SafeArea(
         top: false,
         child: SizedBox(
-          height: MediaQuery.sizeOf(sheetContext).height * 0.76,
+          height: MediaQuery.sizeOf(sheetContext).height * 0.72,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -103,14 +104,20 @@ Future<void> openNavigationGroup(
                 child: GridView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: tablet ? 3 : 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: tablet ? 1.28 : 1.03,
+                    crossAxisCount: tablet || compactOperationalGrid ? 3 : 2,
+                    mainAxisSpacing: compactOperationalGrid ? 8 : 12,
+                    crossAxisSpacing: compactOperationalGrid ? 8 : 12,
+                    childAspectRatio: tablet
+                        ? 1.28
+                        : compactOperationalGrid
+                        ? 0.98
+                        : 1.03,
                   ),
                   itemCount: options.length,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemBuilder: (_, index) => _NavigationGroupCard(
                     option: options[index],
+                    compact: compactOperationalGrid,
                     onTap: () =>
                         Navigator.pop(sheetContext, options[index].route),
                   ),
@@ -140,9 +147,14 @@ class _NavigationGroupOption {
 }
 
 class _NavigationGroupCard extends StatelessWidget {
-  const _NavigationGroupCard({required this.option, required this.onTap});
+  const _NavigationGroupCard({
+    required this.option,
+    required this.compact,
+    required this.onTap,
+  });
 
   final _NavigationGroupOption option;
+  final bool compact;
   final VoidCallback onTap;
 
   @override
@@ -155,30 +167,37 @@ class _NavigationGroupCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(compact ? 10 : 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               CircleAvatar(
-                radius: 20,
+                radius: compact ? 17 : 20,
                 backgroundColor: AppColors.mint,
-                child: Icon(option.icon, color: AppColors.green),
+                child: Icon(
+                  option.icon,
+                  color: AppColors.green,
+                  size: compact ? 19 : null,
+                ),
               ),
               const Spacer(),
               Text(
                 option.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w900),
+                style: TextStyle(
+                  fontSize: compact ? 13 : null,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: compact ? 2 : 4),
               Text(
                 option.subtitle,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.muted,
-                  fontSize: 12,
+                  fontSize: 11,
                   height: 1.25,
                 ),
               ),

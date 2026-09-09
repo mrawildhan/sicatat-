@@ -55,8 +55,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Preventive Maintenance (PM)'), findsOneWidget);
-    expect(find.text('Corrective Maintenance (CM)'), findsOneWidget);
+    expect(find.text('PM'), findsOneWidget);
+    expect(find.text('CM'), findsOneWidget);
     expect(find.text('Crew A · CPP'), findsOneWidget);
     expect(find.text('Crew B · PORT'), findsOneWidget);
     expect(find.text('Crew C · CPP'), findsOneWidget);

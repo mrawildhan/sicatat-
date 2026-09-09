@@ -797,38 +797,41 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
         const SizedBox(height: 18),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+            padding: const EdgeInsets.all(12),
+            child: Row(
               children: <Widget>[
-                _OutstandingSourceRow(
-                  icon: Icons.calendar_month_outlined,
-                  title: 'Preventive Maintenance (PM)',
-                  subtitle: sourceStatus,
-                  action: IconButton(
-                    tooltip: 'Muat ulang PM',
-                    onPressed: loading ? null : onRefresh,
-                    icon: const Icon(Icons.refresh_rounded),
+                Expanded(
+                  child: _OutstandingSourceSummary(
+                    icon: Icons.calendar_month_outlined,
+                    title: 'PM',
+                    subtitle: sourceStatus,
+                    action: IconButton(
+                      tooltip: 'Muat ulang PM',
+                      onPressed: loading ? null : onRefresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
                   ),
                 ),
-                const Divider(height: 24),
-                const _OutstandingSourceRow(
-                  icon: Icons.build_circle_outlined,
-                  title: 'Corrective Maintenance (CM)',
-                  subtitle: 'Menunggu spreadsheet CM yang diperbarui',
+                const SizedBox(height: 48, child: VerticalDivider(width: 24)),
+                const Expanded(
+                  child: _OutstandingSourceSummary(
+                    icon: Icons.build_circle_outlined,
+                    title: 'CM',
+                    subtitle: 'Menunggu spreadsheet progres',
+                  ),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         const Text(
           'PM per crew & lokasi',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
         ),
-        const SizedBox(height: 10),
         if (loading)
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 30),
+            padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(child: CircularProgressIndicator()),
           )
         else if (error != null)
@@ -836,12 +839,10 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
         else ...<Widget>[
           Text(
             '${items.length} PM outstanding. Tekan kartu untuk melihat daftar work order.',
-            style: const TextStyle(color: AppColors.muted),
+            style: const TextStyle(color: AppColors.muted, fontSize: 13),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
+          const SizedBox(height: 6),
+          Column(
             children: <Widget>[
               _OutstandingPmCard(
                 crew: 'A',
@@ -882,47 +883,18 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
             ],
           ),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         const Text(
           'CM global per lokasi',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'CM dikerjakan bersama oleh crew pada lokasi yang sama.',
-          style: TextStyle(color: AppColors.muted),
-        ),
-        const SizedBox(height: 10),
-        const Wrap(
-          spacing: 12,
-          runSpacing: 12,
+        const Row(
           children: <Widget>[
-            _OutstandingCmCard(site: 'CPP'),
-            _OutstandingCmCard(site: 'PORT'),
+            Expanded(child: _OutstandingCmCard(site: 'CPP')),
+            SizedBox(width: 8),
+            Expanded(child: _OutstandingCmCard(site: 'PORT')),
           ],
-        ),
-        const SizedBox(height: 16),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.orange.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.orange.withValues(alpha: 0.22)),
-          ),
-          child: const Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Icon(Icons.table_chart_outlined, color: AppColors.orange),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'PM menampilkan seluruh work order dari daftar outstanding. CM akan dihubungkan setelah spreadsheet CM memuat informasi progres.',
-                  style: TextStyle(height: 1.45),
-                ),
-              ),
-            ],
-          ),
         ),
       ],
     );
@@ -1581,8 +1553,8 @@ class _MaterialRequestFormScreenState
   );
 }
 
-class _OutstandingSourceRow extends StatelessWidget {
-  const _OutstandingSourceRow({
+class _OutstandingSourceSummary extends StatelessWidget {
+  const _OutstandingSourceSummary({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -1596,23 +1568,30 @@ class _OutstandingSourceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
       CircleAvatar(
+        radius: 18,
         backgroundColor: AppColors.mint,
-        child: Icon(icon, color: AppColors.green),
+        child: Icon(icon, color: AppColors.green, size: 19),
       ),
-      const SizedBox(width: 12),
+      const SizedBox(width: 8),
       Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(subtitle, style: const TextStyle(color: AppColors.muted)),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.muted, fontSize: 11),
+            ),
           ],
         ),
       ),
-      action ?? const Icon(Icons.schedule_rounded, color: AppColors.muted),
+      if (action != null) action!,
     ],
   );
 }
@@ -1631,35 +1610,43 @@ class _OutstandingPmCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 186,
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
     child: Card(
+      margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          child: Row(
             children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
+              CircleAvatar(
+                radius: 17,
+                backgroundColor: AppColors.mint,
+                child: Text(
+                  crew,
+                  style: const TextStyle(
+                    color: AppColors.green,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
                       'Crew $crew · $site',
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.muted,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'PM outstanding',
-                style: TextStyle(color: AppColors.muted, fontSize: 12),
+                    const Text(
+                      'PM outstanding',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
               Text(
                 '$count',
@@ -1668,11 +1655,8 @@ class _OutstandingPmCard extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 3),
-              const Text(
-                'Lihat daftar',
-                style: TextStyle(color: AppColors.green, fontSize: 12),
-              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
             ],
           ),
         ),
@@ -1892,34 +1876,38 @@ class _OutstandingCmCard extends StatelessWidget {
   final String site;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 282,
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'CM $site',
-              style: const TextStyle(fontWeight: FontWeight.w900),
+  Widget build(BuildContext context) => Card(
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      child: Row(
+        children: <Widget>[
+          const CircleAvatar(
+            radius: 16,
+            backgroundColor: AppColors.mint,
+            child: Icon(
+              Icons.build_circle_outlined,
+              color: AppColors.green,
+              size: 18,
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'CM outstanding',
-              style: TextStyle(color: AppColors.muted, fontSize: 12),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'CM $site',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const Text(
+                  'Menunggu progres',
+                  style: TextStyle(color: AppColors.muted, fontSize: 11),
+                ),
+              ],
             ),
-            const Text(
-              '—',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Dapat dikerjakan Crew A, B, atau C $site.',
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     ),
   );
