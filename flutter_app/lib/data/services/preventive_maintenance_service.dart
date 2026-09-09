@@ -23,24 +23,22 @@ class PreventiveMaintenanceService {
       rows: (data['rows'] as num?)?.toInt() ?? 0,
       updatedAt: DateTime.tryParse(data.optionalString('synced_at') ?? ''),
     );
-    final FunctionResponse correctiveResponse = await _client.functions.invoke(
-      'sync-corrective-maintenance',
-    );
-    final JsonMap correctiveData = requireJsonMap(
-      correctiveResponse.data,
-      source: 'CM sync',
-    );
-    if (correctiveData['ok'] != true) {
-      throw FormatException(
-        correctiveData.optionalString('error') ??
-            'Data CM tidak dapat diperbarui.',
+    try {
+      final FunctionResponse correctiveResponse = await _client.functions
+          .invoke('sync-corrective-maintenance');
+      final JsonMap correctiveData = requireJsonMap(
+        correctiveResponse.data,
+        source: 'CM sync',
       );
+      if (correctiveData['ok'] != true) return pm;
+      return PreventiveMaintenanceSyncResult(
+        changed: pm.changed || correctiveData['changed'] == true,
+        rows: pm.rows + ((correctiveData['rows'] as num?)?.toInt() ?? 0),
+        updatedAt: pm.updatedAt,
+      );
+    } on Object {
+      return pm;
     }
-    return PreventiveMaintenanceSyncResult(
-      changed: pm.changed || correctiveData['changed'] == true,
-      rows: pm.rows + ((correctiveData['rows'] as num?)?.toInt() ?? 0),
-      updatedAt: pm.updatedAt,
-    );
   }
 
   Future<List<PreventiveMaintenanceWorkOrder>> loadOutstanding() async {
