@@ -14,6 +14,7 @@ import '../../../core/widgets/status_chip.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/dashboard_activity.dart';
 import '../../../data/local/local_database.dart';
+import '../../../data/sync/sync_service.dart';
 import '../../auth/application/current_user_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -30,6 +31,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   DashboardActivity? _activity;
   Timer? _activityRefreshTimer;
   bool _checkingForUpdate = false;
+  bool _syncingNow = false;
   late bool _showProfile;
 
   @override
@@ -83,6 +85,106 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       return SyncState.pending;
     }
     return SyncState.synced;
+  }
+
+  Future<void> _syncNow() async {
+    if (_syncingNow) return;
+    setState(() => _syncingNow = true);
+    try {
+      final result = await SyncService(Supabase.instance.client).syncPending();
+      await _loadActivity();
+      if (!mounted) return;
+      final String message;
+      if (result.conflicted > 0) {
+        message =
+            '${result.conflicted} data perlu diperiksa karena ada perubahan yang bersamaan.';
+      } else if (result.failed > 0) {
+        message = 'Belum semua data terkirim. Periksa koneksi lalu coba lagi.';
+      } else if (result.synced > 0) {
+        message = '${result.synced} perubahan berhasil disinkronkan.';
+      } else {
+        message = 'Tidak ada perubahan yang perlu dikirim.';
+      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Sinkronisasi belum berhasil. Periksa koneksi lalu coba lagi.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _syncingNow = false);
+      }
+    }
+  }
+
+  String get _syncExplanation {
+    final DashboardActivity? activity = _activity;
+    if (activity == null) {
+      return 'Memeriksa apakah ada data yang perlu dikirim.';
+    }
+    return switch (_syncState) {
+      SyncState.synced => 'Data kerja terbaru sudah tersimpan aman di server.',
+      SyncState.pending =>
+        '${activity.pendingSyncCount} perubahan belum terkirim. Periksa koneksi lalu sinkronkan.',
+      SyncState.conflict =>
+        '${activity.conflictCount} perubahan perlu diperiksa sebelum dapat disinkronkan.',
+      SyncState.draft => 'Data masih berupa draf.',
+    };
+  }
+
+  Widget _syncSummary() {
+    final bool needsAction =
+        _syncState != SyncState.synced && _activity != null;
+    final Color color = switch (_syncState) {
+      SyncState.synced => AppColors.green,
+      SyncState.pending => AppColors.orange,
+      SyncState.conflict => AppColors.danger,
+      SyncState.draft => AppColors.warning,
+    };
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: <Widget>[
+          SyncChip(_syncState),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _syncExplanation,
+              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+          ),
+          if (needsAction) ...<Widget>[
+            const SizedBox(width: 8),
+            TextButton.icon(
+              onPressed: _syncingNow ? null : _syncNow,
+              icon: _syncingNow
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync_rounded, size: 16),
+              label: const Text('Sinkronkan'),
+              style: TextButton.styleFrom(
+                foregroundColor: color,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _desktopSidebarItem({
@@ -698,35 +800,62 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
       children: <Widget>[
-        Row(
-          children: <Widget>[
-            const CircleAvatar(
-              radius: 22,
-              backgroundColor: AppColors.mint,
-              child: Icon(Icons.person_rounded, color: AppColors.green),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    'Selamat datang, $crewName',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  const CircleAvatar(
+                    radius: 23,
+                    backgroundColor: AppColors.mint,
+                    child: Icon(Icons.person_rounded, color: AppColors.green),
                   ),
-                  const Text(
-                    'Pilih menu untuk melanjutkan pekerjaan',
-                    style: TextStyle(color: AppColors.muted, fontSize: 13),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text(
+                          'Selamat datang',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          crewName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                          softWrap: true,
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Pilih menu untuk melanjutkan pekerjaan',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-            SyncChip(_syncState),
-          ],
+              const SizedBox(height: 12),
+              _syncSummary(),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         const Text(

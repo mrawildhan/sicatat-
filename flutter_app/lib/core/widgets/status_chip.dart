@@ -14,17 +14,17 @@ class SyncChip extends StatelessWidget {
     final (label, color, icon) = switch (state) {
       SyncState.draft => ('Draf', AppColors.warning, Icons.edit_note_rounded),
       SyncState.synced => (
-        'Tersinkron',
+        'Tersimpan',
         AppColors.green,
         Icons.cloud_done_rounded,
       ),
       SyncState.pending => (
-        'Belum tersinkron',
+        'Belum terkirim',
         AppColors.orange,
         Icons.cloud_upload_rounded,
       ),
       SyncState.conflict => (
-        'Konflik',
+        'Perlu diperiksa',
         AppColors.danger,
         Icons.warning_amber_rounded,
       ),
