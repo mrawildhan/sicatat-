@@ -1881,43 +1881,52 @@ class _CorrectiveMaintenanceListSheet extends StatelessWidget {
         controller: controller,
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
         children: <Widget>[
-          Text(
-            'CM $site',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-          ),
-          Text(
-            '${items.length} work order outstanding',
-            style: const TextStyle(color: AppColors.muted),
-          ),
-          const SizedBox(height: 12),
-          for (final item in items)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      item.workOrder,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      item.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      'Progres terakhir: ${item.progress ?? 'Belum ada keterangan'}',
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.greenDark,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              children: <Widget>[
+                const CircleAvatar(
+                  radius: 22,
+                  backgroundColor: Colors.white24,
+                  child: Icon(
+                    Icons.build_circle_outlined,
+                    color: Colors.white,
+                    size: 25,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'CM $site',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${items.length} work order outstanding',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (final item in items)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _CorrectiveMaintenanceTile(item: item),
             ),
         ],
       ),
@@ -2068,8 +2077,8 @@ class _OutstandingCmCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: Column(
+                Expanded(
+                  child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
@@ -2081,13 +2090,158 @@ class _OutstandingCmCard extends StatelessWidget {
                     style: TextStyle(color: AppColors.muted, fontSize: 11),
                   ),
                 ],
+                  ),
+                ),
+                Container(
+                  constraints: const BoxConstraints(minWidth: 34),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.mint,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    '$count',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.greenDark,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    ),
+  );
+}
+
+class _CorrectiveMaintenanceTile extends StatelessWidget {
+  const _CorrectiveMaintenanceTile({required this.item});
+
+  final CorrectiveMaintenanceWorkOrder item;
+
+  @override
+  Widget build(BuildContext context) {
+    final String progress = item.progress?.trim().isNotEmpty == true
+        ? item.progress!
+        : 'Belum ada keterangan progres.';
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    item.workOrder,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                if (item.priority?.trim().isNotEmpty == true)
+                  _CmPriorityChip(label: item.priority!),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              item.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, height: 1.3),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _PmDetail(
+                    icon: Icons.precision_manufacturing_outlined,
+                    text: item.equipmentReference,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _PmDetail(
+                    icon: Icons.event_outlined,
+                    text: item.raisedOn == null
+                        ? 'Tanggal belum ada'
+                        : _pmShortDate(item.raisedOn!),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 11),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.mint,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Icon(
+                    Icons.timeline_rounded,
+                    size: 18,
+                    color: AppColors.green,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text(
+                          'PROGRES TERAKHIR',
+                          style: TextStyle(
+                            color: AppColors.green,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          progress,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, height: 1.3),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+class _CmPriorityChip extends StatelessWidget {
+  const _CmPriorityChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool critical = label.toUpperCase().startsWith('P1');
+    final Color color = critical ? AppColors.danger : AppColors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w900),
+      ),
+    );
+  }
 }
 
 class _BudgetMetricLayout extends StatelessWidget {
