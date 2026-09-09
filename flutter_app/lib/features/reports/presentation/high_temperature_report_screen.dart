@@ -73,7 +73,7 @@ class _HighTemperatureReportScreenState
           .select('id,name')
           .order('code');
       if (response is! List) {
-        throw const FormatException('Invalid team response.');
+        throw const FormatException('Respons regu tidak valid.');
       }
       final List<_TeamOption> teams = response
           .map(
@@ -130,7 +130,7 @@ class _HighTemperatureReportScreenState
                 .select(fields)
                 .inFilter(key, values)
                 .range(offset, offset + pageSize - 1);
-      if (response is! List) throw FormatException('Invalid $table response.');
+      if (response is! List) throw FormatException('Respons $table tidak valid.');
       final List<JsonMap> page = response
           .map((Object? row) => requireJsonMap(row, source: table))
           .toList(growable: false);
@@ -166,7 +166,7 @@ class _HighTemperatureReportScreenState
             .lte('tanggal', _date(_to));
       }
       if (sheetResponse is! List) {
-        throw const FormatException('Invalid sheet response.');
+        throw const FormatException('Respons sheet tidak valid.');
       }
       final List<JsonMap> sheets = sheetResponse
           .map((Object? row) => requireJsonMap(row, source: 'sheet'))
@@ -342,7 +342,7 @@ class _HighTemperatureReportScreenState
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 14),
-              child: Text('Unable to load report: $_error'),
+              child: Text('Laporan tidak dapat dimuat: $_error'),
             ),
           if (!_loading && _error == null && _rows.isNotEmpty)
             Padding(

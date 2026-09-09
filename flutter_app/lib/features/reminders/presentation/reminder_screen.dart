@@ -285,7 +285,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
     if (showLoading && mounted) setState(() => _loading = true);
     try {
       final String? email = _client.auth.currentUser?.email;
-      if (email == null) throw const FormatException('No active user session.');
+      if (email == null) throw const FormatException('Tidak ada sesi pengguna aktif.');
       final String nik = email.split('@').first;
       final List<Object> responses = await Future.wait<Object>(<Future<Object>>[
         _client
@@ -318,7 +318,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
           recipientResponse is! List ||
           siteResponse is! List) {
         throw const FormatException(
-          'The server returned invalid reminder data.',
+          'Server mengembalikan data pengingat yang tidak valid.',
         );
       }
       final List<ReminderItem> reminders = reminderResponse
@@ -355,7 +355,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         });
       }
     } on Object catch (error) {
-      if (mounted && showErrors) _message('Unable to load reminders: $error');
+      if (mounted && showErrors) _message('Pengingat tidak dapat dimuat: $error');
     } finally {
       if (mounted && showLoading) setState(() => _loading = false);
     }
@@ -1600,7 +1600,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         ),
       );
     } on Object catch (error) {
-      if (mounted) _message('Unable to load reminder history: $error');
+      if (mounted) _message('Riwayat pengingat tidak dapat dimuat: $error');
     }
   }
 

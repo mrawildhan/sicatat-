@@ -39,7 +39,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
       }
       return result;
     } on Object catch (error) {
-      if (mounted) _message('Unable to prepare export: $error');
+      if (mounted) _message('Ekspor tidak dapat disiapkan: $error');
       return null;
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -131,8 +131,8 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
             children: <pw.Widget>[
               pw.Expanded(
                 child: _exportTable(
-                  'Equipment Readings',
-                  'Equipment / field',
+                  'Pembacaan Peralatan',
+                  'Peralatan / titik ukur',
                   _equipmentBody(result.rows),
                 ),
               ),
@@ -204,7 +204,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
               ),
               pw.SizedBox(height: 3),
               pw.Text(
-                'Equipment Condition Report',
+                'Laporan Kondisi Peralatan',
                 style: const pw.TextStyle(
                   fontSize: 8,
                   color: PdfColors.green100,

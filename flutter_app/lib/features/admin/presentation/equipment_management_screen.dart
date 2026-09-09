@@ -69,7 +69,7 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
           .order('section')
           .order('sort_order');
       if (response is! List) {
-        throw const FormatException('Invalid equipment response.');
+        throw const FormatException('Respons peralatan tidak valid.');
       }
       final List<_Equipment> items = response
           .map(
@@ -84,7 +84,7 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
         });
       }
     } on Object catch (error) {
-      if (mounted) _notice('Unable to load equipment: $error');
+      if (mounted) _notice('Peralatan tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -110,7 +110,7 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
               BuildContext context,
               void Function(void Function()) setModalState,
             ) => AlertDialog(
-              title: Text(item == null ? 'Add equipment' : 'Edit equipment'),
+              title: Text(item == null ? 'Tambah peralatan' : 'Ubah peralatan'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -123,7 +123,7 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
                     TextField(
                       controller: name,
                       decoration: const InputDecoration(
-                        labelText: 'Display name',
+                        labelText: 'Nama tampilan',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -141,19 +141,19 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
                       ],
                       onChanged: (String? value) =>
                           setModalState(() => section = value ?? section),
-                      decoration: const InputDecoration(labelText: 'Section'),
+                      decoration: const InputDecoration(labelText: 'Bagian'),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: sort,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'Sort order',
+                        labelText: 'Urutan tampil',
                       ),
                     ),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Active'),
+                      title: const Text('Aktif'),
                       value: active,
                       onChanged: (bool value) =>
                           setModalState(() => active = value),
@@ -164,11 +164,11 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
+                  child: const Text('Batal'),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Save'),
+                  child: const Text('Simpan'),
                 ),
               ],
             ),
@@ -186,7 +186,7 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
       final int? sortOrder = int.tryParse(sort.text.trim());
       if (cleanCode.isEmpty || cleanName.isEmpty || sortOrder == null) {
         throw const FormatException(
-          'Code, display name, and numeric sort order are required.',
+          'Kode, nama tampilan, dan urutan tampil angka wajib diisi.',
         );
       }
       final Map<String, Object?> payload = <String, Object?>{
@@ -210,11 +210,11 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
             .eq('id', item.id);
       }
       if (mounted) {
-        _notice('Equipment saved.');
+        _notice('Peralatan tersimpan.');
         await _load();
       }
     } on Object catch (error) {
-      if (mounted) _notice('Unable to save equipment: $error');
+      if (mounted) _notice('Peralatan tidak dapat disimpan: $error');
     } finally {
       code.dispose();
       name.dispose();
@@ -233,12 +233,12 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
     child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRoute: '/admin'),
-        title: const Text('Equipment & measurement points'),
+        title: const Text('Peralatan & titik ukur'),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : () => _edit(null),
         icon: const Icon(Icons.add),
-        label: const Text('Add equipment'),
+        label: const Text('Tambah peralatan'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -248,7 +248,7 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
                 padding: const EdgeInsets.all(20),
                 children: <Widget>[
                   const Text(
-                    'Equipment controls the measurement points visible in field entry.',
+                    'Peralatan menentukan titik ukur yang tampil pada input lapangan.',
                   ),
                   const SizedBox(height: 12),
                   ..._items.map(
@@ -269,7 +269,7 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
                             children: <Widget>[
                               Chip(
                                 label: Text(
-                                  item.isActive ? 'Active' : 'Inactive',
+                                  item.isActive ? 'Aktif' : 'Tidak aktif',
                                 ),
                               ),
                               IconButton(
@@ -277,7 +277,7 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
                                   '/admin/measurement-points?equipmentId=${item.id}&equipmentName=${Uri.encodeComponent(item.name)}',
                                 ),
                                 icon: const Icon(Icons.list_alt_rounded),
-                                tooltip: 'Measurement points',
+                                tooltip: 'Titik ukur',
                               ),
                             ],
                           ),
@@ -289,15 +289,15 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
                   Card(
                     child: ListTile(
                       onTap: () => context.go(
-                        '/admin/measurement-points?equipmentName=${Uri.encodeComponent('Shared gearbox points')}',
+                        '/admin/measurement-points?equipmentName=${Uri.encodeComponent('Titik ukur gearbox bersama')}',
                       ),
                       leading: const Icon(Icons.hub_outlined),
                       title: const Text(
-                        'Shared gearbox measurement points',
+                        'Titik ukur gearbox bersama',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                       subtitle: const Text(
-                        'Points not assigned to a specific equipment',
+                        'Titik yang tidak dikaitkan ke peralatan tertentu',
                       ),
                       trailing: const Icon(Icons.chevron_right_rounded),
                     ),
@@ -385,7 +385,7 @@ class _MeasurementPointManagementScreenState
                 .eq('equipment_id', widget.equipmentId!)
                 .order('sort_order');
       if (response is! List) {
-        throw const FormatException('Invalid measurement point response.');
+        throw const FormatException('Respons titik ukur tidak valid.');
       }
       final List<_MeasurementPoint> items = response
           .map(
@@ -396,7 +396,7 @@ class _MeasurementPointManagementScreenState
           .toList(growable: false);
       if (mounted) setState(() => _items = items);
     } on Object catch (error) {
-      if (mounted) _notice('Unable to load measurement points: $error');
+      if (mounted) _notice('Titik ukur tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -427,9 +427,7 @@ class _MeasurementPointManagementScreenState
               void Function(void Function()) setModalState,
             ) => AlertDialog(
               title: Text(
-                item == null
-                    ? 'Add measurement point'
-                    : 'Edit measurement point',
+                item == null ? 'Tambah titik ukur' : 'Ubah titik ukur',
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -442,7 +440,9 @@ class _MeasurementPointManagementScreenState
                     const SizedBox(height: 12),
                     TextField(
                       controller: label,
-                      decoration: const InputDecoration(labelText: 'Label'),
+                      decoration: const InputDecoration(
+                        labelText: 'Nama titik ukur',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -450,26 +450,26 @@ class _MeasurementPointManagementScreenState
                       items: const <DropdownMenuItem<String>>[
                         DropdownMenuItem<String>(
                           value: 'numeric',
-                          child: Text('Numeric'),
+                          child: Text('Angka'),
                         ),
                         DropdownMenuItem<String>(
                           value: 'boolean',
-                          child: Text('Boolean'),
+                          child: Text('Ya / Tidak'),
                         ),
                         DropdownMenuItem<String>(
                           value: 'text',
-                          child: Text('Text'),
+                          child: Text('Teks'),
                         ),
                       ],
                       onChanged: (String? value) =>
                           setModalState(() => dataType = value ?? dataType),
-                      decoration: const InputDecoration(labelText: 'Data type'),
+                      decoration: const InputDecoration(labelText: 'Tipe data'),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: unit,
                       decoration: const InputDecoration(
-                        labelText: 'Unit (for example: °C)',
+                        labelText: 'Satuan (contoh: °C)',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -477,19 +477,19 @@ class _MeasurementPointManagementScreenState
                       controller: sort,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'Sort order',
+                        labelText: 'Urutan tampil',
                       ),
                     ),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Required'),
+                      title: const Text('Wajib diisi'),
                       value: required,
                       onChanged: (bool value) =>
                           setModalState(() => required = value),
                     ),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Active'),
+                      title: const Text('Aktif'),
                       value: active,
                       onChanged: (bool value) =>
                           setModalState(() => active = value),
@@ -500,11 +500,11 @@ class _MeasurementPointManagementScreenState
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
+                  child: const Text('Batal'),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Save'),
+                  child: const Text('Simpan'),
                 ),
               ],
             ),
@@ -523,7 +523,7 @@ class _MeasurementPointManagementScreenState
       final int? sortOrder = int.tryParse(sort.text.trim());
       if (cleanCode.isEmpty || cleanLabel.isEmpty || sortOrder == null) {
         throw const FormatException(
-          'Code, label, and numeric sort order are required.',
+          'Kode, nama titik ukur, dan urutan tampil angka wajib diisi.',
         );
       }
       final Map<String, Object?> payload = <String, Object?>{
@@ -547,11 +547,11 @@ class _MeasurementPointManagementScreenState
             .eq('id', item.id);
       }
       if (mounted) {
-        _notice('Measurement point saved.');
+        _notice('Titik ukur tersimpan.');
         await _load();
       }
     } on Object catch (error) {
-      if (mounted) _notice('Unable to save measurement point: $error');
+      if (mounted) _notice('Titik ukur tidak dapat disimpan: $error');
     } finally {
       code.dispose();
       label.dispose();
@@ -571,7 +571,7 @@ class _MeasurementPointManagementScreenState
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : () => _edit(null),
         icon: const Icon(Icons.add),
-        label: const Text('Add point'),
+        label: const Text('Tambah titik'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -591,10 +591,10 @@ class _MeasurementPointManagementScreenState
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       subtitle: Text(
-                        '${item.code} · ${item.dataType}${item.unit == null ? '' : ' · ${item.unit}'}${item.required ? '' : ' · optional'}',
+                        '${item.code} · ${item.dataType}${item.unit == null ? '' : ' · ${item.unit}'}${item.required ? '' : ' · opsional'}',
                       ),
                       trailing: Chip(
-                        label: Text(item.isActive ? 'Active' : 'Inactive'),
+                        label: Text(item.isActive ? 'Aktif' : 'Tidak aktif'),
                       ),
                     ),
                   );

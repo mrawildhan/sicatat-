@@ -76,7 +76,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
         .eq('is_active', true)
         .order('code');
     if (response is! List) {
-      throw const FormatException('The server returned an invalid shift list.');
+      throw const FormatException('Server mengembalikan daftar shift yang tidak valid.');
     }
     final shifts = response
         .map(
@@ -145,7 +145,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
         .order('sort_order');
     if (response is! List) {
       throw const FormatException(
-        'The server returned invalid gearbox measurement points.',
+        'Server mengembalikan titik ukur gearbox yang tidak valid.',
       );
     }
     const expectedCodes = <String>[
@@ -166,7 +166,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
       final point = byCode[code];
       if (point == null) {
         throw FormatException(
-          'Measurement point $code is not available on the server.',
+        'Titik ukur $code tidak tersedia di server.',
         );
       }
       points.add(point);
@@ -197,7 +197,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
         responses[1] is! List ||
         responses[2] is! List) {
       throw const FormatException(
-        'The server returned invalid form master data.',
+        'Server mengembalikan data master formulir yang tidak valid.',
       );
     }
     final equipment = (responses[0] as List)
@@ -264,7 +264,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
           .order('tanggal', ascending: false);
     }
     if (response is! List) {
-      throw const FormatException('The server returned an invalid sheet list.');
+      throw const FormatException('Server mengembalikan daftar sheet yang tidak valid.');
     }
     return response
         .map(

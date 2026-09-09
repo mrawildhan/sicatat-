@@ -86,7 +86,7 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
             .order('tanggal', ascending: false);
       }
       if (response is! List) {
-        throw const FormatException('Invalid sheet response.');
+        throw const FormatException('Respons sheet tidak valid.');
       }
       final List<_IncompleteSheet> loaded = <_IncompleteSheet>[];
       for (final Object? rawSheet in response) {
@@ -100,7 +100,7 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
             .select('id')
             .eq('sheet_id', sheetId);
         if (roundsResponse is! List) {
-          throw const FormatException('Invalid round response.');
+          throw const FormatException('Respons ronde tidak valid.');
         }
         final List<String> roundIds = roundsResponse
             .map(

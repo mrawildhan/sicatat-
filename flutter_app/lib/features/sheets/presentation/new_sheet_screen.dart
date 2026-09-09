@@ -74,8 +74,8 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         _template = cachedTemplate;
         _selectedShift = _initialShift(cachedShifts);
         _errorMessage = cachedShifts.isEmpty || cachedTemplate == null
-            ? 'Shift data is not available yet. Connect to the internet once to load the initial data.'
-            : 'Offline mode: using saved shift data.';
+            ? 'Data shift belum tersedia. Hubungkan ke internet untuk memuat data awal.'
+            : 'Mode offline: menggunakan data shift tersimpan.';
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -93,7 +93,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         .eq('is_active', true)
         .order('code');
     if (response is! List) {
-      throw const FormatException('Invalid team response.');
+      throw const FormatException('Respons regu tidak valid.');
     }
     final teams = response
         .map((row) => _TeamOption.fromJson(requireJsonMap(row, source: 'team')))
@@ -134,7 +134,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         },
       );
       if (response is! List) {
-        throw const FormatException('Invalid occupied shift response.');
+        throw const FormatException('Respons shift yang sudah digunakan tidak valid.');
       }
       final occupied = response
           .map(
@@ -200,20 +200,20 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     if (teamId == null) {
       setState(
         () => _errorMessage = user.role.isGlobalTemperatureManager
-            ? 'Select a crew before creating this sheet.'
+            ? 'Pilih crew sebelum membuat sheet ini.'
             : 'Your account has no active crew assignment. Ask an admin to assign your crew before creating a sheet.',
       );
       return;
     }
     if (siteId == null) {
       setState(
-        () => _errorMessage = 'The selected team has no site assignment.',
+        () => _errorMessage = 'Regu yang dipilih belum memiliki lokasi kerja.',
       );
       return;
     }
     if (template == null) {
       setState(
-        () => _errorMessage = 'The temperature template is not available yet. Refresh this page while connected to the internet.',
+        () => _errorMessage = 'Template suhu belum tersedia. Muat ulang halaman ini saat terhubung ke internet.',
       );
       return;
     }
@@ -246,7 +246,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         },
       );
       if (response is! List) {
-        throw const FormatException('Invalid occupied shift response.');
+        throw const FormatException('Respons shift yang sudah digunakan tidak valid.');
       }
       final duplicate = response.any(
         (Object? row) =>
@@ -289,7 +289,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
       if (mounted) {
         setState(
           () =>
-              _errorMessage = 'The sheet could not be saved. Please try again.',
+              _errorMessage = 'Sheet tidak dapat disimpan. Silakan coba lagi.',
         );
       }
     } finally {
@@ -328,7 +328,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Select the date and shift that match the work schedule. Past dates are allowed for missed inspections. One team uses one sheet for each date and shift.',
+                'Pilih tanggal dan shift sesuai jadwal kerja. Tanggal lampau dapat dipilih untuk inspeksi yang terlewat. Satu regu menggunakan satu sheet untuk setiap tanggal dan shift.',
                       style: TextStyle(
                         height: 1.45,
                         color: AppColors.greenDark,
@@ -449,7 +449,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               subtitle: const Text(
-                'The team is determined by the signed-in account',
+                'Regu ditentukan oleh akun yang sedang masuk',
               ),
             ),
             if (_errorMessage case final message?) ...[
@@ -477,7 +477,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
                     )
                   : const Icon(Icons.check_rounded),
               label: Text(
-                _isSaving ? 'Saving draft...' : 'Create and start entry',
+                _isSaving ? 'Menyimpan draf...' : 'Buat dan mulai input',
               ),
             ),
           ],

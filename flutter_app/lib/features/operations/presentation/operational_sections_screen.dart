@@ -2102,7 +2102,7 @@ class _MeetingMinuteEditorScreenState
   @override
   Widget build(BuildContext context) {
     final bool desktop = kIsWeb && MediaQuery.sizeOf(context).width >= 920;
-    final String pageTitle = _isNew ? 'Buat Notulen' : 'Edit Notulen';
+    final String pageTitle = _isNew ? 'Buat Notulen' : 'Ubah Notulen';
     final MeetingMinuteReference? linkedSource =
         _minute?.followUpSource ??
         (_followUpSource == null

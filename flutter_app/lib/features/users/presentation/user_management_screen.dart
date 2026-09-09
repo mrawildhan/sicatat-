@@ -159,7 +159,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           siteResponse is! List ||
           userResponse is! List) {
         throw const FormatException(
-          'The server returned an invalid user list.',
+          'Server mengembalikan daftar pengguna yang tidak valid.',
         );
       }
       final List<_TeamOption> teams = teamResponse
@@ -179,7 +179,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         });
       }
     } on Object catch (error) {
-      if (mounted) _message('Unable to load users: $error');
+      if (mounted) _message('Pengguna tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -228,15 +228,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final String name = _nameController.text.trim();
     final String phone = _phoneController.text.trim();
     if (nik.isEmpty || name.isEmpty) {
-      _message('Crew ID and name are required.');
+      _message('NIK dan nama wajib diisi.');
       return;
     }
     if (_roleNeedsTeam && _teamId == null) {
-      _message('A team is required for crew and foreman users.');
+      _message('Regu wajib dipilih untuk pengguna crew dan foreman.');
       return;
     }
     if (_roleNeedsSite && _siteId == null) {
-      _message('A site is required for Supervisor COP and Warehouseman users.');
+      _message(
+        'Lokasi kerja wajib dipilih untuk Supervisor COP dan Warehouseman.',
+      );
       return;
     }
     if (_editing == null && _pinController.text.length < 6) {
@@ -268,11 +270,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         );
         if (data['ok'] != true) {
           throw FormatException(
-            data.optionalString('error') ?? 'The server rejected the user.',
+            data.optionalString('error') ?? 'Server menolak data pengguna.',
           );
         }
         _message(
-          'User created. They can sign in with Crew ID $nik and their PIN.',
+          'Pengguna berhasil dibuat. Pengguna dapat masuk dengan NIK $nik dan PIN-nya.',
         );
       } else {
         await Supabase.instance.client
@@ -286,14 +288,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               'is_active': _isActive,
             })
             .eq('id', _editing!.id);
-        _message('User updated.');
+        _message('Pengguna diperbarui.');
       }
       if (mounted) {
         _closeForm();
         await _load();
       }
     } on Object catch (error) {
-      if (mounted) _message('Unable to save user: $error');
+      if (mounted) _message('Pengguna tidak dapat disimpan: $error');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -314,18 +316,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       appBar: AppBar(
         leading: IconButton(
           tooltip: !_isFormOpen
-              ? 'Back to administration'
-              : 'Back to user list',
+              ? 'Kembali ke administrasi'
+              : 'Kembali ke daftar pengguna',
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: !_isFormOpen ? () => context.go('/admin') : _closeForm,
         ),
-        title: const Text('User management'),
+        title: const Text('Manajemen pengguna'),
       ),
       floatingActionButton: !_isFormOpen
           ? FloatingActionButton.extended(
               onPressed: _loading ? null : _openCreate,
               icon: const Icon(Icons.person_add_alt_1_rounded),
-              label: const Text('Add user'),
+              label: const Text('Tambah pengguna'),
             )
           : null,
       body: _loading
@@ -336,7 +338,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 if (_isFormOpen || _users.isEmpty) _form(),
                 if (!_isFormOpen && _users.isNotEmpty) ...<Widget>[
                   const Text(
-                    'Tap a user to edit their role, team, phone number, or active status.',
+                    'Tekan pengguna untuk mengubah peran, regu, nomor telepon, atau status aktifnya.',
                   ),
                   const SizedBox(height: 14),
                   ..._users.map(_userTile),
@@ -361,7 +363,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         subtitle: Text(
           '${user.nik} · ${_roleLabel(user.role)}${user.teamName == null ? '' : ' · ${user.teamName}'}${user.siteName == null ? '' : ' · ${user.siteName}'}',
         ),
-        trailing: Chip(label: Text(user.isActive ? 'Active' : 'Inactive')),
+        trailing: Chip(label: Text(user.isActive ? 'Aktif' : 'Tidak aktif')),
       ),
     ),
   );
@@ -370,26 +372,26 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: <Widget>[
       Text(
-        _editing == null ? 'Create user account' : 'Edit user account',
+        _editing == null ? 'Buat akun pengguna' : 'Ubah akun pengguna',
         style: Theme.of(context).textTheme.titleLarge,
       ),
       const SizedBox(height: 8),
       Text(
         _editing == null
-            ? 'The user can sign in immediately using their Crew ID and PIN.'
-            : 'Crew ID cannot be changed after the account is created.',
+            ? 'Pengguna dapat langsung masuk menggunakan NIK dan PIN.'
+            : 'NIK tidak dapat diubah setelah akun dibuat.',
       ),
       const SizedBox(height: 18),
       TextField(
         controller: _nikController,
         enabled: _editing == null,
         keyboardType: TextInputType.number,
-        decoration: const InputDecoration(labelText: 'Crew ID / NIK'),
+        decoration: const InputDecoration(labelText: 'NIK'),
       ),
       const SizedBox(height: 12),
       TextField(
         controller: _nameController,
-        decoration: const InputDecoration(labelText: 'Full name'),
+        decoration: const InputDecoration(labelText: 'Nama lengkap'),
       ),
       const SizedBox(height: 12),
       DropdownButtonFormField<String>(
@@ -404,7 +406,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             )
             .toList(growable: false),
         onChanged: (String? value) => setState(() => _role = value ?? 'crew'),
-        decoration: const InputDecoration(labelText: 'Role'),
+        decoration: const InputDecoration(labelText: 'Peran'),
       ),
       if (_roleNeedsTeam) ...<Widget>[
         const SizedBox(height: 12),
@@ -420,7 +422,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               )
               .toList(growable: false),
           onChanged: (String? value) => setState(() => _teamId = value),
-          decoration: const InputDecoration(labelText: 'Team'),
+          decoration: const InputDecoration(labelText: 'Regu'),
         ),
       ],
       if (_roleNeedsSite) ...<Widget>[
@@ -437,14 +439,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               )
               .toList(growable: false),
           onChanged: (String? value) => setState(() => _siteId = value),
-          decoration: const InputDecoration(labelText: 'Site scope'),
+          decoration: const InputDecoration(labelText: 'Lingkup lokasi kerja'),
         ),
       ],
       const SizedBox(height: 12),
       TextField(
         controller: _phoneController,
         keyboardType: TextInputType.phone,
-        decoration: const InputDecoration(labelText: 'Phone number (optional)'),
+        decoration: const InputDecoration(
+          labelText: 'Nomor telepon (opsional)',
+        ),
       ),
       if (_editing == null) ...<Widget>[
         const SizedBox(height: 12),
@@ -453,7 +457,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           keyboardType: TextInputType.number,
           obscureText: true,
           decoration: const InputDecoration(
-            labelText: 'PIN (at least 6 characters)',
+            labelText: 'PIN (minimal 6 karakter)',
           ),
         ),
       ],
@@ -462,17 +466,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           contentPadding: EdgeInsets.zero,
           value: _isActive,
           onChanged: (bool value) => setState(() => _isActive = value),
-          title: const Text('Account active'),
+          title: const Text('Akun aktif'),
         ),
       const SizedBox(height: 18),
       ElevatedButton.icon(
         onPressed: _saving ? null : _save,
         icon: const Icon(Icons.save_rounded),
-        label: Text(_saving ? 'Saving...' : 'Save user'),
+        label: Text(_saving ? 'Menyimpan...' : 'Simpan pengguna'),
       ),
       TextButton(
         onPressed: _saving ? null : _closeForm,
-        child: const Text('Cancel'),
+        child: const Text('Batal'),
       ),
     ],
   );

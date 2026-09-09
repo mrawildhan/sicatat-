@@ -85,7 +85,7 @@ class ReportExportService {
           .select(fields)
           .inFilter(column, values)
           .range(offset, offset + pageSize - 1);
-      if (response is! List) throw FormatException('Invalid $table response.');
+      if (response is! List) throw FormatException('Respons $table tidak valid.');
       final List<JsonMap> page = response
           .map((Object? row) => requireJsonMap(row, source: table))
           .toList(growable: false);
@@ -123,7 +123,7 @@ class ReportExportService {
           .lte('tanggal', _date(to));
     }
     if (response is! List) {
-      throw const FormatException('Invalid sheet response.');
+      throw const FormatException('Respons sheet tidak valid.');
     }
     final List<JsonMap> sheets = response
         .map((Object? row) => requireJsonMap(row, source: 'sheet'))
@@ -300,7 +300,7 @@ class ReportExportService {
         'Side',
         'Unit Status',
         'Equipment',
-        'Measurement Point',
+        'Titik Ukur',
         'Value',
         'Unit',
         'Recorded By',

@@ -265,7 +265,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _errorMessage = 'The incomplete sheet could not be submitted.',
+          () => _errorMessage = 'Sheet yang belum lengkap tidak dapat dikirim.',
         );
       }
     } finally {
@@ -287,7 +287,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: const Text('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
@@ -311,7 +311,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
     } on Object catch (error) {
       if (mounted) {
         setState(
-          () => _errorMessage = 'The sheet could not be reopened: $error',
+          () => _errorMessage = 'Sheet tidak dapat dibuka kembali: $error',
         );
       }
     } finally {
@@ -333,7 +333,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: const Text('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
@@ -354,7 +354,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
       if (mounted) context.go('/sheets');
     } on Object catch (error) {
       if (mounted) {
-        setState(() => _errorMessage = 'Unable to delete sheet: $error');
+        setState(() => _errorMessage = 'Sheet tidak dapat dihapus: $error');
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

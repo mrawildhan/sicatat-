@@ -153,7 +153,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         name: 'sicatat-report-${_date(_from)}_${_date(_to)}.pdf',
       );
     } on Object catch (error) {
-      if (mounted) _message('Unable to create report: $error');
+      if (mounted) _message('Laporan tidak dapat dibuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -179,7 +179,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           _reportCell('Team / shift', header: true),
           _reportCell('Section / round / time', header: true),
           _reportCell('Side / status', header: true),
-          _reportCell('Equipment / point', header: true),
+          _reportCell('Peralatan / titik ukur', header: true),
           _reportCell('Value / alert', header: true),
           _reportCell('Recorded by', header: true),
           _reportCell('Sheet status', header: true),
@@ -276,7 +276,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         ),
       ]);
     } on Object catch (error) {
-      if (mounted) _message('Unable to export CSV: $error');
+      if (mounted) _message('CSV tidak dapat diekspor: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

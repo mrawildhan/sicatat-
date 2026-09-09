@@ -112,7 +112,7 @@ class SyncService {
         .eq('client_uuid', item.clientUuid)
         .select('client_uuid');
     if (response is! List || response.isEmpty) {
-      throw StateError('The $table row to sync was not found on the server.');
+      throw StateError('Baris $table untuk disinkronkan tidak ditemukan di server.');
     }
   }
 }

@@ -54,7 +54,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
           .select('id,code,name,is_active')
           .order('name');
       if (response is! List) {
-        throw const FormatException('Invalid site response.');
+        throw const FormatException('Respons lokasi tidak valid.');
       }
       final List<_SiteRecord> items = response
           .map(
@@ -64,7 +64,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
           .toList(growable: false);
       if (mounted) setState(() => _items = items);
     } on Object catch (error) {
-      if (mounted) _notice('Unable to load sites: $error');
+      if (mounted) _notice('Lokasi kerja tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -86,24 +86,26 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
               BuildContext context,
               void Function(void Function()) setModalState,
             ) => AlertDialog(
-              title: Text(record == null ? 'Add site' : 'Edit site'),
+              title: Text(
+                record == null ? 'Tambah lokasi kerja' : 'Ubah lokasi kerja',
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   TextField(
                     controller: code,
                     textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(labelText: 'Site code'),
+                    decoration: const InputDecoration(labelText: 'Kode lokasi'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: name,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'Site name'),
+                    decoration: const InputDecoration(labelText: 'Nama lokasi'),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Active'),
+                    title: const Text('Aktif'),
                     value: active,
                     onChanged: (bool value) =>
                         setModalState(() => active = value),
@@ -113,11 +115,11 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
+                  child: const Text('Batal'),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Save'),
+                  child: const Text('Simpan'),
                 ),
               ],
             ),
@@ -132,7 +134,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
       final String cleanCode = code.text.trim().toUpperCase();
       final String cleanName = name.text.trim();
       if (cleanCode.isEmpty || cleanName.isEmpty) {
-        throw const FormatException('Site code and name are required.');
+        throw const FormatException('Kode dan nama lokasi wajib diisi.');
       }
       final Map<String, Object?> payload = <String, Object?>{
         'code': cleanCode,
@@ -148,9 +150,9 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
             .eq('id', record.id);
       }
       await _load();
-      if (mounted) _notice('Site saved.');
+      if (mounted) _notice('Lokasi kerja tersimpan.');
     } on Object catch (error) {
-      if (mounted) _notice('Unable to save site: $error');
+      if (mounted) _notice('Lokasi kerja tidak dapat disimpan: $error');
     } finally {
       code.dispose();
       name.dispose();
@@ -163,12 +165,12 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
     child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRoute: '/admin'),
-        title: const Text('Sites'),
+        title: const Text('Lokasi kerja'),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : () => _edit(null),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add site'),
+        label: const Text('Tambah lokasi'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -188,9 +190,9 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                         item.name,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      subtitle: Text('Code: ${item.code}'),
+                      subtitle: Text('Kode: ${item.code}'),
                       trailing: Chip(
-                        label: Text(item.isActive ? 'Active' : 'Inactive'),
+                        label: Text(item.isActive ? 'Aktif' : 'Tidak aktif'),
                       ),
                     ),
                   );

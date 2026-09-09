@@ -72,14 +72,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         setState(
           () => _errorMessage =
-              'The application is not configured to connect to the server.',
+              'Aplikasi belum dikonfigurasi untuk terhubung ke server.',
         );
       }
     } catch (_) {
       if (mounted) {
         setState(
           () => _errorMessage =
-              'Unable to sign in. Check your connection and try again.',
+              'Tidak dapat masuk. Periksa koneksi lalu coba lagi.',
         );
       }
     } finally {

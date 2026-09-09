@@ -116,7 +116,7 @@ final _router = GoRouter(
           equipmentId: state.uri.queryParameters['equipmentId'],
           equipmentName:
               state.uri.queryParameters['equipmentName'] ??
-              'Measurement points',
+              'Titik ukur',
         ),
       ),
     ),

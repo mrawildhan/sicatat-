@@ -42,8 +42,10 @@ class _FormTemplateManagementScreenState
           .eq('code', 'temperature_check')
           .eq('is_active', true)
           .single();
-      final moduleId = requireJsonMap(module, source: 'temperature module')
-          .requiredString('id');
+      final moduleId = requireJsonMap(
+        module,
+        source: 'temperature module',
+      ).requiredString('id');
       final Object template = await Supabase.instance.client
           .from('form_template')
           .select('id,schema_json')
@@ -68,7 +70,7 @@ class _FormTemplateManagementScreenState
       if (mounted) {
         setState(
           () => _message =
-              'Unable to load the active template. Create it in Supabase first: $error',
+              'Template aktif tidak dapat dimuat. Buat template di Supabase terlebih dahulu: $error',
         );
       }
     } finally {
@@ -90,14 +92,8 @@ class _FormTemplateManagementScreenState
 
   List<JsonMap> get _steps => <JsonMap>[
     for (var round = 1; round <= _roundCount; round++) ...<JsonMap>[
-      <String, Object?>{
-        'section': 'gearbox_breaker',
-        'round_number': round,
-      },
-      <String, Object?>{
-        'section': 'gearbox_sizer',
-        'round_number': round,
-      },
+      <String, Object?>{'section': 'gearbox_breaker', 'round_number': round},
+      <String, Object?>{'section': 'gearbox_sizer', 'round_number': round},
     ],
   ];
 
@@ -106,14 +102,21 @@ class _FormTemplateManagementScreenState
     if (id == null) return;
     setState(() => _saving = true);
     try {
-      await Supabase.instance.client.from('form_template').update(<String, Object?>{
-        'schema_json': <String, Object?>{..._schema, 'steps': _steps},
-      }).eq('id', id);
+      await Supabase.instance.client
+          .from('form_template')
+          .update(<String, Object?>{
+            'schema_json': <String, Object?>{..._schema, 'steps': _steps},
+          })
+          .eq('id', id);
       if (mounted) {
-        setState(() => _message = 'Template saved. New sheets use this sequence.');
+        setState(
+          () => _message = 'Template tersimpan. Sheet baru memakai urutan ini.',
+        );
       }
     } on Object catch (error) {
-      if (mounted) setState(() => _message = 'Unable to save template: $error');
+      if (mounted) {
+        setState(() => _message = 'Template tidak dapat disimpan: $error');
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -125,7 +128,7 @@ class _FormTemplateManagementScreenState
     child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRoute: '/admin'),
-        title: const Text('Temperature form template'),
+        title: const Text('Template formulir suhu'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -133,18 +136,20 @@ class _FormTemplateManagementScreenState
               padding: const EdgeInsets.all(20),
               children: <Widget>[
                 const Text(
-                  'The template controls the sequence of rounds. Equipment and measurement points are loaded dynamically from their master data, so new points in either supported section appear without a mobile-code change.',
+                  'Template mengatur urutan ronde. Peralatan dan titik ukur dimuat dari data master, sehingga titik baru dapat muncul tanpa perubahan kode aplikasi.',
                   style: TextStyle(height: 1.4),
                 ),
                 const SizedBox(height: 20),
                 DropdownButtonFormField<int>(
                   initialValue: _roundCount,
-                  decoration: const InputDecoration(labelText: 'Rounds per shift'),
+                  decoration: const InputDecoration(
+                    labelText: 'Jumlah ronde per shift',
+                  ),
                   items: <int>[1, 2]
                       .map(
                         (count) => DropdownMenuItem<int>(
                           value: count,
-                          child: Text('$count round(s): Breaker then Sizer'),
+                          child: Text('$count ronde: Breaker lalu Sizer'),
                         ),
                       )
                       .toList(growable: false),
@@ -163,7 +168,7 @@ class _FormTemplateManagementScreenState
                     child: ListTile(
                       leading: const Icon(Icons.fact_check_outlined),
                       title: Text(
-                        '${step.requiredString('section') == 'gearbox_breaker' ? 'Gearbox Breaker' : 'Gearbox Sizer'} — Round ${step.requiredInt('round_number')}',
+                        '${step.requiredString('section') == 'gearbox_breaker' ? 'Gearbox Breaker' : 'Gearbox Sizer'} — Ronde ${step.requiredInt('round_number')}',
                       ),
                     ),
                   ),
@@ -176,7 +181,7 @@ class _FormTemplateManagementScreenState
                 ElevatedButton.icon(
                   onPressed: _saving || _templateId == null ? null : _save,
                   icon: const Icon(Icons.save_outlined),
-                  label: Text(_saving ? 'Saving...' : 'Save template'),
+                  label: Text(_saving ? 'Menyimpan...' : 'Simpan template'),
                 ),
               ],
             ),

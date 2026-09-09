@@ -101,13 +101,13 @@ class AppUpdateService {
     final http.Response response = await http.get(Uri.parse(signedUrl));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw HttpException(
-        'Unable to download the update (HTTP ${response.statusCode}).',
+        'Pembaruan tidak dapat diunduh (HTTP ${response.statusCode}).',
       );
     }
     if (response.bodyBytes.length < 1024 ||
         response.bodyBytes[0] != 0x50 ||
         response.bodyBytes[1] != 0x4b) {
-      throw const FormatException('The downloaded update is not a valid APK.');
+      throw const FormatException('Berkas pembaruan yang diunduh bukan APK yang valid.');
     }
     final Directory cache = await getTemporaryDirectory();
     final File apk = File(

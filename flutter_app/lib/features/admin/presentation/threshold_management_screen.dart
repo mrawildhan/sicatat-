@@ -116,7 +116,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
             .order('effective_from', ascending: false),
       ]);
       if (results[0] is! List || results[1] is! List) {
-        throw const FormatException('Invalid threshold response.');
+        throw const FormatException('Respons batas suhu tidak valid.');
       }
       final List<_PointOption> points = (results[0] as List<Object?>)
           .map(
@@ -138,7 +138,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
         });
       }
     } on Object catch (error) {
-      if (mounted) _notice('Unable to load thresholds: $error');
+      if (mounted) _notice('Batas suhu tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -147,7 +147,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
   String _value(double? value) => value == null ? '' : value.toString();
   Future<void> _edit(_Threshold? item) async {
     if (_points.isEmpty) {
-      _notice('Add an active measurement point first.');
+      _notice('Tambahkan titik ukur aktif terlebih dahulu.');
       return;
     }
     String pointId = item?.pointId ?? _points.first.id;
@@ -178,7 +178,9 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
               BuildContext context,
               void Function(void Function()) setModalState,
             ) => AlertDialog(
-              title: Text(item == null ? 'Add threshold' : 'Edit threshold'),
+              title: Text(
+                item == null ? 'Tambah batas suhu' : 'Ubah batas suhu',
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -196,7 +198,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                       onChanged: (String? value) =>
                           setModalState(() => pointId = value ?? pointId),
                       decoration: const InputDecoration(
-                        labelText: 'Measurement point',
+                        labelText: 'Titik ukur',
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -208,12 +210,12 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                     const SizedBox(height: 10),
                     _numberField(alarmMax, 'Alarm maximum'),
                     const SizedBox(height: 10),
-                    _numberField(delta, 'Maximum change between rounds'),
+                    _numberField(delta, 'Perubahan maksimum antar ronde'),
                     const SizedBox(height: 10),
                     TextField(
                       controller: source,
                       decoration: const InputDecoration(
-                        labelText: 'Source / engineering reference',
+                        labelText: 'Sumber / referensi engineering',
                       ),
                     ),
                     SwitchListTile.adaptive(
@@ -221,7 +223,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                       value: active,
                       onChanged: (bool value) =>
                           setModalState(() => active = value),
-                      title: const Text('Active'),
+                      title: const Text('Aktif'),
                     ),
                   ],
                 ),
@@ -229,11 +231,11 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
+                  child: const Text('Batal'),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Save'),
+                  child: const Text('Simpan'),
                 ),
               ],
             ),
@@ -254,7 +256,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
       final String sourceNote = source.text.trim();
       if (sourceNote.isEmpty) {
         throw const FormatException(
-          'A source or engineering reference is required.',
+          'Sumber atau referensi engineering wajib diisi.',
         );
       }
       final Map<String, Object?> payload = <String, Object?>{
@@ -276,11 +278,11 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
             .eq('id', item.id);
       }
       if (mounted) {
-        _notice('Threshold saved.');
+        _notice('Batas suhu tersimpan.');
         await _load();
       }
     } on Object catch (error) {
-      if (mounted) _notice('Unable to save threshold: $error');
+      if (mounted) _notice('Batas suhu tidak dapat disimpan: $error');
     } finally {
       _dispose(<TextEditingController>[
         warningMin,
@@ -316,12 +318,12 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
     child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRoute: '/admin'),
-        title: const Text('Thresholds'),
+        title: const Text('Batas suhu'),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : () => _edit(null),
         icon: const Icon(Icons.add),
-        label: const Text('Add threshold'),
+        label: const Text('Tambah batas suhu'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -344,7 +346,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                         'Warning ${_value(item.warningMin)}-${_value(item.warningMax)} · Alarm ${_value(item.alarmMin)}-${_value(item.alarmMax)}${item.delta == null ? '' : ' · Δ ${_value(item.delta)}'}',
                       ),
                       trailing: Chip(
-                        label: Text(item.isActive ? 'Active' : 'Inactive'),
+                        label: Text(item.isActive ? 'Aktif' : 'Tidak aktif'),
                       ),
                     ),
                   );

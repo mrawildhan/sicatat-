@@ -75,7 +75,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
       final Object response = responses[0];
       final Object siteResponse = responses[1];
       if (response is! List || siteResponse is! List) {
-        throw const FormatException('Invalid team response.');
+        throw const FormatException('Respons regu tidak valid.');
       }
       final List<_TeamRecord> items = response
           .map(
@@ -96,7 +96,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
         });
       }
     } on Object catch (error) {
-      if (mounted) _notice('Unable to load teams: $error');
+      if (mounted) _notice('Regu tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -123,7 +123,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
               BuildContext context,
               void Function(void Function()) setModalState,
             ) => AlertDialog(
-              title: Text(record == null ? 'Add team' : 'Edit team'),
+              title: Text(record == null ? 'Tambah regu' : 'Ubah regu'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -135,12 +135,14 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: name,
-                      decoration: const InputDecoration(labelText: 'Name'),
+                      decoration: const InputDecoration(labelText: 'Nama regu'),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: siteId,
-                      decoration: const InputDecoration(labelText: 'Site'),
+                      decoration: const InputDecoration(
+                        labelText: 'Lokasi kerja',
+                      ),
                       items: _sites
                           .map(
                             (item) => DropdownMenuItem<String>(
@@ -154,7 +156,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                     ),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Active'),
+                      title: const Text('Aktif'),
                       value: active,
                       onChanged: (bool value) =>
                           setModalState(() => active = value),
@@ -165,11 +167,11 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
+                  child: const Text('Batal'),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Save'),
+                  child: const Text('Simpan'),
                 ),
               ],
             ),
@@ -184,7 +186,9 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
       final String cleanCode = code.text.trim();
       final String cleanName = name.text.trim();
       if (cleanCode.isEmpty || cleanName.isEmpty || siteId == null) {
-        throw const FormatException('Code, name, and site are required.');
+        throw const FormatException(
+          'Kode, nama regu, dan lokasi kerja wajib diisi.',
+        );
       }
       final Map<String, Object?> payload = <String, Object?>{
         'code': cleanCode,
@@ -201,11 +205,11 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
             .eq('id', record.id);
       }
       if (mounted) {
-        _notice('Team saved.');
+        _notice('Regu tersimpan.');
         await _load();
       }
     } on Object catch (error) {
-      if (mounted) _notice('Unable to save team: $error');
+      if (mounted) _notice('Regu tidak dapat disimpan: $error');
     } finally {
       code.dispose();
       name.dispose();
@@ -218,12 +222,12 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
     child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRoute: '/admin'),
-        title: const Text('Teams'),
+        title: const Text('Regu'),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : () => _edit(null),
         icon: const Icon(Icons.add),
-        label: const Text('Add team'),
+        label: const Text('Tambah regu'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -242,9 +246,9 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                         item.name,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      subtitle: Text('${item.siteName} · Code: ${item.code}'),
+                      subtitle: Text('${item.siteName} · Kode: ${item.code}'),
                       trailing: Chip(
-                        label: Text(item.isActive ? 'Active' : 'Inactive'),
+                        label: Text(item.isActive ? 'Aktif' : 'Tidak aktif'),
                       ),
                     ),
                   );
@@ -303,7 +307,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           .select('id,code,name,start_time,end_time,is_active')
           .order('code');
       if (response is! List) {
-        throw const FormatException('Invalid shift response.');
+        throw const FormatException('Respons shift tidak valid.');
       }
       final List<_ShiftRecord> items = response
           .map(
@@ -313,7 +317,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           .toList(growable: false);
       if (mounted) setState(() => _items = items);
     } on Object catch (error) {
-      if (mounted) _notice('Unable to load shifts: $error');
+      if (mounted) _notice('Shift tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -344,7 +348,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
               BuildContext context,
               void Function(void Function()) setModalState,
             ) => AlertDialog(
-              title: Text(record == null ? 'Add shift' : 'Edit shift'),
+              title: Text(record == null ? 'Tambah shift' : 'Ubah shift'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -356,14 +360,16 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: name,
-                      decoration: const InputDecoration(labelText: 'Name'),
+                      decoration: const InputDecoration(
+                        labelText: 'Nama shift',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: start,
                       keyboardType: TextInputType.datetime,
                       decoration: const InputDecoration(
-                        labelText: 'Start time (HH:mm)',
+                        labelText: 'Waktu mulai (JJ:mm)',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -371,12 +377,12 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                       controller: end,
                       keyboardType: TextInputType.datetime,
                       decoration: const InputDecoration(
-                        labelText: 'End time (HH:mm)',
+                        labelText: 'Waktu selesai (JJ:mm)',
                       ),
                     ),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Active'),
+                      title: const Text('Aktif'),
                       value: active,
                       onChanged: (bool value) =>
                           setModalState(() => active = value),
@@ -387,11 +393,11 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
+                  child: const Text('Batal'),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Save'),
+                  child: const Text('Simpan'),
                 ),
               ],
             ),
@@ -414,7 +420,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           !_time(cleanStart) ||
           !_time(cleanEnd)) {
         throw const FormatException(
-          'Code, name, and time in HH:mm format are required.',
+          'Kode, nama shift, dan waktu format JJ:mm wajib diisi.',
         );
       }
       final Map<String, Object?> payload = <String, Object?>{
@@ -433,11 +439,11 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
             .eq('id', record.id);
       }
       if (mounted) {
-        _notice('Shift saved.');
+        _notice('Shift tersimpan.');
         await _load();
       }
     } on Object catch (error) {
-      if (mounted) _notice('Unable to save shift: $error');
+      if (mounted) _notice('Shift tidak dapat disimpan: $error');
     } finally {
       code.dispose();
       name.dispose();
@@ -454,12 +460,12 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRoute: '/admin'),
-        title: const Text('Shifts'),
+        title: const Text('Shift'),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : () => _edit(null),
         icon: const Icon(Icons.add),
-        label: const Text('Add shift'),
+        label: const Text('Tambah shift'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -482,7 +488,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                         '${item.code} · ${item.startTime.substring(0, 5)}-${item.endTime.substring(0, 5)}',
                       ),
                       trailing: Chip(
-                        label: Text(item.isActive ? 'Active' : 'Inactive'),
+                        label: Text(item.isActive ? 'Aktif' : 'Tidak aktif'),
                       ),
                     ),
                   );
@@ -505,7 +511,7 @@ class _RosterAnchor {
   factory _RosterAnchor.fromJson(JsonMap json) {
     final Object? rawOrder = json['urutan_regu'];
     if (rawOrder is! List) {
-      throw const FormatException('Roster team order is invalid.');
+      throw const FormatException('Urutan regu pada jadwal tidak valid.');
     }
     return _RosterAnchor(
       id: json.requiredString('id'),
@@ -513,7 +519,7 @@ class _RosterAnchor {
       teamOrder: rawOrder
           .map((Object? item) {
             if (item is! String) {
-              throw const FormatException('Roster team code is invalid.');
+              throw const FormatException('Kode regu pada jadwal tidak valid.');
             }
             return item;
           })
@@ -547,7 +553,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
           .order('tanggal_mula', ascending: false)
           .limit(1);
       if (response is! List) {
-        throw const FormatException('Invalid roster response.');
+        throw const FormatException('Respons jadwal regu tidak valid.');
       }
       final _RosterAnchor? anchor = response.isEmpty
           ? null
@@ -556,7 +562,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
             );
       if (mounted) setState(() => _anchor = anchor);
     } on Object catch (error) {
-      if (mounted) _notice('Unable to load roster: $error');
+      if (mounted) _notice('Jadwal regu tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -577,28 +583,26 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
     final bool? saved = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: Text(
-          _anchor == null ? 'Set roster rotation' : 'Edit roster rotation',
-        ),
+        title: Text(_anchor == null ? 'Atur rotasi regu' : 'Ubah rotasi regu'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             const Text(
-              'The legacy 3-day Day - 3-day Night - 3-day Off rotation is calculated from this reference.',
+              'Rotasi 3 hari Shift Siang - 3 hari Shift Malam - 3 hari Libur dihitung dari acuan ini.',
             ),
             const SizedBox(height: 12),
             TextField(
               controller: date,
               keyboardType: TextInputType.datetime,
               decoration: const InputDecoration(
-                labelText: 'Cycle start date (YYYY-MM-DD)',
+                labelText: 'Tanggal mulai siklus (TTTT-BB-HH)',
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: order,
               decoration: const InputDecoration(
-                labelText: 'Team order (for example: A,B,C)',
+                labelText: 'Urutan regu (contoh: A,B,C)',
               ),
             ),
           ],
@@ -606,11 +610,11 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: const Text('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Save'),
+            child: const Text('Simpan'),
           ),
         ],
       ),
@@ -630,7 +634,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
       if (!RegExp(r'^\\d{4}-\\d{2}-\\d{2}$').hasMatch(startDate) ||
           teamOrder.isEmpty) {
         throw const FormatException(
-          'Enter a valid date and at least one team code.',
+          'Masukkan tanggal yang valid dan minimal satu kode regu.',
         );
       }
       if (_anchor == null) {
@@ -655,11 +659,11 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
             .eq('id', _anchor!.id);
       }
       if (mounted) {
-        _notice('Roster rotation saved.');
+        _notice('Rotasi regu tersimpan.');
         await _load();
       }
     } on Object catch (error) {
-      if (mounted) _notice('Unable to save roster: $error');
+      if (mounted) _notice('Rotasi regu tidak dapat disimpan: $error');
     } finally {
       date.dispose();
       order.dispose();
@@ -672,7 +676,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
     child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRoute: '/admin'),
-        title: const Text('Roster rotation'),
+        title: const Text('Rotasi regu'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -687,9 +691,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(18),
                     child: _anchor == null
-                        ? const Text(
-                            'No active roster rotation has been configured.',
-                          )
+                        ? const Text('Belum ada rotasi regu aktif yang diatur.')
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
@@ -701,7 +703,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Team order: ${_anchor!.teamOrder.join(', ')}',
+                                'Urutan regu: ${_anchor!.teamOrder.join(', ')}',
                               ),
                             ],
                           ),
@@ -712,9 +714,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
                   onPressed: _edit,
                   icon: const Icon(Icons.edit_calendar_rounded),
                   label: Text(
-                    _anchor == null
-                        ? 'Set roster rotation'
-                        : 'Edit roster rotation',
+                    _anchor == null ? 'Atur rotasi regu' : 'Ubah rotasi regu',
                   ),
                 ),
               ],

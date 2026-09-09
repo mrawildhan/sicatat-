@@ -39,7 +39,7 @@ class RoleGuard extends ConsumerWidget {
                 const SizedBox(height: 18),
                 ElevatedButton(
                   onPressed: () => context.go('/dashboard'),
-                  child: const Text('Back to home'),
+                  child: const Text('Kembali ke Beranda'),
                 ),
               ],
             ),
