@@ -19,10 +19,17 @@ function dateValue(value: unknown) {
   if (!raw) return null;
   const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(raw);
   if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
-  const dmy = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(raw);
-  if (!dmy) return null;
-  const year = dmy[3].length === 2 ? 2000 + Number(dmy[3]) : Number(dmy[3]);
-  return `${year.toString().padStart(4, "0")}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
+  const numeric = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(raw);
+  if (!numeric) return null;
+  const year = numeric[3].length === 2 ? 2000 + Number(numeric[3]) : Number(numeric[3]);
+  const first = Number(numeric[1]);
+  const second = Number(numeric[2]);
+  // SheetJS renders Excel serial dates as month/day/year.  When the first
+  // value is greater than 12, the source is unambiguously day/month/year.
+  const month = first > 12 ? second : first;
+  const day = first > 12 ? first : second;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return `${year.toString().padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 function headerIndex(header: unknown[]) {
@@ -90,7 +97,12 @@ Deno.serve(async (req) => {
     if (deleteError) throw deleteError;
     return json({ ok: true, changed: true, rows: rows.length, synced_at: now });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null && "message" in error
+      ? String(error.message)
+      : String(error);
+    console.error("CM synchronization failed", JSON.stringify(error));
     return json({ ok: false, error: message }, 500);
   }
 });
