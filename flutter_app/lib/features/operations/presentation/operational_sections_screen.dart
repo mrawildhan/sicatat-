@@ -12,8 +12,10 @@ import '../../../core/widgets/app_navigation.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/material_request_models.dart';
 import '../../../data/models/meeting_minute_models.dart';
+import '../../../data/models/preventive_maintenance_models.dart';
 import '../../../data/reports/meeting_minute_service.dart';
 import '../../../data/services/material_request_service.dart';
+import '../../../data/services/preventive_maintenance_service.dart';
 import '../../auth/application/current_user_provider.dart';
 
 class BudgetOverviewScreen extends StatelessWidget {
@@ -157,14 +159,99 @@ class _MaterialRequestOverviewScreenState
   }
 }
 
-class OutstandingMaintenanceScreen extends StatelessWidget {
-  const OutstandingMaintenanceScreen({super.key});
+class OutstandingMaintenanceScreen extends StatefulWidget {
+  const OutstandingMaintenanceScreen({this.service, super.key});
+
+  final PreventiveMaintenanceService? service;
 
   @override
-  Widget build(BuildContext context) => const _OperationalSectionPage(
+  State<OutstandingMaintenanceScreen> createState() =>
+      _OutstandingMaintenanceScreenState();
+}
+
+class _OutstandingMaintenanceScreenState
+    extends State<OutstandingMaintenanceScreen> {
+  PreventiveMaintenanceService? _service;
+  List<PreventiveMaintenanceWorkOrder> _items =
+      const <PreventiveMaintenanceWorkOrder>[];
+  bool _loading = true;
+  String? _error;
+  DateTime? _syncedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  PreventiveMaintenanceService? _createService() {
+    try {
+      return PreventiveMaintenanceService(Supabase.instance.client);
+    } on AssertionError {
+      return null;
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      _service ??= widget.service ?? _createService();
+      final PreventiveMaintenanceService? service = _service;
+      if (service == null) {
+        if (mounted) {
+          setState(() => _items = const <PreventiveMaintenanceWorkOrder>[]);
+        }
+        return;
+      }
+      final PreventiveMaintenanceSyncResult sync = await service.synchronize();
+      final List<PreventiveMaintenanceWorkOrder> items = await service
+          .loadOutstanding();
+      if (mounted) {
+        setState(() {
+          _items = items;
+          _syncedAt = sync.updatedAt;
+        });
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Data PM belum dapat diperbarui. Periksa koneksi lalu coba lagi.\n$error',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _openPmList(String crew, String site) {
+    final List<PreventiveMaintenanceWorkOrder> items = _items
+        .where((item) => item.crew == crew && item.site == site)
+        .toList(growable: false);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) =>
+          _PreventiveMaintenanceListSheet(crew: crew, site: site, items: items),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => _OperationalSectionPage(
     title: 'Outstanding PM & CM',
     icon: Icons.pending_actions_outlined,
-    child: _OutstandingMaintenanceBody(),
+    child: _OutstandingMaintenanceBody(
+      items: _items,
+      loading: _loading,
+      error: _error,
+      syncedAt: _syncedAt,
+      onRefresh: _load,
+      onOpenPmList: _openPmList,
+    ),
   );
 }
 
@@ -671,105 +758,175 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
 }
 
 class _OutstandingMaintenanceBody extends StatelessWidget {
-  const _OutstandingMaintenanceBody();
+  const _OutstandingMaintenanceBody({
+    required this.items,
+    required this.loading,
+    required this.error,
+    required this.syncedAt,
+    required this.onRefresh,
+    required this.onOpenPmList,
+  });
+
+  final List<PreventiveMaintenanceWorkOrder> items;
+  final bool loading;
+  final String? error;
+  final DateTime? syncedAt;
+  final Future<void> Function() onRefresh;
+  final void Function(String crew, String site) onOpenPmList;
+
+  int _count(String crew, String site) =>
+      items.where((item) => item.crew == crew && item.site == site).length;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      const Text(
-        'Pantau PM dan CM yang masih outstanding',
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-      ),
-      const SizedBox(height: 6),
-      const Text(
-        'Memberi visibilitas mingguan kepada foreman sebelum pekerjaan atau dokumennya tertinggal.',
-        style: TextStyle(color: AppColors.muted, height: 1.45),
-      ),
-      const SizedBox(height: 18),
-      const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
+  Widget build(BuildContext context) {
+    final String sourceStatus = syncedAt == null
+        ? 'Sumber: CPP PM.xlsx dan PORT PM.xlsx'
+        : 'Diperbarui ${_pmDateTime(syncedAt!)}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text(
+          'Pantau PM dan CM yang masih outstanding',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Memberi visibilitas mingguan kepada foreman sebelum pekerjaan atau dokumennya tertinggal.',
+          style: TextStyle(color: AppColors.muted, height: 1.45),
+        ),
+        const SizedBox(height: 18),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: <Widget>[
+                _OutstandingSourceRow(
+                  icon: Icons.calendar_month_outlined,
+                  title: 'Preventive Maintenance (PM)',
+                  subtitle: sourceStatus,
+                  action: IconButton(
+                    tooltip: 'Muat ulang PM',
+                    onPressed: loading ? null : onRefresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ),
+                const Divider(height: 24),
+                const _OutstandingSourceRow(
+                  icon: Icons.build_circle_outlined,
+                  title: 'Corrective Maintenance (CM)',
+                  subtitle: 'Menunggu spreadsheet CM yang diperbarui',
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'PM per crew & lokasi',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 10),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 30),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (error != null)
+          _OutstandingPmNotice(message: error!, onRetry: onRefresh)
+        else ...<Widget>[
+          Text(
+            '${items.length} PM outstanding. Tekan kartu untuk melihat daftar work order.',
+            style: const TextStyle(color: AppColors.muted),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: <Widget>[
-              _OutstandingSourceRow(
-                icon: Icons.calendar_month_outlined,
-                title: 'Preventive Maintenance (PM)',
-                subtitle: 'Spreadsheet diperbarui setiap hari Jumat',
+              _OutstandingPmCard(
+                crew: 'A',
+                site: 'CPP',
+                count: _count('A', 'CPP'),
+                onTap: () => onOpenPmList('A', 'CPP'),
               ),
-              Divider(height: 24),
-              _OutstandingSourceRow(
-                icon: Icons.build_circle_outlined,
-                title: 'Corrective Maintenance (CM)',
-                subtitle:
-                    'Spreadsheet diperbarui Jumat atau Senin setelah meeting',
+              _OutstandingPmCard(
+                crew: 'A',
+                site: 'PORT',
+                count: _count('A', 'PORT'),
+                onTap: () => onOpenPmList('A', 'PORT'),
+              ),
+              _OutstandingPmCard(
+                crew: 'B',
+                site: 'CPP',
+                count: _count('B', 'CPP'),
+                onTap: () => onOpenPmList('B', 'CPP'),
+              ),
+              _OutstandingPmCard(
+                crew: 'B',
+                site: 'PORT',
+                count: _count('B', 'PORT'),
+                onTap: () => onOpenPmList('B', 'PORT'),
+              ),
+              _OutstandingPmCard(
+                crew: 'C',
+                site: 'CPP',
+                count: _count('C', 'CPP'),
+                onTap: () => onOpenPmList('C', 'CPP'),
+              ),
+              _OutstandingPmCard(
+                crew: 'C',
+                site: 'PORT',
+                count: _count('C', 'PORT'),
+                onTap: () => onOpenPmList('C', 'PORT'),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 16),
+        const Text(
+          'CM global per lokasi',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'CM dikerjakan bersama oleh crew pada lokasi yang sama.',
+          style: TextStyle(color: AppColors.muted),
+        ),
+        const SizedBox(height: 10),
+        const Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: <Widget>[
+            _OutstandingCmCard(site: 'CPP'),
+            _OutstandingCmCard(site: 'PORT'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.orange.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.orange.withValues(alpha: 0.22)),
+          ),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Icon(Icons.table_chart_outlined, color: AppColors.orange),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'PM menampilkan seluruh work order dari daftar outstanding. CM akan dihubungkan setelah spreadsheet CM memuat informasi progres.',
+                  style: TextStyle(height: 1.45),
+                ),
               ),
             ],
           ),
         ),
-      ),
-      const SizedBox(height: 16),
-      const Text(
-        'PM per crew & lokasi',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-      ),
-      const SizedBox(height: 10),
-      const Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: <Widget>[
-          _OutstandingPmCard(crew: 'A', site: 'CPP'),
-          _OutstandingPmCard(crew: 'A', site: 'PORT'),
-          _OutstandingPmCard(crew: 'B', site: 'CPP'),
-          _OutstandingPmCard(crew: 'B', site: 'PORT'),
-          _OutstandingPmCard(crew: 'C', site: 'CPP'),
-          _OutstandingPmCard(crew: 'C', site: 'PORT'),
-        ],
-      ),
-      const SizedBox(height: 16),
-      const Text(
-        'CM global per lokasi',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-      ),
-      const SizedBox(height: 6),
-      const Text(
-        'CM dikerjakan bersama oleh crew pada lokasi yang sama.',
-        style: TextStyle(color: AppColors.muted),
-      ),
-      const SizedBox(height: 10),
-      const Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: <Widget>[
-          _OutstandingCmCard(site: 'CPP'),
-          _OutstandingCmCard(site: 'PORT'),
-        ],
-      ),
-      const SizedBox(height: 16),
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.orange.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.orange.withValues(alpha: 0.22)),
-        ),
-        child: const Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Icon(Icons.table_chart_outlined, color: AppColors.orange),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Sumber spreadsheet PM dan CM belum dihubungkan. Setelah file tersedia, PM akan tampil per crew dan lokasi; CM akan tampil global per CPP atau PORT, termasuk pekerjaan yang sudah dikerjakan tetapi belum dikumpulkan.',
-                style: TextStyle(height: 1.45),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class _RequestStatusCard extends StatelessWidget {
@@ -1429,11 +1586,13 @@ class _OutstandingSourceRow extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.action,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -1453,42 +1612,276 @@ class _OutstandingSourceRow extends StatelessWidget {
           ],
         ),
       ),
-      const Icon(Icons.schedule_rounded, color: AppColors.muted),
+      action ?? const Icon(Icons.schedule_rounded, color: AppColors.muted),
     ],
   );
 }
 
 class _OutstandingPmCard extends StatelessWidget {
-  const _OutstandingPmCard({required this.crew, required this.site});
+  const _OutstandingPmCard({
+    required this.crew,
+    required this.site,
+    required this.count,
+    required this.onTap,
+  });
 
   final String crew;
   final String site;
+  final int count;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => SizedBox(
     width: 186,
     child: Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      'Crew $crew · $site',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.muted,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'PM outstanding',
+                style: TextStyle(color: AppColors.muted, fontSize: 12),
+              ),
+              Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                'Lihat daftar',
+                style: TextStyle(color: AppColors.green, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _OutstandingPmNotice extends StatelessWidget {
+  const _OutstandingPmNotice({required this.message, required this.onRetry});
+
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: AppColors.orange.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: AppColors.orange.withValues(alpha: 0.22)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Row(
+          children: <Widget>[
+            Icon(Icons.cloud_off_outlined, color: AppColors.orange),
+            SizedBox(width: 9),
+            Text(
+              'Daftar PM belum tersedia',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(message, style: const TextStyle(height: 1.4)),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Coba lagi'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _PreventiveMaintenanceListSheet extends StatelessWidget {
+  const _PreventiveMaintenanceListSheet({
+    required this.crew,
+    required this.site,
+    required this.items,
+  });
+
+  final String crew;
+  final String site;
+  final List<PreventiveMaintenanceWorkOrder> items;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.78,
+      minChildSize: 0.45,
+      maxChildSize: 0.94,
+      builder: (BuildContext context, ScrollController controller) => ListView(
+        controller: controller,
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        children: <Widget>[
+          Text(
+            'PM Crew $crew · $site',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${items.length} work order masih outstanding',
+            style: const TextStyle(color: AppColors.muted),
+          ),
+          const SizedBox(height: 14),
+          if (items.isEmpty)
+            const _EmptyPmList()
+          else
+            ...items.map(
+              (PreventiveMaintenanceWorkOrder item) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _PreventiveMaintenanceTile(item: item),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _EmptyPmList extends StatelessWidget {
+  const _EmptyPmList();
+
+  @override
+  Widget build(BuildContext context) => const Card(
+    child: Padding(
+      padding: EdgeInsets.all(16),
+      child: Text('Tidak ada PM outstanding untuk crew dan lokasi ini.'),
+    ),
+  );
+}
+
+class _PreventiveMaintenanceTile extends StatelessWidget {
+  const _PreventiveMaintenanceTile({required this.item});
+
+  final PreventiveMaintenanceWorkOrder item;
+
+  @override
+  Widget build(BuildContext context) {
+    final String assigned =
+        item.assignedToDescription?.trim().isNotEmpty == true
+        ? item.assignedToDescription!
+        : item.assignedTo ?? 'Belum ditentukan';
+    final String? priority = item.priorityDescription ?? item.priority;
+    return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              'Crew $crew · $site',
-              style: const TextStyle(fontWeight: FontWeight.w900),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    item.workOrder,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                if (priority != null && priority.trim().isNotEmpty)
+                  _PmPriorityChip(label: priority),
+              ],
             ),
-            const SizedBox(height: 14),
-            const Text(
-              'PM outstanding',
-              style: TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
-            const Text(
-              '—',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            const SizedBox(height: 5),
+            Text(item.description, style: const TextStyle(height: 1.35)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              children: <Widget>[
+                _PmDetail(
+                  icon: Icons.precision_manufacturing_outlined,
+                  text: item.equipmentReference,
+                ),
+                _PmDetail(
+                  icon: Icons.event_outlined,
+                  text: item.plannedStartOn == null
+                      ? 'Belum dijadwalkan'
+                      : 'Rencana ${_pmShortDate(item.plannedStartOn!)}',
+                ),
+                _PmDetail(icon: Icons.person_outline_rounded, text: assigned),
+              ],
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PmPriorityChip extends StatelessWidget {
+  const _PmPriorityChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: AppColors.orange.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: AppColors.orange,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+  );
+}
+
+class _PmDetail extends StatelessWidget {
+  const _PmDetail({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 210,
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Icon(icon, size: 16, color: AppColors.muted),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -2932,3 +3325,9 @@ String _momShortDate(DateTime value) =>
 
 String _momDateTime(DateTime value) =>
     '${_momDate(value)} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+String _pmShortDate(DateTime value) =>
+    '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+
+String _pmDateTime(DateTime value) =>
+    '${_pmShortDate(value)} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';

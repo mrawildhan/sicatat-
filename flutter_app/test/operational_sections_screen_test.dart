@@ -47,10 +47,13 @@ void main() {
     expect(find.text('Semua'), findsOneWidget);
   });
 
-  testWidgets('outstanding memisahkan PM crew lokasi dan CM global', (tester) async {
+  testWidgets('outstanding memisahkan PM crew lokasi dan CM global', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(home: OutstandingMaintenanceScreen()),
     );
+    await tester.pump();
 
     expect(find.text('Preventive Maintenance (PM)'), findsOneWidget);
     expect(find.text('Corrective Maintenance (CM)'), findsOneWidget);
@@ -59,5 +62,14 @@ void main() {
     expect(find.text('Crew C · CPP'), findsOneWidget);
     expect(find.text('CM CPP'), findsOneWidget);
     expect(find.text('CM PORT'), findsOneWidget);
+
+    await tester.tap(find.text('Crew A · CPP'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PM Crew A · CPP'), findsOneWidget);
+    expect(
+      find.text('Tidak ada PM outstanding untuk crew dan lokasi ini.'),
+      findsOneWidget,
+    );
   });
 }
