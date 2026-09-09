@@ -1656,14 +1656,23 @@ class _OutstandingPmCard extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
               ),
-              Text(
-                '$count',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
+              Container(
+                constraints: const BoxConstraints(minWidth: 34),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.mint,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  '$count',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.greenDark,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 5),
               const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
             ],
           ),
@@ -1861,7 +1870,7 @@ class _EmptyPmList extends StatelessWidget {
   );
 }
 
-class _CorrectiveMaintenanceListSheet extends StatelessWidget {
+class _CorrectiveMaintenanceListSheet extends StatefulWidget {
   const _CorrectiveMaintenanceListSheet({
     required this.site,
     required this.items,
@@ -1869,6 +1878,33 @@ class _CorrectiveMaintenanceListSheet extends StatelessWidget {
 
   final String site;
   final List<CorrectiveMaintenanceWorkOrder> items;
+
+  @override
+  State<_CorrectiveMaintenanceListSheet> createState() =>
+      _CorrectiveMaintenanceListSheetState();
+}
+
+class _CorrectiveMaintenanceListSheetState
+    extends State<_CorrectiveMaintenanceListSheet> {
+  String _equipmentFilter = '';
+
+  List<String> get _equipmentReferences =>
+      widget.items
+          .map((CorrectiveMaintenanceWorkOrder item) => item.equipmentReference.trim())
+          .where((String equipment) => equipment.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+
+  List<CorrectiveMaintenanceWorkOrder> get _filteredItems =>
+      _equipmentFilter.isEmpty
+          ? widget.items
+          : widget.items
+                .where(
+                  (CorrectiveMaintenanceWorkOrder item) =>
+                      item.equipmentReference == _equipmentFilter,
+                )
+                .toList(growable: false);
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -1904,7 +1940,7 @@ class _CorrectiveMaintenanceListSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'CM $site',
+                        'CM ${widget.site}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -1913,7 +1949,7 @@ class _CorrectiveMaintenanceListSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${items.length} work order outstanding',
+                        '${_filteredItems.length} dari ${widget.items.length} work order outstanding',
                         style: const TextStyle(color: Colors.white70),
                       ),
                     ],
@@ -1923,7 +1959,54 @@ class _CorrectiveMaintenanceListSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          for (final item in items)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppColors.line),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: <Widget>[
+                const Icon(Icons.filter_list_rounded, color: AppColors.green),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _equipmentFilter,
+                      isExpanded: true,
+                      hint: const Text('Semua aset'),
+                      onChanged: (String? value) => setState(
+                        () => _equipmentFilter = value ?? '',
+                      ),
+                      items: <DropdownMenuItem<String>>[
+                        const DropdownMenuItem<String>(
+                          value: '',
+                          child: Text('Semua aset'),
+                        ),
+                        ..._equipmentReferences.map(
+                          (String equipment) => DropdownMenuItem<String>(
+                            value: equipment,
+                            child: Text(equipment),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_filteredItems.isEmpty)
+            const Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Belum ada work order untuk aset yang dipilih.'),
+              ),
+            ),
+          for (final item in _filteredItems)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _CorrectiveMaintenanceTile(item: item),
@@ -2082,7 +2165,7 @@ class _OutstandingCmCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'CM $site · $count',
+                    'CM $site',
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   const Text(
