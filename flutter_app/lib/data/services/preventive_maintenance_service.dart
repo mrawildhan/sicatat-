@@ -18,10 +18,28 @@ class PreventiveMaintenanceService {
         data.optionalString('error') ?? 'Data PM tidak dapat diperbarui.',
       );
     }
-    return PreventiveMaintenanceSyncResult(
+    final PreventiveMaintenanceSyncResult pm = PreventiveMaintenanceSyncResult(
       changed: data['changed'] == true,
       rows: (data['rows'] as num?)?.toInt() ?? 0,
       updatedAt: DateTime.tryParse(data.optionalString('synced_at') ?? ''),
+    );
+    final FunctionResponse correctiveResponse = await _client.functions.invoke(
+      'sync-corrective-maintenance',
+    );
+    final JsonMap correctiveData = requireJsonMap(
+      correctiveResponse.data,
+      source: 'CM sync',
+    );
+    if (correctiveData['ok'] != true) {
+      throw FormatException(
+        correctiveData.optionalString('error') ??
+            'Data CM tidak dapat diperbarui.',
+      );
+    }
+    return PreventiveMaintenanceSyncResult(
+      changed: pm.changed || correctiveData['changed'] == true,
+      rows: pm.rows + ((correctiveData['rows'] as num?)?.toInt() ?? 0),
+      updatedAt: pm.updatedAt,
     );
   }
 
@@ -45,6 +63,30 @@ class PreventiveMaintenanceService {
         .map(
           (Object? row) =>
               PreventiveMaintenanceWorkOrder.fromJson(requireJsonMap(row)),
+        )
+        .toList(growable: false);
+  }
+
+  Future<List<CorrectiveMaintenanceWorkOrder>>
+  loadCorrectiveOutstanding() async {
+    final Object response = await _client
+        .from('corrective_maintenance_work_order')
+        .select(
+          'work_order,work_order_description,equipment_reference,site_code,priority,raised_on,latest_progress',
+        )
+        .order('site_code')
+        .order('raised_on')
+        .order('work_order');
+    if (response is! List) {
+      throw const FormatException(
+        'Data CM mengembalikan format yang tidak valid.',
+      );
+    }
+    return response
+        .cast<Object?>()
+        .map(
+          (Object? row) =>
+              CorrectiveMaintenanceWorkOrder.fromJson(requireJsonMap(row)),
         )
         .toList(growable: false);
   }

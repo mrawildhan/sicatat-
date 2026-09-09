@@ -174,6 +174,8 @@ class _OutstandingMaintenanceScreenState
   PreventiveMaintenanceService? _service;
   List<PreventiveMaintenanceWorkOrder> _items =
       const <PreventiveMaintenanceWorkOrder>[];
+  List<CorrectiveMaintenanceWorkOrder> _correctiveItems =
+      const <CorrectiveMaintenanceWorkOrder>[];
   bool _loading = true;
   String? _error;
   DateTime? _syncedAt;
@@ -209,9 +211,12 @@ class _OutstandingMaintenanceScreenState
       final PreventiveMaintenanceSyncResult sync = await service.synchronize();
       final List<PreventiveMaintenanceWorkOrder> items = await service
           .loadOutstanding();
+      final List<CorrectiveMaintenanceWorkOrder> correctiveItems = await service
+          .loadCorrectiveOutstanding();
       if (mounted) {
         setState(() {
           _items = items;
+          _correctiveItems = correctiveItems;
           _syncedAt = sync.updatedAt;
         });
       }
@@ -240,17 +245,29 @@ class _OutstandingMaintenanceScreenState
     );
   }
 
+  void _openCmList(String site) {
+    final items = _correctiveItems.where((item) => item.site == site).toList();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _CorrectiveMaintenanceListSheet(site: site, items: items),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => _OperationalSectionPage(
     title: 'Outstanding PM & CM',
     icon: Icons.pending_actions_outlined,
     child: _OutstandingMaintenanceBody(
       items: _items,
+      correctiveItems: _correctiveItems,
       loading: _loading,
       error: _error,
       syncedAt: _syncedAt,
       onRefresh: _load,
       onOpenPmList: _openPmList,
+      onOpenCmList: _openCmList,
     ),
   );
 }
@@ -760,19 +777,23 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
 class _OutstandingMaintenanceBody extends StatelessWidget {
   const _OutstandingMaintenanceBody({
     required this.items,
+    required this.correctiveItems,
     required this.loading,
     required this.error,
     required this.syncedAt,
     required this.onRefresh,
     required this.onOpenPmList,
+    required this.onOpenCmList,
   });
 
   final List<PreventiveMaintenanceWorkOrder> items;
+  final List<CorrectiveMaintenanceWorkOrder> correctiveItems;
   final bool loading;
   final String? error;
   final DateTime? syncedAt;
   final Future<void> Function() onRefresh;
   final void Function(String crew, String site) onOpenPmList;
+  final ValueChanged<String> onOpenCmList;
 
   int _count(String crew, String site) =>
       items.where((item) => item.crew == crew && item.site == site).length;
@@ -803,11 +824,11 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 48, child: VerticalDivider(width: 24)),
-                const Expanded(
+                Expanded(
                   child: _OutstandingSourceSummary(
                     icon: Icons.build_circle_outlined,
                     title: 'CM',
-                    subtitle: 'Menunggu spreadsheet progres',
+                    subtitle: '${correctiveItems.length} outstanding',
                   ),
                 ),
               ],
@@ -867,11 +888,27 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 6),
-        const Row(
+        Row(
           children: <Widget>[
-            Expanded(child: _OutstandingCmCard(site: 'CPP')),
-            SizedBox(width: 8),
-            Expanded(child: _OutstandingCmCard(site: 'PORT')),
+            Expanded(
+              child: _OutstandingCmCard(
+                site: 'CPP',
+                count: correctiveItems
+                    .where((item) => item.site == 'CPP')
+                    .length,
+                onTap: () => onOpenCmList('CPP'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _OutstandingCmCard(
+                site: 'PORT',
+                count: correctiveItems
+                    .where((item) => item.site == 'PORT')
+                    .length,
+                onTap: () => onOpenCmList('PORT'),
+              ),
+            ),
           ],
         ),
       ],
@@ -1596,11 +1633,11 @@ class _OutstandingPmCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(
             children: <Widget>[
               CircleAvatar(
-                radius: 17,
+                radius: 15,
                 backgroundColor: AppColors.mint,
                 child: Text(
                   crew,
@@ -1612,24 +1649,17 @@ class _OutstandingPmCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Crew $crew',
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    const Text(
-                      'PM outstanding',
-                      style: TextStyle(color: AppColors.muted, fontSize: 12),
-                    ),
-                  ],
+                child: Text(
+                  'Crew $crew',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
               ),
               Text(
                 '$count',
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -1831,6 +1861,70 @@ class _EmptyPmList extends StatelessWidget {
   );
 }
 
+class _CorrectiveMaintenanceListSheet extends StatelessWidget {
+  const _CorrectiveMaintenanceListSheet({
+    required this.site,
+    required this.items,
+  });
+
+  final String site;
+  final List<CorrectiveMaintenanceWorkOrder> items;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.78,
+      minChildSize: 0.45,
+      maxChildSize: 0.94,
+      builder: (context, controller) => ListView(
+        controller: controller,
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        children: <Widget>[
+          Text(
+            'CM $site',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+          ),
+          Text(
+            '${items.length} work order outstanding',
+            style: const TextStyle(color: AppColors.muted),
+          ),
+          const SizedBox(height: 12),
+          for (final item in items)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      item.workOrder,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      item.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      'Progres terakhir: ${item.progress ?? 'Belum ada keterangan'}',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _PreventiveMaintenanceTile extends StatelessWidget {
   const _PreventiveMaintenanceTile({required this.item});
 
@@ -1945,43 +2039,52 @@ class _PmDetail extends StatelessWidget {
 }
 
 class _OutstandingCmCard extends StatelessWidget {
-  const _OutstandingCmCard({required this.site});
+  const _OutstandingCmCard({
+    required this.site,
+    required this.count,
+    required this.onTap,
+  });
 
   final String site;
+  final int count;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Card(
     margin: EdgeInsets.zero,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      child: Row(
-        children: <Widget>[
-          const CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.mint,
-            child: Icon(
-              Icons.build_circle_outlined,
-              color: AppColors.green,
-              size: 18,
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        child: Row(
+          children: <Widget>[
+            const CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.mint,
+              child: Icon(
+                Icons.build_circle_outlined,
+                color: AppColors.green,
+                size: 18,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'CM $site',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                const Text(
-                  'Menunggu progres',
-                  style: TextStyle(color: AppColors.muted, fontSize: 11),
-                ),
-              ],
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'CM $site · $count',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const Text(
+                    'Lihat progres',
+                    style: TextStyle(color: AppColors.muted, fontSize: 11),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );

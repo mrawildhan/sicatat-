@@ -24,7 +24,9 @@ class PreventiveMaintenanceWorkOrder {
         crew: json.requiredString('crew_code'),
         site: json.requiredString('site_code'),
         status: json.requiredString('status_code'),
-        raisedOn: _date(json.optionalString('raised_on')),
+        raisedOn: PreventiveMaintenanceWorkOrder._date(
+          json.optionalString('raised_on'),
+        ),
         plannedStartOn: _date(json.optionalString('planned_start_on')),
         assignedTo: json.optionalString('assigned_to'),
         assignedToDescription: json.optionalString('assigned_to_description'),
@@ -59,4 +61,37 @@ class PreventiveMaintenanceSyncResult {
   final bool changed;
   final int rows;
   final DateTime? updatedAt;
+}
+
+class CorrectiveMaintenanceWorkOrder {
+  const CorrectiveMaintenanceWorkOrder({
+    required this.workOrder,
+    required this.description,
+    required this.equipmentReference,
+    required this.site,
+    required this.priority,
+    required this.raisedOn,
+    required this.progress,
+  });
+
+  factory CorrectiveMaintenanceWorkOrder.fromJson(JsonMap json) =>
+      CorrectiveMaintenanceWorkOrder(
+        workOrder: json.requiredString('work_order'),
+        description: json.requiredString('work_order_description'),
+        equipmentReference: json.requiredString('equipment_reference'),
+        site: json.requiredString('site_code'),
+        priority: json.optionalString('priority'),
+        raisedOn: PreventiveMaintenanceWorkOrder._date(
+          json.optionalString('raised_on'),
+        ),
+        progress: json.optionalString('latest_progress'),
+      );
+
+  final String workOrder;
+  final String description;
+  final String equipmentReference;
+  final String site;
+  final String? priority;
+  final DateTime? raisedOn;
+  final String? progress;
 }

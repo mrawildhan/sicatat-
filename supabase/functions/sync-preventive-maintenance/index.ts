@@ -22,6 +22,11 @@ const sources = [
   },
 ] as const;
 
+const correctiveSource = {
+  label: "CM terbaru.xlsx",
+  url: "https://drive.google.com/uc?export=download&id=1MXeJk9xIGKNEhxGhpFS-cWl9L03fMwwy",
+} as const;
+
 type Row = {
   source_key: string;
   work_order: string;
@@ -36,6 +41,19 @@ type Row = {
   assigned_to_description: string | null;
   priority: string | null;
   priority_description: string | null;
+  source_fingerprint: string;
+  synced_at: string;
+};
+
+type CorrectiveRow = {
+  source_key: string;
+  work_order: string;
+  work_order_description: string;
+  equipment_reference: string;
+  site_code: string;
+  priority: string | null;
+  raised_on: string | null;
+  latest_progress: string | null;
   source_fingerprint: string;
   synced_at: string;
 };
@@ -123,6 +141,23 @@ function parseCrew(value: unknown, source: typeof sources[number]) {
   const site = match[2].toUpperCase() === "CP2" ? "CPP" : "PORT";
   if (site !== source.site) throw new Error(`${source.label} berisi Crew untuk lokasi ${site}.`);
   return { crew: match[1].toUpperCase(), site };
+}
+
+async function readCorrectiveSource() {
+  const response = await fetch(correctiveSource.url, { signal: AbortSignal.timeout(20000) });
+  if (!response.ok) throw new Error(`${correctiveSource.label} tidak dapat dibaca (HTTP ${response.status}).`);
+  const buffer = await response.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
+  for (const [sheetName, site] of [["CPP", "CPP"], ["Port", "PORT"]] as const) {
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) throw new Error(`${correctiveSource.label} tidak memiliki sheet ${sheetName}.`);
+    const values = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", raw: false });
+    const headers = headerIndex(values[1] ?? []);
+    const required = ["WORK ORDER", "WORK ORDER DESC", "EQUIP REF", "RAISE DTE"];
+    const missing = required.filter((name) => !headers.has(name));
+    if (missing.length > 0) throw new Error(`Sheet ${sheetName} tidak memiliki kolom: ${missing.join(", ")}.`);
+  }
+  return { buffer, workbook };
 }
 
 Deno.serve(async (req) => {

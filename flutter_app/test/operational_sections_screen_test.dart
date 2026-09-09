@@ -62,8 +62,8 @@ void main() {
     expect(find.text('Crew A'), findsNWidgets(2));
     expect(find.text('Crew B'), findsNWidgets(2));
     expect(find.text('Crew C'), findsNWidgets(2));
-    expect(find.text('CM CPP'), findsOneWidget);
-    expect(find.text('CM PORT'), findsOneWidget);
+    expect(find.textContaining('CM CPP'), findsOneWidget);
+    expect(find.textContaining('CM PORT'), findsOneWidget);
 
     await tester.tap(find.text('Crew A').first);
     await tester.pumpAndSettle();
