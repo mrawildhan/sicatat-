@@ -1626,18 +1626,18 @@ class _OutstandingPmCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
+    padding: const EdgeInsets.only(bottom: 8),
     child: Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           child: Row(
             children: <Widget>[
               CircleAvatar(
-                radius: 15,
+                radius: 19,
                 backgroundColor: AppColors.mint,
                 child: Text(
                   crew,
@@ -1647,21 +1647,33 @@ class _OutstandingPmCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  'Crew $crew',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Crew $crew',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'PM outstanding',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: AppColors.muted, fontSize: 11),
+                    ),
+                  ],
                 ),
               ),
               Container(
-                constraints: const BoxConstraints(minWidth: 34),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                constraints: const BoxConstraints(minWidth: 38),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
                 decoration: BoxDecoration(
                   color: AppColors.mint,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   '$count',
@@ -1672,8 +1684,6 @@ class _OutstandingPmCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 5),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
             ],
           ),
         ),
@@ -2147,53 +2157,54 @@ class _OutstandingCmCard extends StatelessWidget {
     child: InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
           children: <Widget>[
             const CircleAvatar(
-              radius: 16,
+              radius: 19,
               backgroundColor: AppColors.mint,
               child: Icon(
                 Icons.build_circle_outlined,
                 color: AppColors.green,
-                size: 18,
+                size: 21,
               ),
             ),
-            const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
                     'CM $site',
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
+                  const SizedBox(height: 2),
                   const Text(
                     'Lihat progres',
                     style: TextStyle(color: AppColors.muted, fontSize: 11),
                   ),
                 ],
-                  ),
-                ),
-                Container(
-                  constraints: const BoxConstraints(minWidth: 34),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.mint,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    '$count',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: AppColors.greenDark,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+            Container(
+              constraints: const BoxConstraints(minWidth: 38),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+              decoration: BoxDecoration(
+                color: AppColors.mint,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '$count',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.greenDark,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }
