@@ -764,7 +764,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             canWarehouse: hasWarehouse,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _homeMoreActions(context, user),
       ],
     );
@@ -781,15 +781,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     child: InkWell(
       onTap: onTap,
       child: SizedBox(
-        height: 96,
+        height: 90,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               CircleAvatar(
+                radius: 20,
                 backgroundColor: AppColors.mint,
-                child: Icon(icon, color: AppColors.green),
+                child: Icon(icon, color: AppColors.green, size: 21),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -799,7 +800,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   children: <Widget>[
                     Text(
                       title,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -836,104 +840,77 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       if (user?.role.canManageMasterData == true) ...<Widget>[
         const SizedBox(height: 10),
-        _homeActionGroup(
+        _homeUtilityCard(
           icon: Icons.manage_accounts_outlined,
-          title: 'Administrasi',
-          subtitle: 'Kelola data master dan pengguna',
-          actions: <_DashboardAction>[
-            _DashboardAction(
-              icon: Icons.manage_accounts_outlined,
-              label: 'Data master & pengguna',
-              onTap: () => context.go('/admin'),
-            ),
-          ],
+          title: 'Data master & pengguna',
+          subtitle: 'Kelola pengguna dan data operasional',
+          onTap: () => context.go('/admin'),
         ),
       ],
       const SizedBox(height: 10),
-      _homeActionGroup(
+      _homeUtilityCard(
         icon: Icons.help_outline_rounded,
-        title: 'Bantuan',
-        subtitle: 'Panduan penggunaan aplikasi',
-        actions: <_DashboardAction>[
-          _DashboardAction(
-            icon: Icons.help_outline_rounded,
-            label: 'Panduan pengguna',
-            onTap: () => context.go('/guide'),
-          ),
-        ],
+        title: 'Panduan pengguna',
+        subtitle: 'Pelajari cara menggunakan aplikasi',
+        onTap: () => context.go('/guide'),
       ),
     ],
   );
 
-  Widget _homeActionGroup({
+  Widget _homeUtilityCard({
     required IconData icon,
     required String title,
     required String subtitle,
-    required List<_DashboardAction> actions,
+    required VoidCallback onTap,
   }) => Card(
     margin: EdgeInsets.zero,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-            child: Row(
-              children: <Widget>[
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.mint,
-                  child: Icon(icon, color: AppColors.green, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: const TextStyle(fontWeight: FontWeight.w900),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        height: 78,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: <Widget>[
+              CircleAvatar(
+                radius: 19,
+                backgroundColor: AppColors.mint,
+                child: Icon(icon, color: AppColors.green, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 12,
-                        ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            ],
           ),
-          const Divider(height: 1),
-          ...actions.map(
-            (_DashboardAction action) => ListTile(
-              leading: Icon(action.icon, color: AppColors.green),
-              title: Text(action.label),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: action.onTap,
-            ),
-          ),
-        ],
+        ),
       ),
     ),
   );
-}
-
-class _DashboardAction {
-  const _DashboardAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
 }
 
 class _ChangePasswordSheet extends StatefulWidget {
