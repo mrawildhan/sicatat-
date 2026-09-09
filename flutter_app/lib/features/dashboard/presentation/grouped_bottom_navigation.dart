@@ -164,8 +164,8 @@ class _NavigationGroupCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               CircleAvatar(
                 radius: compact ? 15 : 16,
@@ -176,10 +176,12 @@ class _NavigationGroupCard extends StatelessWidget {
                   size: compact ? 17 : 18,
                 ),
               ),
+              const SizedBox(height: 12),
               Text(
                 option.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: compact ? 12 : 13,
                   height: 1.15,
