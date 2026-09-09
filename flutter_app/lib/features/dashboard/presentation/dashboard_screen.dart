@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,11 +8,7 @@ import '../../../core/config/app_config.dart';
 import 'grouped_bottom_navigation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/app_update_service.dart';
-import '../../../core/widgets/status_chip.dart';
 import '../../../data/models/app_user.dart';
-import '../../../data/models/dashboard_activity.dart';
-import '../../../data/local/local_database.dart';
-import '../../../data/sync/sync_service.dart';
 import '../../auth/application/current_user_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -28,27 +22,13 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _index = 0;
-  DashboardActivity? _activity;
-  Timer? _activityRefreshTimer;
   bool _checkingForUpdate = false;
-  bool _syncingNow = false;
   late bool _showProfile;
 
   @override
   void initState() {
     super.initState();
     _showProfile = widget.showProfile;
-    _loadActivity();
-    _activityRefreshTimer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _loadActivity(),
-    );
-  }
-
-  @override
-  void dispose() {
-    _activityRefreshTimer?.cancel();
-    super.dispose();
   }
 
   @override
@@ -57,134 +37,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (oldWidget.showProfile != widget.showProfile) {
       _showProfile = widget.showProfile;
     }
-  }
-
-  Future<void> _loadActivity() async {
-    try {
-      final user = ref.read(currentUserProvider);
-      final DashboardActivity activity = await LocalDatabase.instance
-          .getDashboardActivity(
-            DateTime.now(),
-            createdBy: user?.role.isGlobalTemperatureManager == true
-                ? null
-                : user?.id,
-          );
-      if (!mounted) return;
-      setState(() => _activity = activity);
-    } on Object {
-      // Keep the activity values unavailable instead of claiming data is synced
-      // when the local database cannot be read.
-    }
-  }
-
-  SyncState get _syncState {
-    final DashboardActivity? activity = _activity;
-    if (activity == null) return SyncState.pending;
-    if (activity.conflictCount > 0) return SyncState.conflict;
-    if (activity.pendingSyncCount > 0) {
-      return SyncState.pending;
-    }
-    return SyncState.synced;
-  }
-
-  Future<void> _syncNow() async {
-    if (_syncingNow) return;
-    setState(() => _syncingNow = true);
-    try {
-      final result = await SyncService(Supabase.instance.client).syncPending();
-      await _loadActivity();
-      if (!mounted) return;
-      final String message;
-      if (result.conflicted > 0) {
-        message =
-            '${result.conflicted} data perlu diperiksa karena ada perubahan yang bersamaan.';
-      } else if (result.failed > 0) {
-        message = 'Belum semua data terkirim. Periksa koneksi lalu coba lagi.';
-      } else if (result.synced > 0) {
-        message = '${result.synced} perubahan berhasil disinkronkan.';
-      } else {
-        message = 'Tidak ada perubahan yang perlu dikirim.';
-      }
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
-    } on Object {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Sinkronisasi belum berhasil. Periksa koneksi lalu coba lagi.',
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _syncingNow = false);
-      }
-    }
-  }
-
-  String get _syncExplanation {
-    final DashboardActivity? activity = _activity;
-    if (activity == null) {
-      return 'Memeriksa apakah ada data yang perlu dikirim.';
-    }
-    return switch (_syncState) {
-      SyncState.synced => 'Data kerja terbaru sudah tersimpan aman di server.',
-      SyncState.pending =>
-        '${activity.pendingSyncCount} perubahan belum terkirim. Periksa koneksi lalu sinkronkan.',
-      SyncState.conflict =>
-        '${activity.conflictCount} perubahan perlu diperiksa sebelum dapat disinkronkan.',
-      SyncState.draft => 'Data masih berupa draf.',
-    };
-  }
-
-  Widget _syncSummary() {
-    final bool needsAction =
-        _syncState != SyncState.synced && _activity != null;
-    final Color color = switch (_syncState) {
-      SyncState.synced => AppColors.green,
-      SyncState.pending => AppColors.orange,
-      SyncState.conflict => AppColors.danger,
-      SyncState.draft => AppColors.warning,
-    };
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .08),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: <Widget>[
-          SyncChip(_syncState),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _syncExplanation,
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
-          ),
-          if (needsAction) ...<Widget>[
-            const SizedBox(width: 8),
-            TextButton.icon(
-              onPressed: _syncingNow ? null : _syncNow,
-              icon: _syncingNow
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync_rounded, size: 16),
-              label: const Text('Sinkronkan'),
-              style: TextButton.styleFrom(
-                foregroundColor: color,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
   }
 
   Widget _desktopSidebarItem({
@@ -301,11 +153,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
           actions: [
-            IconButton(
-              onPressed: _loadActivity,
-              icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Muat ulang aktivitas',
-            ),
             IconButton(
               onPressed: _signOut,
               icon: const Icon(Icons.logout_rounded),
@@ -852,8 +699,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              _syncSummary(),
             ],
           ),
         ),
