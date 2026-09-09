@@ -331,7 +331,8 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 700 ? 3 : 2;
+            final bool useCompactDesktopCards = constraints.maxWidth >= 700;
+            final columns = useCompactDesktopCards ? 3 : 2;
             final actions = <_TemperatureAction>[
               _TemperatureAction(
                 icon: Icons.description_rounded,
@@ -381,10 +382,13 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                 crossAxisCount: columns,
                 mainAxisSpacing: 10,
                 crossAxisSpacing: 10,
-                childAspectRatio: columns == 3 ? 1.8 : 1.38,
+                childAspectRatio: useCompactDesktopCards ? 3.4 : 1.38,
               ),
               itemCount: actions.length,
-              itemBuilder: (_, index) => _temperatureActionCard(actions[index]),
+              itemBuilder: (_, index) => _temperatureActionCard(
+                actions[index],
+                compact: useCompactDesktopCards,
+              ),
             );
           },
         ),
@@ -407,34 +411,81 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
     }
   }
 
-  Widget _temperatureActionCard(_TemperatureAction action) => Card(
+  Widget _temperatureActionCard(
+    _TemperatureAction action, {
+    required bool compact,
+  }) => Card(
     margin: EdgeInsets.zero,
     clipBehavior: Clip.antiAlias,
     child: InkWell(
       onTap: action.onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Icon(action.icon, color: AppColors.green),
-            const Spacer(),
-            Text(
-              action.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w900),
+      child: compact
+          ? Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: <Widget>[
+                  CircleAvatar(
+                    backgroundColor: AppColors.mint,
+                    child: Icon(action.icon, color: AppColors.green),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          action.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          action.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.muted,
+                  ),
+                ],
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Icon(action.icon, color: AppColors.green),
+                  const Spacer(),
+                  Text(
+                    action.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    action.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 3),
-            Text(
-              action.subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.muted, fontSize: 11),
-            ),
-          ],
-        ),
-      ),
     ),
   );
 

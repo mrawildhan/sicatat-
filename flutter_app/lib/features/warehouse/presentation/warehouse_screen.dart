@@ -30,14 +30,13 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
   bool _hasSearched = false;
   bool _loading = false;
   bool _syncing = false;
-  DateTime? _lastAutomaticCheck;
-  bool? _lastAutomaticCheckChanged;
+  String? _spreadsheetUpdatedOn;
 
   @override
   void initState() {
     super.initState();
     _search.addListener(_onSearchChanged);
-    _loadAutomaticSyncStatus();
+    _loadSpreadsheetUpdateDate();
   }
 
   @override
@@ -151,7 +150,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
         );
       }
       await _load();
-      await _loadAutomaticSyncStatus();
+      await _loadSpreadsheetUpdateDate();
       if (mounted) {
         _message(
           data['changed'] == false
@@ -170,29 +169,20 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
     }
   }
 
-  Future<void> _loadAutomaticSyncStatus() async {
+  Future<void> _loadSpreadsheetUpdateDate() async {
     try {
       final Object response = await _client
-          .from('warehouse_sync_log')
-          .select('completed_at,changed')
-          .eq('status', 'completed')
-          .order('completed_at', ascending: false)
+          .from('warehouse_stock')
+          .select('source_updated_on')
+          .order('source_updated_on', ascending: false)
           .limit(1);
       if (response is! List || response.isEmpty || !mounted) return;
       final JsonMap row = requireJsonMap(response.first);
-      final String? completedAt = row.optionalString('completed_at');
-      setState(() {
-        _lastAutomaticCheck = completedAt == null
-            ? null
-            : DateTime.tryParse(completedAt)
-                  ?.toUtc()
-                  .add(const Duration(hours: 8));
-        _lastAutomaticCheckChanged = row['changed'] is bool
-            ? row['changed'] as bool
-            : null;
-      });
+      setState(
+        () => _spreadsheetUpdatedOn = row.optionalString('source_updated_on'),
+      );
     } on Object {
-      // Pencarian Gudang tetap tersedia bila status opsional ini gagal dimuat.
+      // Pencarian Gudang tetap tersedia bila metadata spreadsheet gagal dimuat.
     }
   }
 
@@ -250,8 +240,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
           children: <Widget>[
             if (useDesktopHeader) _desktopHeader(canSync),
             _WarehouseAutomaticSyncNotice(
-              checkedAt: _lastAutomaticCheck,
-              changed: _lastAutomaticCheckChanged,
+              sourceUpdatedOn: _spreadsheetUpdatedOn,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -353,22 +342,16 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
 }
 
 class _WarehouseAutomaticSyncNotice extends StatelessWidget {
-  const _WarehouseAutomaticSyncNotice({
-    required this.checkedAt,
-    required this.changed,
-  });
+  const _WarehouseAutomaticSyncNotice({required this.sourceUpdatedOn});
 
-  final DateTime? checkedAt;
-  final bool? changed;
+  final String? sourceUpdatedOn;
 
   @override
   Widget build(BuildContext context) {
     const Color color = AppColors.green;
-    final String status = checkedAt == null
-        ? 'Pemeriksaan terakhir belum tersedia'
-        : changed == true
-        ? 'Data diperbarui ${_formatDateTime(checkedAt!)}'
-        : 'Terakhir diperiksa ${_formatDateTime(checkedAt!)} · data sudah terbaru';
+    final String status = sourceUpdatedOn == null
+        ? 'Tanggal pembaruan spreadsheet belum tersedia'
+        : 'Data spreadsheet terakhir diperbarui ${_formatSourceDate(sourceUpdatedOn!)}';
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
@@ -387,7 +370,7 @@ class _WarehouseAutomaticSyncNotice extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 const Text(
-                  'Sinkron otomatis aktif · setiap hari 06.00 WITA',
+                  'Pembaruan data Gudang',
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 2),
@@ -400,12 +383,10 @@ class _WarehouseAutomaticSyncNotice extends StatelessWidget {
     );
   }
 
-  static String _formatDateTime(DateTime value) {
-    final String date =
-        '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
-    final String time =
-        '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
-    return '$date $time WITA';
+  static String _formatSourceDate(String value) {
+    final DateTime? date = DateTime.tryParse(value);
+    if (date == null) return value;
+    return '${date.day}/${date.month}/${(date.year % 100).toString().padLeft(2, '0')}';
   }
 }
 

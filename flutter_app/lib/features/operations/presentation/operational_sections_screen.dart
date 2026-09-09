@@ -710,7 +710,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
       ),
       const SizedBox(height: 16),
       const Text(
-        'Outstanding per crew',
+        'PM per crew & lokasi',
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
       ),
       const SizedBox(height: 10),
@@ -718,9 +718,31 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
         spacing: 12,
         runSpacing: 12,
         children: <Widget>[
-          _OutstandingCrewCard(crew: 'Crew A'),
-          _OutstandingCrewCard(crew: 'Crew B'),
-          _OutstandingCrewCard(crew: 'Crew C'),
+          _OutstandingPmCard(crew: 'A', site: 'CPP'),
+          _OutstandingPmCard(crew: 'A', site: 'PORT'),
+          _OutstandingPmCard(crew: 'B', site: 'CPP'),
+          _OutstandingPmCard(crew: 'B', site: 'PORT'),
+          _OutstandingPmCard(crew: 'C', site: 'CPP'),
+          _OutstandingPmCard(crew: 'C', site: 'PORT'),
+        ],
+      ),
+      const SizedBox(height: 16),
+      const Text(
+        'CM global per lokasi',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+      ),
+      const SizedBox(height: 6),
+      const Text(
+        'CM dikerjakan bersama oleh crew pada lokasi yang sama.',
+        style: TextStyle(color: AppColors.muted),
+      ),
+      const SizedBox(height: 10),
+      const Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: <Widget>[
+          _OutstandingCmCard(site: 'CPP'),
+          _OutstandingCmCard(site: 'PORT'),
         ],
       ),
       const SizedBox(height: 16),
@@ -739,7 +761,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
             SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Sumber spreadsheet PM dan CM belum dihubungkan. Setelah file tersedia, kartu ini akan menampilkan jumlah PM dan CM outstanding, termasuk pekerjaan yang sudah dikerjakan tetapi belum dikumpulkan.',
+                'Sumber spreadsheet PM dan CM belum dihubungkan. Setelah file tersedia, PM akan tampil per crew dan lokasi; CM akan tampil global per CPP atau PORT, termasuk pekerjaan yang sudah dikerjakan tetapi belum dikumpulkan.',
                 style: TextStyle(height: 1.45),
               ),
             ),
@@ -1436,10 +1458,11 @@ class _OutstandingSourceRow extends StatelessWidget {
   );
 }
 
-class _OutstandingCrewCard extends StatelessWidget {
-  const _OutstandingCrewCard({required this.crew});
+class _OutstandingPmCard extends StatelessWidget {
+  const _OutstandingPmCard({required this.crew, required this.site});
 
   final String crew;
+  final String site;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -1450,7 +1473,10 @@ class _OutstandingCrewCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(crew, style: const TextStyle(fontWeight: FontWeight.w900)),
+            Text(
+              'Crew $crew · $site',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
             const SizedBox(height: 14),
             const Text(
               'PM outstanding',
@@ -1460,7 +1486,32 @@ class _OutstandingCrewCard extends StatelessWidget {
               '—',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
             ),
-            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _OutstandingCmCard extends StatelessWidget {
+  const _OutstandingCmCard({required this.site});
+
+  final String site;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 282,
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'CM $site',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 10),
             const Text(
               'CM outstanding',
               style: TextStyle(color: AppColors.muted, fontSize: 12),
@@ -1468,6 +1519,11 @@ class _OutstandingCrewCard extends StatelessWidget {
             const Text(
               '—',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Dapat dikerjakan Crew A, B, atau C $site.',
+              style: const TextStyle(color: AppColors.muted, fontSize: 12),
             ),
           ],
         ),

@@ -47,15 +47,17 @@ void main() {
     expect(find.text('Semua'), findsOneWidget);
   });
 
-  testWidgets('outstanding menampilkan sumber dan tiga crew', (tester) async {
+  testWidgets('outstanding memisahkan PM crew lokasi dan CM global', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(home: OutstandingMaintenanceScreen()),
     );
 
     expect(find.text('Preventive Maintenance (PM)'), findsOneWidget);
     expect(find.text('Corrective Maintenance (CM)'), findsOneWidget);
-    expect(find.text('Crew A'), findsOneWidget);
-    expect(find.text('Crew B'), findsOneWidget);
-    expect(find.text('Crew C'), findsOneWidget);
+    expect(find.text('Crew A · CPP'), findsOneWidget);
+    expect(find.text('Crew B · PORT'), findsOneWidget);
+    expect(find.text('Crew C · CPP'), findsOneWidget);
+    expect(find.text('CM CPP'), findsOneWidget);
+    expect(find.text('CM PORT'), findsOneWidget);
   });
 }
