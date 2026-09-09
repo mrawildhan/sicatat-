@@ -137,6 +137,22 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/sheets/list',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: SheetListScreen(showList: true),
+        ),
+      ),
+    ),
+    GoRoute(
       path: '/sheets/new',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{

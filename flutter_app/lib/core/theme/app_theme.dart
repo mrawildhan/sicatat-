@@ -35,6 +35,15 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: AppColors.surface,
       fontFamily: 'Arial',
+      textTheme: const TextTheme(
+        displaySmall: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+        headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+        titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        bodyLarge: TextStyle(fontSize: 15),
+        bodyMedium: TextStyle(fontSize: 14),
+        bodySmall: TextStyle(fontSize: 12),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.greenDark,
         foregroundColor: Colors.white,
@@ -67,7 +76,7 @@ class AppTheme {
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
-          vertical: 15,
+          vertical: 12,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -92,7 +101,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.green,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(54),
+          minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

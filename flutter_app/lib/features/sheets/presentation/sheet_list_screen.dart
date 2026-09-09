@@ -16,7 +16,9 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../auth/application/current_user_provider.dart';
 
 class SheetListScreen extends ConsumerStatefulWidget {
-  const SheetListScreen({super.key});
+  const SheetListScreen({this.showList = false, super.key});
+
+  final bool showList;
 
   @override
   ConsumerState<SheetListScreen> createState() => _SheetListScreenState();
@@ -115,13 +117,14 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
     final user = ref.watch(currentUserProvider);
     final bool useDesktopHeader =
         kIsWeb && MediaQuery.sizeOf(context).width >= 920;
-    final title =
+    final listTitle =
         user?.role.isGlobalTemperatureManager == true ||
             user?.role.isSiteScopedTemperature == true
         ? 'Semua sheet'
         : user?.role == UserRole.foreman
         ? 'Sheet tim'
         : 'Sheet saya';
+    final title = widget.showList ? listTitle : 'Suhu';
     return AppBackScope(
       fallbackRoute: '/dashboard',
       child: Scaffold(
@@ -138,17 +141,19 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                     onPressed: _isLoading ? null : _loadSheets,
                     icon: const Icon(Icons.refresh_rounded),
                   ),
-                  IconButton(
-                    onPressed: _isLoading ? null : _showFilters,
-                    icon: Badge(
-                      isLabelVisible: _hasFilter,
-                      child: const Icon(Icons.tune_rounded),
+                  if (widget.showList)
+                    IconButton(
+                      onPressed: _isLoading ? null : _showFilters,
+                      icon: Badge(
+                        isLabelVisible: _hasFilter,
+                        child: const Icon(Icons.tune_rounded),
+                      ),
+                      tooltip: 'Filter sheet',
                     ),
-                    tooltip: 'Filter sheet',
-                  ),
                 ],
               ),
-        floatingActionButton: user?.role.canCreateTemperatureSheet == true
+        floatingActionButton:
+            widget.showList && user?.role.canCreateTemperatureSheet == true
             ? FloatingActionButton.extended(
                 onPressed: () => context.go('/sheets/new'),
                 icon: const Icon(Icons.add_rounded),
@@ -190,14 +195,15 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
           onPressed: _isLoading ? null : _loadSheets,
           icon: const Icon(Icons.refresh_rounded),
         ),
-        IconButton(
-          tooltip: 'Filter sheet',
-          onPressed: _isLoading ? null : _showFilters,
-          icon: Badge(
-            isLabelVisible: _hasFilter,
-            child: const Icon(Icons.tune_rounded),
+        if (widget.showList)
+          IconButton(
+            tooltip: 'Filter sheet',
+            onPressed: _isLoading ? null : _showFilters,
+            icon: Badge(
+              isLabelVisible: _hasFilter,
+              child: const Icon(Icons.tune_rounded),
+            ),
           ),
-        ),
       ],
     ),
   );
@@ -217,12 +223,18 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
         ],
       );
     }
+    if (!widget.showList) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+        children: <Widget>[_temperatureOverview()],
+      );
+    }
     final sheets = _filteredSheets;
     if (sheets.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(24),
         children: <Widget>[
-          _temperatureOverview(),
+          _temperatureSummary(),
           const SizedBox(height: 80),
           const Icon(
             Icons.description_outlined,
@@ -256,7 +268,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       itemCount: sheets.length + (_hasFilter ? 1 : 0) + 1,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        if (index == 0) return _temperatureOverview();
+        if (index == 0) return _temperatureSummary();
         if (_hasFilter && index == 1) return _filterSummary(sheets.length);
         final sheetIndex = index - 1 - (_hasFilter ? 1 : 0);
         return _sheet(context, sheets[sheetIndex]);
@@ -325,7 +337,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                 icon: Icons.description_rounded,
                 title: 'Sheet saya',
                 subtitle: 'Lihat sheet inspeksi',
-                onTap: () => context.go('/sheets'),
+                onTap: () => context.go('/sheets/list'),
               ),
               _TemperatureAction(
                 icon: Icons.sync_rounded,

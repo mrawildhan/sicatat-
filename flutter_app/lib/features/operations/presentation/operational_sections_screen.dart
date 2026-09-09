@@ -864,18 +864,115 @@ class _MaterialRequestTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
     margin: EdgeInsets.zero,
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: () => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => _MaterialRequestDetailSheet(
+          item: item,
+          showRequester: showRequester,
+          onProcess: onProcess,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.mint,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.inventory_2_outlined,
+                color: AppColors.green,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          item.itemName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _MaterialRequestStatusChip(status: item.status),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${_quantityText(item.quantity)} ${item.unit} • ${item.area.label} • ${item.needType.label}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    item.reason,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _MaterialRequestDetailSheet extends StatelessWidget {
+  const _MaterialRequestDetailSheet({
+    required this.item,
+    required this.showRequester,
+    this.onProcess,
+  });
+
+  final MaterialRequest item;
+  final bool showRequester;
+  final VoidCallback? onProcess;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: .64,
+      maxChildSize: .9,
+      builder: (_, controller) => ListView(
+        controller: controller,
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
         children: <Widget>[
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Expanded(
                 child: Text(
                   item.itemName,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 20,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -883,41 +980,37 @@ class _MaterialRequestTile extends StatelessWidget {
               _MaterialRequestStatusChip(status: item.status),
             ],
           ),
+          const SizedBox(height: 18),
+          _detailRow('Jumlah', '${_quantityText(item.quantity)} ${item.unit}'),
+          _detailRow('Area', item.area.label),
+          _detailRow('Jenis kebutuhan', item.needType.label),
+          if (showRequester && item.requesterName != null)
+            _detailRow('Diajukan oleh', item.requesterName!),
+          const SizedBox(height: 14),
+          const Text(
+            'Alasan kebutuhan',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 5),
-          Text(
-            '${_quantityText(item.quantity)} ${item.unit} • ${item.area.label}',
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            item.needType.label,
-            style: const TextStyle(color: AppColors.muted),
-          ),
-          const SizedBox(height: 4),
-          Text(item.reason, style: const TextStyle(height: 1.35)),
-          if (showRequester && item.requesterName != null) ...<Widget>[
-            const SizedBox(height: 9),
-            Text(
-              'Diajukan oleh ${item.requesterName}',
-              style: const TextStyle(fontSize: 12, color: AppColors.muted),
-            ),
-          ],
+          Text(item.reason, style: const TextStyle(height: 1.4)),
           if (item.plannerNote.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.mint,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Text('Catatan planner: ${item.plannerNote}'),
             ),
           ],
           if (onProcess != null) ...<Widget>[
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: onProcess,
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                onProcess!();
+              },
               icon: const Icon(Icons.task_alt_outlined),
               label: Text(
                 item.status == MaterialRequestStatus.submitted
@@ -928,6 +1021,25 @@ class _MaterialRequestTile extends StatelessWidget {
           ],
         ],
       ),
+    ),
+  );
+
+  Widget _detailRow(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SizedBox(
+          width: 116,
+          child: Text(label, style: const TextStyle(color: AppColors.muted)),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
     ),
   );
 }

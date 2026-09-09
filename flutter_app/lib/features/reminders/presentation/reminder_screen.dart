@@ -1751,38 +1751,50 @@ class _ReminderScreenState extends State<ReminderScreen> {
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
                     children: <Widget>[
                       const Text(
                         'Tindak lanjut operasional',
                         style: TextStyle(
-                          fontSize: 25,
+                          fontSize: 22,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
                       const SizedBox(height: 5),
                       const Text(
                         'Pantau tindakan, penanggung jawab, riwayat pengiriman, dan risiko tenggat waktu.',
-                        style: TextStyle(color: AppColors.muted),
+                        style: TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 14,
+                          height: 1.3,
+                        ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
                           onPressed: () => _edit(null),
                           icon: const Icon(Icons.add_alert_rounded),
                           label: const Text('Tambah pengingat'),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(42),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _summaryGrid(context),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: _searchController,
                         textInputAction: TextInputAction.search,
                         onChanged: (String value) =>
                             setState(() => _searchQuery = value),
                         decoration: InputDecoration(
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 11,
+                          ),
                           labelText: 'Cari pengingat',
                           hintText: 'Ketik judul, aset, nomor dokumen, kategori, atau site',
                           prefixIcon: const Icon(Icons.search_rounded),
@@ -1857,7 +1869,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       if (_visibleItems.isEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 50),
@@ -1871,7 +1883,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         ),
                       ..._visibleItems.map(
                         (ReminderItem item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: _reminderCard(item),
                         ),
                       ),
@@ -1968,24 +1980,24 @@ class _ReminderScreenState extends State<ReminderScreen> {
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: AppColors.line),
           ),
           child: SizedBox(
-            height: 76,
+            height: 60,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
-                Icon(icon, color: color, size: 19),
-                const SizedBox(height: 4),
+                Icon(icon, color: color, size: 17),
+                const SizedBox(height: 3),
                 Text(
                   '$count',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -1994,7 +2006,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                  style: const TextStyle(fontSize: 9, color: AppColors.muted),
                 ),
               ],
             ),
@@ -2018,15 +2030,15 @@ class _ReminderScreenState extends State<ReminderScreen> {
         borderRadius: BorderRadius.circular(18),
         onTap: () => _showReminderDetails(item),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Row(
             children: <Widget>[
               Container(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   item.isCompleted
@@ -2045,7 +2057,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -2054,9 +2066,12 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       '${item.documentNumber ?? item.assetCode ?? 'Tanpa nomor dokumen'} · ${item.category}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.muted),
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 13,
+                      ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 5),
                     Row(
                       children: <Widget>[
                         Expanded(
