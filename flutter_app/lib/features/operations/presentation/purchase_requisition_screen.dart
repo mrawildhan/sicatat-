@@ -25,6 +25,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   PurchaseRequisitionService? _service;
   PurchaseRequisitionSnapshot? _snapshot;
   List<PurchaseRequisition> _items = const <PurchaseRequisition>[];
+  PurchaseRequisitionSort _sort = PurchaseRequisitionSort.arrivalNewest;
   Timer? _debounce;
   bool _loading = true;
   String? _error;
@@ -64,9 +65,10 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
         await service.synchronize();
         snapshot = await service.loadSnapshot();
       }
-      final List<PurchaseRequisition> items = await service.search(
-        _searchController.text,
-      );
+      final String query = _searchController.text.trim();
+      final List<PurchaseRequisition> items = query.isEmpty
+          ? const <PurchaseRequisition>[]
+          : await service.search(query, sort: _sort);
       if (!mounted) return;
       setState(() {
         _snapshot = snapshot;
@@ -85,10 +87,19 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   Future<void> _search() async {
     final PurchaseRequisitionService? service = _service;
     if (service == null) return;
+    if (_searchController.text.trim().isEmpty) {
+      setState(() {
+        _items = const <PurchaseRequisition>[];
+        _loading = false;
+        _error = null;
+      });
+      return;
+    }
     setState(() => _loading = true);
     try {
       final List<PurchaseRequisition> items = await service.search(
         _searchController.text,
+        sort: _sort,
       );
       if (mounted) setState(() => _items = items);
     } on Object catch (error) {
@@ -102,6 +113,12 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
     setState(() {});
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 280), _search);
+  }
+
+  void _setSort(PurchaseRequisitionSort sort) {
+    if (_sort == sort) return;
+    setState(() => _sort = sort);
+    _search();
   }
 
   String _message(Object error) =>
@@ -171,6 +188,8 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
                 _ResultHeading(
                   count: _items.length,
                   query: _searchController.text,
+                  sort: _sort,
+                  onSortChanged: _setSort,
                 ),
                 const SizedBox(height: 8),
                 Expanded(child: _content()),
@@ -207,6 +226,9 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
           ),
         ),
       );
+    }
+    if (_searchController.text.trim().isEmpty) {
+      return const Center(child: _SearchPrompt());
     }
     if (_items.isEmpty) {
       return const Center(
@@ -324,24 +346,123 @@ class _SourceCard extends StatelessWidget {
 }
 
 class _ResultHeading extends StatelessWidget {
-  const _ResultHeading({required this.count, required this.query});
+  const _ResultHeading({
+    required this.count,
+    required this.query,
+    required this.sort,
+    required this.onSortChanged,
+  });
 
   final int count;
   final String query;
+  final PurchaseRequisitionSort sort;
+  final ValueChanged<PurchaseRequisitionSort> onSortChanged;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: <Widget>[
-      Text(
-        query.trim().isEmpty ? 'PR terbaru' : 'Hasil pencarian',
+  Widget build(BuildContext context) {
+    if (query.trim().isEmpty) {
+      return Text(
+        'Cari data PR',
         style: Theme.of(context).textTheme.titleMedium,
+      );
+    }
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            'Hasil pencarian',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        PopupMenuButton<PurchaseRequisitionSort>(
+          tooltip: 'Urutkan hasil',
+          initialValue: sort,
+          onSelected: onSortChanged,
+          itemBuilder: (BuildContext context) => PurchaseRequisitionSort.values
+              .map(
+                (PurchaseRequisitionSort item) =>
+                    PopupMenuItem<PurchaseRequisitionSort>(
+                      value: item,
+                      child: Row(
+                        children: <Widget>[
+                          Icon(
+                            item == PurchaseRequisitionSort.arrivalNewest
+                                ? Icons.south_rounded
+                                : Icons.north_rounded,
+                            size: 18,
+                            color: item == sort
+                                ? AppColors.green
+                                : AppColors.muted,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(item.label),
+                        ],
+                      ),
+                    ),
+              )
+              .toList(growable: false),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppColors.mint,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(
+                  Icons.sort_rounded,
+                  size: 17,
+                  color: AppColors.green,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  count >= 60 ? '60+ hasil' : '$count hasil',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SearchPrompt extends StatelessWidget {
+  const _SearchPrompt();
+
+  @override
+  Widget build(BuildContext context) => const Card(
+    color: AppColors.mint,
+    child: Padding(
+      padding: EdgeInsets.all(22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          CircleAvatar(
+            radius: 23,
+            backgroundColor: Colors.white,
+            foregroundColor: AppColors.green,
+            child: Icon(Icons.manage_search_rounded, size: 27),
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Mulai pencarian data PR',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          SizedBox(height: 5),
+          Text(
+            'Gunakan No. PR, No. PO, deskripsi, atau referensi alat.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+        ],
       ),
-      const Spacer(),
-      Text(
-        count >= 60 ? '60+' : '$count hasil',
-        style: const TextStyle(fontSize: 12, color: AppColors.muted),
-      ),
-    ],
+    ),
   );
 }
 
@@ -357,12 +478,12 @@ class _PurchaseRequisitionCard extends StatelessWidget {
     child: InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+        padding: const EdgeInsets.fromLTRB(16, 15, 12, 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             const CircleAvatar(
-              radius: 20,
+              radius: 21,
               backgroundColor: AppColors.mint,
               foregroundColor: AppColors.green,
               child: Icon(Icons.request_quote_outlined),
@@ -373,51 +494,60 @@ class _PurchaseRequisitionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    item.noPr,
+                    'PR ${item.noPr}',
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
-                  if (_has(item.noPo)) ...<Widget>[
-                    const SizedBox(height: 2),
-                    Text(
-                      'No. PO ${item.noPo}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.muted,
-                      ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'No. PO: ${_display(item.noPo)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.muted,
                     ),
-                  ],
-                  if (_has(item.description)) ...<Widget>[
-                    const SizedBox(height: 6),
-                    Text(
-                      item.description!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    _display(item.description),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(height: 1.32),
+                  ),
+                  const SizedBox(height: 11),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 7,
                     ),
-                  ],
-                  if (_has(item.equipmentReference) ||
-                      item.releaseDate != null) ...<Widget>[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.mint,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 5,
                       children: <Widget>[
-                        if (_has(item.equipmentReference))
-                          _Meta(
-                            icon: Icons.precision_manufacturing_outlined,
-                            label: item.equipmentReference!,
-                          ),
-                        if (item.releaseDate != null)
-                          _Meta(
-                            icon: Icons.event_outlined,
-                            label: _date(item.releaseDate!),
-                          ),
+                        _Meta(
+                          icon: Icons.precision_manufacturing_outlined,
+                          label: _display(item.equipmentReference),
+                        ),
+                        _Meta(
+                          icon: Icons.local_shipping_outlined,
+                          label: 'Datang: ${_dateOrDash(item.closedDate)}',
+                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            const SizedBox(width: 4),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            ),
           ],
         ),
       ),
@@ -458,64 +588,187 @@ class _PurchaseRequisitionDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SafeArea(
     top: false,
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(item.noPr, style: Theme.of(context).textTheme.titleLarge),
-          if (_has(item.description)) ...<Widget>[
-            const SizedBox(height: 6),
-            Text(
-              item.description!,
-              style: const TextStyle(color: AppColors.muted),
-            ),
-          ],
-          const SizedBox(height: 18),
-          _DetailRow(label: 'No. PO', value: item.noPo),
-          _DetailRow(label: 'Referensi alat', value: item.equipmentReference),
-          _DetailRow(
-            label: 'Tanggal ditutup',
-            value: item.closedDate == null ? null : _date(item.closedDate!),
+    child: DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: .76,
+      minChildSize: .48,
+      maxChildSize: .94,
+      builder: (BuildContext context, ScrollController scrollController) =>
+          ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(20, 2, 20, 30),
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(17),
+                decoration: BoxDecoration(
+                  color: AppColors.green,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    const CircleAvatar(
+                      radius: 23,
+                      backgroundColor: Color(0x337FFFFF),
+                      foregroundColor: Colors.white,
+                      child: Icon(Icons.request_quote_outlined),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'PR ${item.noPr}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Detail purchase requisition',
+                            style: TextStyle(color: Color(0xC8FFFFFF)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Deskripsi pekerjaan',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _display(item.description),
+                style: const TextStyle(color: AppColors.muted, height: 1.4),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Informasi PR',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 5,
+                  ),
+                  child: Column(
+                    children: <Widget>[
+                      _DetailRow(
+                        icon: Icons.tag_outlined,
+                        label: 'No. PR',
+                        value: item.noPr,
+                      ),
+                      _DetailRow(
+                        icon: Icons.receipt_long_outlined,
+                        label: 'No. PO',
+                        value: _display(item.noPo),
+                      ),
+                      _DetailRow(
+                        icon: Icons.precision_manufacturing_outlined,
+                        label: 'Referensi alat',
+                        value: _display(item.equipmentReference),
+                      ),
+                      _DetailRow(
+                        icon: Icons.local_shipping_outlined,
+                        label: 'Barang datang',
+                        value: _dateOrDash(item.closedDate),
+                        helper: 'Close Date pada spreadsheet',
+                      ),
+                      _DetailRow(
+                        icon: Icons.event_outlined,
+                        label: 'Tanggal rilis',
+                        value: _dateOrDash(item.releaseDate),
+                      ),
+                      _DetailRow(
+                        icon: Icons.info_outline_rounded,
+                        label: 'Status',
+                        value: _display(item.status),
+                        isLast: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          _DetailRow(
-            label: 'Tanggal rilis',
-            value: item.releaseDate == null ? null : _date(item.releaseDate!),
-          ),
-          _DetailRow(label: 'Status', value: item.status),
-        ],
-      ),
     ),
   );
 }
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.helper,
+    this.isLast = false,
+  });
 
+  final IconData icon;
   final String label;
-  final String? value;
+  final String value;
+  final String? helper;
+  final bool isLast;
 
   @override
-  Widget build(BuildContext context) {
-    if (!_has(value)) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          SizedBox(
-            width: 124,
-            child: Text(label, style: const TextStyle(color: AppColors.muted)),
-          ),
-          Expanded(child: Text(value!)),
-        ],
+  Widget build(BuildContext context) => Column(
+    children: <Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(icon, size: 19, color: AppColors.green),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  if (helper != null) ...<Widget>[
+                    const SizedBox(height: 2),
+                    Text(
+                      helper!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-    );
-  }
+      if (!isLast) const Divider(height: 1),
+    ],
+  );
 }
 
 bool _has(String? value) => value != null && value.trim().isNotEmpty;
+
+String _display(String? value) => _has(value) ? value!.trim() : '—';
+
+String _dateOrDash(DateTime? value) => value == null ? '—' : _date(value);
 
 String _date(DateTime value) =>
     DateFormat('dd/MM/yyyy').format(value.toLocal());

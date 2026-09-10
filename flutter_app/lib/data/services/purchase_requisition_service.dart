@@ -46,15 +46,18 @@ class PurchaseRequisitionService {
     );
   }
 
-  Future<List<PurchaseRequisition>> search(String query) async {
+  Future<List<PurchaseRequisition>> search(
+    String query, {
+    PurchaseRequisitionSort sort = PurchaseRequisitionSort.arrivalNewest,
+  }) async {
     final String value = _safeSearch(query);
     final Object response;
     if (value.isEmpty) {
       response = await _client
           .from('purchase_requisition')
           .select(_fields)
-          .order('release_date', ascending: false)
-          .order('closed_date', ascending: false)
+          .order('closed_date', ascending: sort.ascending, nullsFirst: false)
+          .order('release_date', ascending: sort.ascending, nullsFirst: false)
           .limit(60);
     } else {
       response = await _client
@@ -64,8 +67,8 @@ class PurchaseRequisitionService {
             'no_pr.ilike.%$value%,no_po.ilike.%$value%,'
             'description.ilike.%$value%,equip_ref.ilike.%$value%',
           )
-          .order('release_date', ascending: false)
-          .order('closed_date', ascending: false)
+          .order('closed_date', ascending: sort.ascending, nullsFirst: false)
+          .order('release_date', ascending: sort.ascending, nullsFirst: false)
           .limit(60);
     }
     if (response is! List) {
