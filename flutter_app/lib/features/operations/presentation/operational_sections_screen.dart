@@ -232,24 +232,30 @@ class _OutstandingMaintenanceScreenState
     }
   }
 
-  void _openPmSection() {
+  void _openPmSection(String crew, String site) {
+    final List<PreventiveMaintenanceWorkOrder> items = _items
+        .where((item) => item.crew == crew && item.site == site)
+        .toList(growable: false);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _PreventiveMaintenanceListSheet(items: _items),
+      builder: (_) => _PreventiveMaintenanceListSheet(
+        title: 'PM Crew $crew · $site',
+        items: items,
+      ),
     );
   }
 
-  void _openCmSection() {
+  void _openCmSection(String site) {
+    final List<CorrectiveMaintenanceWorkOrder> items = _correctiveItems
+        .where((item) => item.site == site)
+        .toList(growable: false);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _CorrectiveMaintenanceListSheet(
-        site: 'Semua lokasi',
-        items: _correctiveItems,
-      ),
+      builder: (_) => _CorrectiveMaintenanceListSheet(site: site, items: items),
     );
   }
 
@@ -790,27 +796,30 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
   final String? error;
   final DateTime? syncedAt;
   final Future<void> Function() onRefresh;
-  final VoidCallback onOpenPmSection;
-  final VoidCallback onOpenCmSection;
+  final void Function(String crew, String site) onOpenPmSection;
+  final ValueChanged<String> onOpenCmSection;
+
+  int _countPm(String crew, String site) =>
+      items.where((item) => item.crew == crew && item.site == site).length;
+
+  int _countCm(String site) =>
+      correctiveItems.where((item) => item.site == site).length;
 
   @override
   Widget build(BuildContext context) {
-    final String pmUpdate = syncedAt == null
-        ? 'Menunggu data spreadsheet PM'
-        : 'Diperbarui ${_pmShortDate(syncedAt!)}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         const Text(
-          'Pilih jenis pekerjaan',
+          'PM per crew & lokasi',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 5),
         const Text(
-          'Buka PM atau CM untuk melihat daftar lengkap dan mencari work order.',
+          'Pilih crew untuk membuka daftar PM layar penuh.',
           style: TextStyle(color: AppColors.muted, height: 1.35),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         if (loading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 48),
@@ -819,24 +828,88 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
         else if (error != null)
           _OutstandingPmNotice(message: error!, onRetry: onRefresh)
         else ...<Widget>[
-          _MaintenanceSectionCard(
-            icon: Icons.calendar_month_outlined,
-            title: 'PM',
-            count: items.length,
-            subtitle: pmUpdate,
-            description: 'Preventive Maintenance • cari seluruh work order.',
-            onTap: onOpenPmSection,
-            onRefresh: onRefresh,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: _MaintenanceLocationGroup(
+                  site: 'CPP',
+                  children: <Widget>[
+                    _MaintenanceGroupCard(
+                      icon: Icons.person_outline_rounded,
+                      title: 'Crew A',
+                      count: _countPm('A', 'CPP'),
+                      onTap: () => onOpenPmSection('A', 'CPP'),
+                    ),
+                    _MaintenanceGroupCard(
+                      icon: Icons.person_outline_rounded,
+                      title: 'Crew B',
+                      count: _countPm('B', 'CPP'),
+                      onTap: () => onOpenPmSection('B', 'CPP'),
+                    ),
+                    _MaintenanceGroupCard(
+                      icon: Icons.person_outline_rounded,
+                      title: 'Crew C',
+                      count: _countPm('C', 'CPP'),
+                      onTap: () => onOpenPmSection('C', 'CPP'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MaintenanceLocationGroup(
+                  site: 'PORT',
+                  children: <Widget>[
+                    _MaintenanceGroupCard(
+                      icon: Icons.person_outline_rounded,
+                      title: 'Crew A',
+                      count: _countPm('A', 'PORT'),
+                      onTap: () => onOpenPmSection('A', 'PORT'),
+                    ),
+                    _MaintenanceGroupCard(
+                      icon: Icons.person_outline_rounded,
+                      title: 'Crew B',
+                      count: _countPm('B', 'PORT'),
+                      onTap: () => onOpenPmSection('B', 'PORT'),
+                    ),
+                    _MaintenanceGroupCard(
+                      icon: Icons.person_outline_rounded,
+                      title: 'Crew C',
+                      count: _countPm('C', 'PORT'),
+                      onTap: () => onOpenPmSection('C', 'PORT'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
-          _MaintenanceSectionCard(
-            icon: Icons.build_circle_outlined,
-            title: 'CM',
-            count: correctiveItems.length,
-            subtitle: 'Seluruh lokasi',
-            description:
-                'Corrective Maintenance • cari nama, aset, atau progres.',
-            onTap: onOpenCmSection,
+          const Text(
+            'CM per lokasi',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _MaintenanceGroupCard(
+                  icon: Icons.build_circle_outlined,
+                  title: 'CM CPP',
+                  count: _countCm('CPP'),
+                  onTap: () => onOpenCmSection('CPP'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MaintenanceGroupCard(
+                  icon: Icons.build_circle_outlined,
+                  title: 'CM PORT',
+                  count: _countCm('PORT'),
+                  onTap: () => onOpenCmSection('PORT'),
+                ),
+              ),
+            ],
           ),
         ],
       ],
@@ -1496,113 +1569,89 @@ class _MaterialRequestFormScreenState
   );
 }
 
-class _MaintenanceSectionCard extends StatelessWidget {
-  const _MaintenanceSectionCard({
+class _MaintenanceLocationGroup extends StatelessWidget {
+  const _MaintenanceLocationGroup({required this.site, required this.children});
+
+  final String site;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 6),
+        child: Text(
+          site,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+        ),
+      ),
+      ...children.map(
+        (Widget child) =>
+            Padding(padding: const EdgeInsets.only(bottom: 8), child: child),
+      ),
+    ],
+  );
+}
+
+class _MaintenanceGroupCard extends StatelessWidget {
+  const _MaintenanceGroupCard({
     required this.icon,
     required this.title,
-    required this.subtitle,
-    required this.description,
     required this.count,
     required this.onTap,
-    this.onRefresh,
   });
 
   final IconData icon;
   final String title;
-  final String subtitle;
-  final String description;
   final int count;
   final VoidCallback onTap;
-  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 154,
-    width: double.infinity,
+    height: 64,
     child: Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Row(
             children: <Widget>[
               CircleAvatar(
-                radius: 29,
+                radius: 16,
                 backgroundColor: AppColors.mint,
-                child: Icon(icon, color: AppColors.green, size: 31),
+                child: Icon(icon, color: AppColors.green, size: 18),
               ),
-              const SizedBox(width: 15),
+              const SizedBox(width: 8),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.muted),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                        height: 1.25,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Container(
-                    constraints: const BoxConstraints(minWidth: 48),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 9,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.mint,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Text(
-                      '$count',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppColors.greenDark,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+              const SizedBox(width: 5),
+              Container(
+                constraints: const BoxConstraints(minWidth: 36),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.mint,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '$count',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.greenDark,
+                    fontWeight: FontWeight.w900,
                   ),
-                  if (onRefresh != null) ...<Widget>[
-                    const SizedBox(height: 8),
-                    IconButton(
-                      tooltip: 'Muat ulang PM',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: onRefresh,
-                      icon: const Icon(Icons.refresh_rounded),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ],
           ),
@@ -1656,8 +1705,12 @@ class _OutstandingPmNotice extends StatelessWidget {
 enum _PmDateOrder { oldest, newest }
 
 class _PreventiveMaintenanceListSheet extends StatefulWidget {
-  const _PreventiveMaintenanceListSheet({required this.items});
+  const _PreventiveMaintenanceListSheet({
+    required this.title,
+    required this.items,
+  });
 
+  final String title;
   final List<PreventiveMaintenanceWorkOrder> items;
 
   @override
@@ -1743,9 +1796,9 @@ class _PreventiveMaintenanceListSheetState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      const Text(
-                        'Preventive Maintenance (PM)',
-                        style: TextStyle(
+                      Text(
+                        widget.title,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
