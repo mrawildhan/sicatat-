@@ -91,6 +91,135 @@ Future<void> showBudgetItemDetail(
   builder: (_) => _BudgetItemDetailSheet(item: item),
 );
 
+Future<void> showBudgetMonthlyDetail(
+  BuildContext context,
+  OperationalBudgetSummary summary,
+) => showModalBottomSheet<void>(
+  context: context,
+  isScrollControlled: true,
+  showDragHandle: true,
+  builder: (_) => _BudgetMonthlyDetailSheet(summary: summary),
+);
+
+class _BudgetMonthlyDetailSheet extends StatelessWidget {
+  const _BudgetMonthlyDetailSheet({required this.summary});
+
+  final OperationalBudgetSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final Map<DateTime, List<OperationalBudgetMonth>> grouped =
+        <DateTime, List<OperationalBudgetMonth>>{};
+    for (final OperationalBudgetMonth item in summary.months) {
+      grouped
+          .putIfAbsent(item.period, () => <OperationalBudgetMonth>[])
+          .add(item);
+    }
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * .9,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 30),
+          children: <Widget>[
+            const Text(
+              'Realisasi per bulan',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Realisasi adalah total biaya yang sudah dipakai pada bulan tersebut.',
+              style: TextStyle(color: AppColors.muted),
+            ),
+            const SizedBox(height: 16),
+            ...grouped.entries.map((entry) {
+              final List<OperationalBudgetMonth> values = entry.value;
+              final double budget = values.fold(
+                0,
+                (sum, row) => sum + row.budgetUsd,
+              );
+              final double actual = values.fold(
+                0,
+                (sum, row) => sum + row.actualUsd,
+              );
+              final double remaining = budget - actual;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          DateFormat('MMMM yyyy', 'id_ID').format(entry.key),
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: _MonthlyAmount(
+                                label: 'Anggaran',
+                                value: _usd(budget),
+                              ),
+                            ),
+                            Expanded(
+                              child: _MonthlyAmount(
+                                label: 'Aktual',
+                                value: _usd(actual),
+                              ),
+                            ),
+                            Expanded(
+                              child: _MonthlyAmount(
+                                label: remaining < 0 ? 'Melebihi' : 'Sisa',
+                                value: _usd(remaining.abs()),
+                                color: remaining < 0
+                                    ? AppColors.danger
+                                    : AppColors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthlyAmount extends StatelessWidget {
+  const _MonthlyAmount({required this.label, required this.value, this.color});
+
+  final String label;
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+      const SizedBox(height: 3),
+      Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    ],
+  );
+}
+
 class _BudgetItemBrowserSheet extends StatefulWidget {
   const _BudgetItemBrowserSheet({required this.items});
 
@@ -420,8 +549,5 @@ String _period(String value) => DateFormat(
   'id_ID',
 ).format(DateTime.parse('${value.substring(0, 4)}-${value.substring(4)}-01'));
 
-String _usd(double value) => NumberFormat.currency(
-  locale: 'en_US',
-  symbol: 'US\$',
-  decimalDigits: 0,
-).format(value);
+String _usd(double value) =>
+    'US\$${NumberFormat.decimalPattern('id_ID').format(value.round())}';

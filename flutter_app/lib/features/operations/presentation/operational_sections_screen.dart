@@ -102,6 +102,7 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
       onRefresh: _refreshSource,
       onBrowseItems: _browseItems,
       onOpenItem: _openItem,
+      onOpenMonthly: _openMonthly,
     ),
   );
 
@@ -115,6 +116,11 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
 
   Future<void> _openItem(OperationalBudgetItem item) =>
       showBudgetItemDetail(context, item);
+
+  Future<void> _openMonthly() async {
+    final OperationalBudgetSummary? summary = _summary;
+    if (summary != null) await showBudgetMonthlyDetail(context, summary);
+  }
 
   Future<void> _refreshSource() => _load(synchronizeSource: true);
 }
@@ -605,6 +611,7 @@ class _BudgetOverviewBody extends StatelessWidget {
     required this.onRefresh,
     required this.onBrowseItems,
     required this.onOpenItem,
+    required this.onOpenMonthly,
   });
 
   final OperationalBudgetSummary? summary;
@@ -614,6 +621,7 @@ class _BudgetOverviewBody extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final VoidCallback onBrowseItems;
   final ValueChanged<OperationalBudgetItem> onOpenItem;
+  final Future<void> Function() onOpenMonthly;
 
   @override
   Widget build(BuildContext context) {
@@ -662,12 +670,9 @@ class _BudgetOverviewBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (_, constraints) => _BudgetMetricLayout(
-            constraints,
-            budget: summary.budgetUsd,
-            actual: summary.actualUsd,
-          ),
+        _BudgetMetricLayout(
+          budget: summary.budgetUsd,
+          actual: summary.actualUsd,
         ),
         const SizedBox(height: 18),
         const Text(
@@ -675,48 +680,41 @@ class _BudgetOverviewBody extends StatelessWidget {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (_, constraints) {
-            final bool split = constraints.maxWidth >= 620;
-            final List<Widget> cards = <Widget>[
-              _BudgetSiteCard(site: 'CPP', months: summary.forSite('CPP')),
-              _BudgetSiteCard(site: 'PORT', months: summary.forSite('PORT')),
-            ];
-            if (split) {
-              return Row(
-                children: <Widget>[
-                  Expanded(child: cards[0]),
-                  const SizedBox(width: 12),
-                  Expanded(child: cards[1]),
-                ],
-              );
-            }
-            return Column(
-              children: <Widget>[
-                cards[0],
-                const SizedBox(height: 12),
-                cards[1],
-              ],
-            );
-          },
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: _BudgetSiteCard(
+                site: 'CPP',
+                months: summary.forSite('CPP'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _BudgetSiteCard(
+                site: 'PORT',
+                months: summary.forSite('PORT'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 18),
-        const Text(
-          'Realisasi per bulan',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+        _BudgetActionCard(
+          icon: Icons.calendar_month_rounded,
+          title: 'Realisasi per bulan',
+          subtitle: 'Lihat budget, aktual, dan sisa tiap bulan',
+          onTap: onOpenMonthly,
         ),
         const SizedBox(height: 10),
-        _BudgetMonthlyTable(summary: summary),
+        _BudgetActionCard(
+          icon: Icons.search_rounded,
+          title: 'Rincian anggaran',
+          subtitle: items.isEmpty
+              ? 'Data item akan tersedia setelah diperbarui'
+              : 'Cari item, pemakaian terbesar, atau overbudget',
+          onTap: items.isEmpty ? null : onBrowseItems,
+        ),
         const SizedBox(height: 14),
         _BudgetSourceCard(syncedAt: summary.syncedAt),
-        if (items.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 18),
-          BudgetItemInsights(
-            items: items,
-            onBrowse: onBrowseItems,
-            onSelect: onOpenItem,
-          ),
-        ],
       ],
     );
   }
@@ -778,7 +776,7 @@ class _BudgetSiteCard extends StatelessWidget {
     final bool overBudget = actual > budget;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -796,22 +794,24 @@ class _BudgetSiteCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  'Maintenance $site',
+                  site == 'CPP' ? 'CPP' : 'PORT',
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
               _usd(actual),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 2),
             Text(
-              'Aktual dari ${_usd(budget)} budget',
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+              'dari ${_usd(budget)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.muted, fontSize: 11),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(99),
               child: LinearProgressIndicator(
@@ -821,13 +821,14 @@ class _BudgetSiteCard extends StatelessWidget {
                 color: overBudget ? AppColors.danger : AppColors.green,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text(
               overBudget
                   ? 'Melebihi ${_usd(actual - budget)}'
                   : 'Sisa ${_usd(remaining)}',
               style: TextStyle(
                 color: overBudget ? AppColors.danger : AppColors.green,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -838,71 +839,58 @@ class _BudgetSiteCard extends StatelessWidget {
   }
 }
 
-class _BudgetMonthlyTable extends StatelessWidget {
-  const _BudgetMonthlyTable({required this.summary});
+class _BudgetActionCard extends StatelessWidget {
+  const _BudgetActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+  });
 
-  final OperationalBudgetSummary summary;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final Map<DateTime, List<OperationalBudgetMonth>> rows =
-        <DateTime, List<OperationalBudgetMonth>>{};
-    for (final OperationalBudgetMonth item in summary.months) {
-      rows.putIfAbsent(item.period, () => <OperationalBudgetMonth>[]).add(item);
-    }
-    return Card(
-      child: Column(
-        children: rows.entries
-            .map((entry) {
-              final List<OperationalBudgetMonth> values = entry.value;
-              final double budget = values.fold(
-                0,
-                (total, item) => total + item.budgetUsd,
-              );
-              final double actual = values.fold(
-                0,
-                (total, item) => total + item.actualUsd,
-              );
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.mint,
-                  child: Text(
-                    DateFormat(
-                      'MMM',
-                      'id_ID',
-                    ).format(entry.key).substring(0, 3),
+  Widget build(BuildContext context) => Card(
+    child: InkWell(
+      borderRadius: BorderRadius.circular(22),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: <Widget>[
+            CircleAvatar(
+              backgroundColor: AppColors.mint,
+              child: Icon(icon, color: AppColors.green),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
                     style: const TextStyle(
-                      color: AppColors.green,
+                      color: AppColors.muted,
                       fontSize: 12,
-                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                ),
-                title: Text(
-                  DateFormat('MMMM yyyy', 'id_ID').format(entry.key),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                subtitle: Text('Budget ${_usd(budget)}'),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: <Widget>[
-                    const Text(
-                      'Aktual',
-                      style: TextStyle(color: AppColors.muted, fontSize: 11),
-                    ),
-                    Text(
-                      _usd(actual),
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                  ],
-                ),
-              );
-            })
-            .toList(growable: false),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _BudgetSourceCard extends StatelessWidget {
@@ -930,11 +918,8 @@ class _BudgetSourceCard extends StatelessWidget {
   );
 }
 
-String _usd(double value) => NumberFormat.currency(
-  locale: 'en_US',
-  symbol: 'US\$',
-  decimalDigits: 0,
-).format(value);
+String _usd(double value) =>
+    'US\$${NumberFormat.decimalPattern('id_ID').format(value.round())}';
 
 class _MaterialRequestOverviewBody extends StatelessWidget {
   const _MaterialRequestOverviewBody({
@@ -2603,85 +2588,80 @@ class _CmPriorityChip extends StatelessWidget {
 }
 
 class _BudgetMetricLayout extends StatelessWidget {
-  const _BudgetMetricLayout(
-    this.constraints, {
-    this.budget = 0,
-    this.actual = 0,
-  });
+  const _BudgetMetricLayout({this.budget = 0, this.actual = 0});
 
-  final BoxConstraints constraints;
   final double budget;
   final double actual;
 
   @override
-  Widget build(BuildContext context) {
-    final double width = constraints.maxWidth >= 760
-        ? (constraints.maxWidth - 24) / 3
-        : (constraints.maxWidth - 10) / 2;
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: <Widget>[
-        _BudgetMetricCard(
-          width: width,
+  Widget build(BuildContext context) => Row(
+    children: <Widget>[
+      Expanded(
+        child: _BudgetMetricCard(
           label: 'Anggaran',
           icon: Icons.account_balance_wallet_outlined,
           color: AppColors.green,
           value: _usd(budget),
         ),
-        _BudgetMetricCard(
-          width: width,
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: _BudgetMetricCard(
           label: 'Aktual',
           icon: Icons.receipt_long_outlined,
           color: AppColors.orange,
           value: _usd(actual),
         ),
-        _BudgetMetricCard(
-          width: width,
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: _BudgetMetricCard(
           label: 'Sisa anggaran',
           icon: Icons.savings_outlined,
           color: actual > budget ? AppColors.danger : AppColors.greenDark,
           value: _usd(budget - actual),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }
 
 class _BudgetMetricCard extends StatelessWidget {
   const _BudgetMetricCard({
-    required this.width,
     required this.label,
     required this.icon,
     required this.color,
     required this.value,
   });
 
-  final double width;
   final String label;
   final IconData icon;
   final Color color;
   final String value;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: width,
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Icon(icon, color: color),
-            const SizedBox(height: 16),
-            Text(label, style: const TextStyle(color: AppColors.muted)),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-            ),
-          ],
-        ),
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: AppColors.muted, fontSize: 11),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+          ),
+        ],
       ),
     ),
   );
