@@ -54,4 +54,28 @@ class OperationalBudgetService {
           .toList(growable: false),
     );
   }
+
+  Future<List<OperationalBudgetItem>> loadItems() async {
+    final Object response = await _client
+        .from('operational_budget_item')
+        .select(
+          'site_code,account_code,description,budget_usd,actual_usd,'
+          'budget_months,actual_months,peak_period,peak_actual_usd,'
+          'largest_transaction_usd,largest_transaction_date,'
+          'largest_transaction_no',
+        )
+        .inFilter('site_code', const <String>['CPP', 'PORT'])
+        .order('actual_usd', ascending: false);
+    if (response is! List) {
+      throw const FormatException(
+        'Rincian anggaran mengembalikan format tidak valid.',
+      );
+    }
+    return response
+        .cast<Object?>()
+        .map(
+          (Object? row) => OperationalBudgetItem.fromJson(requireJsonMap(row)),
+        )
+        .toList(growable: false);
+  }
 }

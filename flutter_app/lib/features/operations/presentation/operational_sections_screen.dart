@@ -20,6 +20,7 @@ import '../../../data/services/material_request_service.dart';
 import '../../../data/services/operational_budget_service.dart';
 import '../../../data/services/preventive_maintenance_service.dart';
 import '../../auth/application/current_user_provider.dart';
+import 'budget_item_sections.dart';
 
 class BudgetOverviewScreen extends StatefulWidget {
   const BudgetOverviewScreen({this.service, super.key});
@@ -33,6 +34,7 @@ class BudgetOverviewScreen extends StatefulWidget {
 class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
   OperationalBudgetService? _service;
   OperationalBudgetSummary? _summary;
+  List<OperationalBudgetItem> _items = const <OperationalBudgetItem>[];
   bool _loading = true;
   String? _error;
 
@@ -60,14 +62,21 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
       final OperationalBudgetService? service = _service;
       if (service == null) return;
       OperationalBudgetSummary summary = await service.loadSummary();
+      List<OperationalBudgetItem> items = await service.loadItems();
       // The approved workbook is imported to the server as a snapshot. Reading
       // that snapshot keeps this screen fast and avoids reprocessing large
       // Excel files whenever the user opens the page.
-      if (summary.months.isEmpty) {
+      if (summary.months.isEmpty || items.isEmpty) {
         await service.synchronize();
         summary = await service.loadSummary();
+        items = await service.loadItems();
       }
-      if (mounted) setState(() => _summary = summary);
+      if (mounted) {
+        setState(() {
+          _summary = summary;
+          _items = items;
+        });
+      }
     } on Object catch (error) {
       if (mounted) {
         final String message = error.toString().replaceFirst(
@@ -87,11 +96,25 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
     icon: Icons.account_balance_wallet_rounded,
     child: _BudgetOverviewBody(
       summary: _summary,
+      items: _items,
       loading: _loading,
       error: _error,
       onRefresh: _load,
+      onBrowseItems: _browseItems,
+      onOpenItem: _openItem,
     ),
   );
+
+  Future<void> _browseItems() async {
+    final OperationalBudgetItem? item = await showBudgetItemBrowser(
+      context,
+      _items,
+    );
+    if (item != null && mounted) await showBudgetItemDetail(context, item);
+  }
+
+  Future<void> _openItem(OperationalBudgetItem item) =>
+      showBudgetItemDetail(context, item);
 }
 
 class MaterialRequestOverviewScreen extends ConsumerStatefulWidget {
@@ -574,15 +597,21 @@ class _OperationalSectionPage extends StatelessWidget {
 class _BudgetOverviewBody extends StatelessWidget {
   const _BudgetOverviewBody({
     required this.summary,
+    required this.items,
     required this.loading,
     required this.error,
     required this.onRefresh,
+    required this.onBrowseItems,
+    required this.onOpenItem,
   });
 
   final OperationalBudgetSummary? summary;
+  final List<OperationalBudgetItem> items;
   final bool loading;
   final String? error;
   final Future<void> Function() onRefresh;
+  final VoidCallback onBrowseItems;
+  final ValueChanged<OperationalBudgetItem> onOpenItem;
 
   @override
   Widget build(BuildContext context) {
@@ -678,6 +707,14 @@ class _BudgetOverviewBody extends StatelessWidget {
         _BudgetMonthlyTable(summary: summary),
         const SizedBox(height: 14),
         _BudgetSourceCard(syncedAt: summary.syncedAt),
+        if (items.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 18),
+          BudgetItemInsights(
+            items: items,
+            onBrowse: onBrowseItems,
+            onSelect: onOpenItem,
+          ),
+        ],
       ],
     );
   }
