@@ -802,7 +802,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final String sourceStatus = syncedAt == null
         ? 'Sumber: CPP PM.xlsx dan PORT PM.xlsx'
-        : 'Diperbarui ${_pmDateTime(syncedAt!)}';
+        : _pmShortDate(syncedAt!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -1627,64 +1627,63 @@ class _OutstandingPmCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          child: Row(
-            children: <Widget>[
-              CircleAvatar(
-                radius: 19,
-                backgroundColor: AppColors.mint,
-                child: Text(
-                  crew,
-                  style: const TextStyle(
-                    color: AppColors.green,
-                    fontWeight: FontWeight.w900,
+    child: SizedBox(
+      height: 108,
+      child: Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              children: <Widget>[
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: AppColors.mint,
+                  child: Text(
+                    crew,
+                    style: const TextStyle(
+                      color: AppColors.green,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Crew $crew',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Crew $crew',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
                     ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'PM outstanding',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: AppColors.muted, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                constraints: const BoxConstraints(minWidth: 38),
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-                decoration: BoxDecoration(
-                  color: AppColors.mint,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  '$count',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.greenDark,
-                    fontWeight: FontWeight.w900,
                   ),
                 ),
-              ),
-            ],
+                Container(
+                  constraints: const BoxConstraints(minWidth: 44),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.mint,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Text(
+                    '$count',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.greenDark,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1896,25 +1895,25 @@ class _CorrectiveMaintenanceListSheet extends StatefulWidget {
 
 class _CorrectiveMaintenanceListSheetState
     extends State<_CorrectiveMaintenanceListSheet> {
-  String _equipmentFilter = '';
-
-  List<String> get _equipmentReferences =>
-      widget.items
-          .map((CorrectiveMaintenanceWorkOrder item) => item.equipmentReference.trim())
-          .where((String equipment) => equipment.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
+  String _searchQuery = '';
 
   List<CorrectiveMaintenanceWorkOrder> get _filteredItems =>
-      _equipmentFilter.isEmpty
-          ? widget.items
-          : widget.items
-                .where(
-                  (CorrectiveMaintenanceWorkOrder item) =>
-                      item.equipmentReference == _equipmentFilter,
-                )
-                .toList(growable: false);
+      _searchQuery.trim().isEmpty
+      ? widget.items
+      : widget.items
+            .where((CorrectiveMaintenanceWorkOrder item) {
+              final String query = _searchQuery.trim().toLowerCase();
+              final String searchableText = <String>[
+                item.workOrder,
+                item.description,
+                item.equipmentReference,
+                item.site,
+                item.priority ?? '',
+                item.progress ?? '',
+              ].join(' ').toLowerCase();
+              return searchableText.contains(query);
+            })
+            .toList(growable: false);
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -1970,41 +1969,20 @@ class _CorrectiveMaintenanceListSheetState
           ),
           const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border.all(color: AppColors.line),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Row(
-              children: <Widget>[
-                const Icon(Icons.filter_list_rounded, color: AppColors.green),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _equipmentFilter,
-                      isExpanded: true,
-                      hint: const Text('Semua aset'),
-                      onChanged: (String? value) => setState(
-                        () => _equipmentFilter = value ?? '',
-                      ),
-                      items: <DropdownMenuItem<String>>[
-                        const DropdownMenuItem<String>(
-                          value: '',
-                          child: Text('Semua aset'),
-                        ),
-                        ..._equipmentReferences.map(
-                          (String equipment) => DropdownMenuItem<String>(
-                            value: equipment,
-                            child: Text(equipment),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+            child: TextField(
+              onChanged: (String value) => setState(() => _searchQuery = value),
+              textInputAction: TextInputAction.search,
+              decoration: const InputDecoration(
+                hintText: 'Cari nama, pekerjaan, aset, atau lokasi',
+                prefixIcon: Icon(Icons.search_rounded, color: AppColors.green),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 14),
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -2013,7 +1991,7 @@ class _CorrectiveMaintenanceListSheetState
               margin: EdgeInsets.zero,
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('Belum ada work order untuk aset yang dipilih.'),
+                child: Text('Tidak ada work order yang sesuai pencarian.'),
               ),
             ),
           for (final item in _filteredItems)
@@ -2152,57 +2130,55 @@ class _OutstandingCmCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Card(
-    margin: EdgeInsets.zero,
-    child: InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
-          children: <Widget>[
-            const CircleAvatar(
-              radius: 19,
-              backgroundColor: AppColors.mint,
-              child: Icon(
-                Icons.build_circle_outlined,
-                color: AppColors.green,
-                size: 21,
-              ),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'CM $site',
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Lihat progres',
-                    style: TextStyle(color: AppColors.muted, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              constraints: const BoxConstraints(minWidth: 38),
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-              decoration: BoxDecoration(
-                color: AppColors.mint,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                '$count',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.greenDark,
-                  fontWeight: FontWeight.w900,
+  Widget build(BuildContext context) => SizedBox(
+    height: 96,
+    child: Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: <Widget>[
+              const CircleAvatar(
+                radius: 16,
+                backgroundColor: AppColors.mint,
+                child: Icon(
+                  Icons.build_circle_outlined,
+                  color: AppColors.green,
+                  size: 18,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'CM $site',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Container(
+                constraints: const BoxConstraints(minWidth: 42),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.mint,
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: Text(
+                  '$count',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.greenDark,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -3741,6 +3717,3 @@ String _momDateTime(DateTime value) =>
 
 String _pmShortDate(DateTime value) =>
     '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
-
-String _pmDateTime(DateTime value) =>
-    '${_pmShortDate(value)} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
