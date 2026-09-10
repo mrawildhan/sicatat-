@@ -19,6 +19,7 @@ import 'features/documents/presentation/document_center_screen.dart';
 import 'features/guide/presentation/crew_guide_screen.dart';
 import 'features/reminders/presentation/reminder_screen.dart';
 import 'features/operations/presentation/operational_sections_screen.dart';
+import 'features/operations/presentation/purchase_requisition_screen.dart';
 import 'features/warehouse/presentation/warehouse_screen.dart';
 import 'features/reports/presentation/report_screen.dart';
 import 'features/reports/presentation/sheet_export_screen.dart';
@@ -115,8 +116,7 @@ final _router = GoRouter(
         child: MeasurementPointManagementScreen(
           equipmentId: state.uri.queryParameters['equipmentId'],
           equipmentName:
-              state.uri.queryParameters['equipmentName'] ??
-              'Titik ukur',
+              state.uri.queryParameters['equipmentName'] ?? 'Titik ukur',
         ),
       ),
     ),
@@ -370,6 +370,24 @@ final _router = GoRouter(
         child: MainNavigationScaffold(
           selectedTab: MainNavigationTab.outstandingMaintenance,
           child: OutstandingMaintenanceScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/purchase-requisitions',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.purchaseRequisitions,
+          child: PurchaseRequisitionScreen(),
         ),
       ),
     ),

@@ -45,6 +45,13 @@ Future<void> openNavigationGroup(
       ),
     if (operational)
       const _NavigationGroupOption(
+        icon: Icons.request_quote_outlined,
+        title: 'Data PR',
+        subtitle: 'Cari Purchase Requisition dan PO',
+        route: '/purchase-requisitions',
+      ),
+    if (operational)
+      const _NavigationGroupOption(
         icon: Icons.pending_actions_outlined,
         title: 'Outstanding PM & CM',
         subtitle: 'Pantau pekerjaan yang belum selesai',
@@ -87,7 +94,9 @@ Future<void> openNavigationGroup(
               (tablet
                   ? 0.5
                   : operational
-                  ? 0.5
+                  ? options.length > 6
+                        ? 0.76
+                        : 0.5
                   : 0.4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,6 +238,7 @@ class GroupedBottomNavigation extends StatelessWidget {
       'reminders' ||
       'budget' ||
       'materialRequests' ||
+      'purchaseRequisitions' ||
       'outstandingMaintenance' ||
       'meetingMinutes' => 'operational',
       'warehouse' || 'documents' => 'reference',
