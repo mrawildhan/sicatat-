@@ -1,7 +1,7 @@
 name: sicatat_flutter
 description: SICATAT field temperature checklist for CPP Asam-Asam.
 publish_to: 'none'
-version: 2.8.22+12302
+version: 2.8.24+12304
 
 environment:
   sdk: '>=3.13.0 <4.0.0'

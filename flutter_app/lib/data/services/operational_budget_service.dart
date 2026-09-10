@@ -9,9 +9,16 @@ class OperationalBudgetService {
   final SupabaseClient _client;
 
   Future<void> synchronize() async {
-    final FunctionResponse response = await _client.functions.invoke(
-      'sync-operational-budget',
-    );
+    late final FunctionResponse response;
+    try {
+      response = await _client.functions.invoke('sync-operational-budget');
+    } on FunctionException catch (error) {
+      final Object? details = error.details;
+      if (details is Map<Object?, Object?> && details['error'] != null) {
+        throw FormatException(details['error'].toString());
+      }
+      rethrow;
+    }
     final JsonMap data = requireJsonMap(
       response.data,
       source: 'Sinkron anggaran',

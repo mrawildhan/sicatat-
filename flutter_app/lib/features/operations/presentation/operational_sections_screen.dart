@@ -59,14 +59,22 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
       _service ??= widget.service ?? _createService();
       final OperationalBudgetService? service = _service;
       if (service == null) return;
-      await service.synchronize();
-      final OperationalBudgetSummary summary = await service.loadSummary();
+      OperationalBudgetSummary summary = await service.loadSummary();
+      // The approved workbook is imported to the server as a snapshot. Reading
+      // that snapshot keeps this screen fast and avoids reprocessing large
+      // Excel files whenever the user opens the page.
+      if (summary.months.isEmpty) {
+        await service.synchronize();
+        summary = await service.loadSummary();
+      }
       if (mounted) setState(() => _summary = summary);
-    } on Object {
+    } on Object catch (error) {
       if (mounted) {
-        setState(
-          () => _error = 'Anggaran belum dapat diperbarui. Periksa koneksi lalu coba lagi.',
+        final String message = error.toString().replaceFirst(
+          'FormatException: ',
+          '',
         );
+        setState(() => _error = 'Anggaran belum dapat diperbarui. $message');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
