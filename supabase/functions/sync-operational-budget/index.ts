@@ -10,9 +10,9 @@ const corsHeaders = {
 };
 
 const source = {
-  budget: "https://drive.google.com/uc?export=download&id=1k6tmV5N60RBPnnpmTjSYN1VMQAlo14UX",
-  cppActual: "https://drive.google.com/uc?export=download&id=1Mv8n8YmGAp4_XTr5V8OJVaUKRGZWeBc_",
-  portActual: "https://drive.google.com/uc?export=download&id=16Gv5TC5Uri5MjDp8JWfLNryf4Bkksu3O",
+  budget: "https://drive.usercontent.google.com/download?id=1k6tmV5N60RBPnnpmTjSYN1VMQAlo14UX&export=download&confirm=t",
+  cppActual: "https://drive.usercontent.google.com/download?id=1Mv8n8YmGAp4_XTr5V8OJVaUKRGZWeBc_&export=download&confirm=t",
+  portActual: "https://drive.usercontent.google.com/download?id=16Gv5TC5Uri5MjDp8JWfLNryf4Bkksu3O&export=download&confirm=t",
 } as const;
 
 const sites = [
@@ -101,12 +101,13 @@ function budgetByPeriod(workbook: XLSX.WorkBook, sheetName: string) {
   });
   // The workbook uses two header rows: “Expense” and the month labels are
   // above “Type” and “Description”. The two left columns are stable in both
-  // approved maintenance sheets.
+  // approved maintenance sheets. Column A is deliberately blank; the
+  // expense type and description are in columns B and C.
   const index = values.findIndex((row) => headerIndex(row).has("JAN-26"));
   if (index < 0) throw new Error(`Sheet ${sheetName} tidak memiliki kolom JAN-26.`);
   const headers = headerIndex(values[index]);
-  const expenseColumn = 0;
-  const descriptionColumn = 1;
+  const expenseColumn = 1;
+  const descriptionColumn = 2;
   const months = new Map<string, number>();
   for (const period of periods) months.set(period, 0);
   for (const row of values.slice(index + 1)) {
