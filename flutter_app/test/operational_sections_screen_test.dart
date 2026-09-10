@@ -47,7 +47,7 @@ void main() {
     expect(find.text('Semua'), findsOneWidget);
   });
 
-  testWidgets('outstanding memisahkan PM crew lokasi dan CM global', (
+  testWidgets('outstanding membuka PM dan CM sebagai section penuh', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -57,20 +57,14 @@ void main() {
 
     expect(find.text('PM'), findsOneWidget);
     expect(find.text('CM'), findsOneWidget);
-    expect(find.text('CPP'), findsOneWidget);
-    expect(find.text('PORT'), findsOneWidget);
-    expect(find.text('Crew A'), findsNWidgets(2));
-    expect(find.text('Crew B'), findsNWidgets(2));
-    expect(find.text('Crew C'), findsNWidgets(2));
-    expect(find.textContaining('CM CPP'), findsOneWidget);
-    expect(find.textContaining('CM PORT'), findsOneWidget);
+    expect(find.text('Pilih jenis pekerjaan'), findsOneWidget);
 
-    await tester.tap(find.text('Crew A').first);
+    await tester.tap(find.text('PM'));
     await tester.pumpAndSettle();
 
-    expect(find.text('PM Crew A · CPP'), findsOneWidget);
+    expect(find.text('Preventive Maintenance (PM)'), findsOneWidget);
     expect(
-      find.text('Tidak ada PM outstanding untuk crew dan lokasi ini.'),
+      find.text('Tidak ada PM outstanding yang sesuai pencarian.'),
       findsOneWidget,
     );
   });
