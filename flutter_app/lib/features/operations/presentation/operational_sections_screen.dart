@@ -785,7 +785,7 @@ class _BudgetSiteCard extends StatelessWidget {
                 CircleAvatar(
                   backgroundColor: AppColors.mint,
                   child: Text(
-                    site,
+                    site == 'CPP' ? 'C' : 'P',
                     style: const TextStyle(
                       color: AppColors.green,
                       fontWeight: FontWeight.w900,
@@ -800,9 +800,16 @@ class _BudgetSiteCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              _usd(actual),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _usd(actual),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
             const SizedBox(height: 2),
             Text(
@@ -2655,11 +2662,13 @@ class _BudgetMetricCard extends StatelessWidget {
             style: const TextStyle(color: AppColors.muted, fontSize: 11),
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+            ),
           ),
         ],
       ),

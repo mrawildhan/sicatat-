@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sicatat_flutter/data/models/operational_budget_models.dart';
+import 'package:sicatat_flutter/features/operations/presentation/budget_item_sections.dart';
 import 'package:sicatat_flutter/features/operations/presentation/operational_sections_screen.dart';
 
 void main() {
@@ -17,6 +19,77 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Coba lagi'), findsOneWidget);
+  });
+
+  testWidgets('rincian realisasi dan anggaran dapat dibuka', (tester) async {
+    final OperationalBudgetSummary summary = OperationalBudgetSummary(
+      <OperationalBudgetMonth>[
+        OperationalBudgetMonth(
+          site: 'CPP',
+          period: DateTime(2026, 1),
+          budgetUsd: 1500,
+          actualUsd: 900,
+          syncedAt: DateTime(2026, 9, 10),
+        ),
+      ],
+    );
+    final OperationalBudgetItem item = OperationalBudgetItem(
+      site: 'CPP',
+      accountCode: '00396',
+      description: 'MINOR EQUIPMENT',
+      budgetUsd: 9000,
+      actualUsd: 4674,
+      budgetMonths: const <String, double>{'202601': 1500},
+      actualMonths: const <String, double>{'202601': 900},
+      peakPeriod: '202601',
+      peakActualUsd: 900,
+      largestTransactionUsd: 500,
+      largestTransactionDate: DateTime(2026, 1, 2),
+      largestTransactionNo: 'TRX-1',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => Column(
+              children: <Widget>[
+                FilledButton(
+                  onPressed: () => showBudgetMonthlyDetail(context, summary),
+                  child: const Text('Buka bulanan'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final OperationalBudgetItem? selected =
+                        await showBudgetItemBrowser(
+                          context,
+                          <OperationalBudgetItem>[item],
+                        );
+                    if (selected != null && context.mounted) {
+                      await showBudgetItemDetail(context, selected);
+                    }
+                  },
+                  child: const Text('Buka rincian'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Buka bulanan'));
+    await tester.pumpAndSettle();
+    expect(find.text('Realisasi per bulan'), findsOneWidget);
+    expect(find.text('Januari 2026'), findsOneWidget);
+
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Buka rincian'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rincian anggaran'), findsOneWidget);
+    await tester.tap(find.textContaining('00396'));
+    await tester.pumpAndSettle();
+    expect(find.text('MINOR EQUIPMENT'), findsOneWidget);
   });
 
   testWidgets('tampilan awal MOM menjelaskan alur draf', (tester) async {

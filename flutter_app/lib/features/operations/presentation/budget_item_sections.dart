@@ -151,7 +151,7 @@ class _BudgetMonthlyDetailSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          DateFormat('MMMM yyyy', 'id_ID').format(entry.key),
+                          _monthAndYear(entry.key),
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                         const SizedBox(height: 10),
@@ -365,7 +365,7 @@ class _BudgetItemDetailSheet extends StatelessWidget {
                 ),
                 title: Text(_usd(item.largestTransactionUsd)),
                 subtitle: Text(
-                  '${item.largestTransactionDate == null ? 'Tanggal tidak tersedia' : DateFormat('dd MMMM yyyy', 'id_ID').format(item.largestTransactionDate!)}'
+                  '${item.largestTransactionDate == null ? 'Tanggal tidak tersedia' : _fullDate(item.largestTransactionDate!)}'
                   '${item.largestTransactionNo == null ? '' : '\nNo. ${item.largestTransactionNo}'}',
                 ),
               ),
@@ -490,48 +490,93 @@ class _BudgetItemCard extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            CircleAvatar(
-              backgroundColor: AppColors.mint,
-              child: Text(
-                item.site,
-                style: const TextStyle(
-                  color: AppColors.green,
-                  fontWeight: FontWeight.w900,
+            Row(
+              children: <Widget>[
+                CircleAvatar(
+                  backgroundColor: AppColors.mint,
+                  child: Text(
+                    item.site == 'CPP' ? 'C' : 'P',
+                    style: const TextStyle(
+                      color: AppColors.green,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
                     '${item.accountCode} · ${item.description}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Aktual ${_usd(item.actualUsd)} · ${item.overBudget ? 'Melebihi' : 'Sisa'} ${_usd(item.remainingUsd.abs())}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: emphasis ?? AppColors.muted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+              ],
             ),
-            const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            const SizedBox(height: 12),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _ItemAmount(
+                    label: 'Budget',
+                    value: _usd(item.budgetUsd),
+                  ),
+                ),
+                Expanded(
+                  child: _ItemAmount(
+                    label: 'Aktual',
+                    value: _usd(item.actualUsd),
+                  ),
+                ),
+                Expanded(
+                  child: _ItemAmount(
+                    label: item.overBudget ? 'Melebihi' : 'Sisa',
+                    value: _usd(item.remainingUsd.abs()),
+                    color: item.overBudget
+                        ? AppColors.danger
+                        : emphasis ?? AppColors.green,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     ),
+  );
+}
+
+class _ItemAmount extends StatelessWidget {
+  const _ItemAmount({required this.label, required this.value, this.color});
+
+  final String label;
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+      const SizedBox(height: 3),
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    ],
   );
 }
 
@@ -544,10 +589,29 @@ const List<String> _periods = <String>[
   '202606',
 ];
 
-String _period(String value) => DateFormat(
-  'MMMM yyyy',
-  'id_ID',
-).format(DateTime.parse('${value.substring(0, 4)}-${value.substring(4)}-01'));
+const List<String> _monthNames = <String>[
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+];
+
+String _monthAndYear(DateTime value) =>
+    '${_monthNames[value.month - 1]} ${value.year}';
+
+String _fullDate(DateTime value) => '${value.day} ${_monthAndYear(value)}';
+
+String _period(String value) => _monthAndYear(
+  DateTime.parse('${value.substring(0, 4)}-${value.substring(4)}-01'),
+);
 
 String _usd(double value) =>
     'US\$${NumberFormat.decimalPattern('id_ID').format(value.round())}';
