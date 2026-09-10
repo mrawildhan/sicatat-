@@ -52,7 +52,7 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
     }
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool synchronizeSource = false}) async {
     setState(() {
       _loading = true;
       _error = null;
@@ -66,7 +66,7 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
       // The approved workbook is imported to the server as a snapshot. Reading
       // that snapshot keeps this screen fast and avoids reprocessing large
       // Excel files whenever the user opens the page.
-      if (summary.months.isEmpty || items.isEmpty) {
+      if (synchronizeSource || summary.months.isEmpty || items.isEmpty) {
         await service.synchronize();
         summary = await service.loadSummary();
         items = await service.loadItems();
@@ -99,7 +99,7 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
       items: _items,
       loading: _loading,
       error: _error,
-      onRefresh: _load,
+      onRefresh: _refreshSource,
       onBrowseItems: _browseItems,
       onOpenItem: _openItem,
     ),
@@ -115,6 +115,8 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
 
   Future<void> _openItem(OperationalBudgetItem item) =>
       showBudgetItemDetail(context, item);
+
+  Future<void> _refreshSource() => _load(synchronizeSource: true);
 }
 
 class MaterialRequestOverviewScreen extends ConsumerStatefulWidget {
