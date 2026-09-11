@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sicatat_flutter/features/documents/presentation/equipment_reference_screen.dart';
 
 void main() {
-  testWidgets('equipment reference mencari unit dari workbook Asam-Asam', (
+  testWidgets('equipment reference mencari unit dari workbook Asamasam', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -16,5 +16,6 @@ void main() {
 
     expect(find.text('ADS01'), findsNWidgets(2));
     expect(find.text('DUMP STATION 01 ASAM-ASAM'), findsOneWidget);
+    expect(find.text('Asamasam'), findsNWidgets(2));
   });
 }

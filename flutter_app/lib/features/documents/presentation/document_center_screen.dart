@@ -137,6 +137,13 @@ class _DocumentCenterScreenState extends State<DocumentCenterScreen> {
                   style: AppTextStyles.supporting,
                 ),
                 const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      _open(Uri.parse(AppConfig.technicalDocumentsFolderUrl)),
+                  icon: const Icon(Icons.folder_open_outlined),
+                  label: const Text('Buka folder dokumen di Drive'),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _question,
                   minLines: 2,

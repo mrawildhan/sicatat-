@@ -30,7 +30,8 @@ class _EquipmentReferenceScreenState extends State<EquipmentReferenceScreen> {
   List<_EquipmentEntry> get _results => _equipmentEntries
       .where(
         (entry) =>
-            (_site == 'Semua' || entry.site == _site) && entry.matches(_query),
+            (_site == 'Semua' || entry.siteLabel == _site) &&
+            entry.matches(_query),
       )
       .toList(growable: false);
 
@@ -364,7 +365,7 @@ class _EquipmentEntry {
   final String typeLabel;
   final String accountCode;
 
-  String get siteLabel => site == 'ASAM' ? 'Asam-Asam' : 'Kintap';
+  String get siteLabel => site == 'ASAM' ? 'Asamasam' : 'Kintap';
 
   bool matches(String query) {
     final String value = query.trim().toLowerCase();
@@ -384,7 +385,7 @@ final List<_EquipmentEntry> _equipmentEntries = utf8
     .map(_EquipmentEntry.fromRecord)
     .toList(growable: false);
 
-const List<String> _sites = <String>['Semua', 'ASAM', 'KINTAP'];
+const List<String> _sites = <String>['Semua', 'Asamasam', 'Kintap'];
 
 const String _compressedEquipmentData =
     'H4sIAEJeo2oC/7WcbZOjNhKA/4o+JlWZHcSL7fkog2xY83YS2DNb92XvspXs3dVOandylavix1+3ABuwbAPWbCYzNoZHLaml7pZaZpIlFVsHFq0YvCTqV8Ki'

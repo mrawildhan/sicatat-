@@ -89,7 +89,7 @@ Future<void> openNavigationGroup(
       const _NavigationGroupOption(
         icon: Icons.precision_manufacturing_outlined,
         title: 'Equipment Reference',
-        subtitle: 'Cari unit Asam-Asam dan Kintap',
+        subtitle: 'Cari unit Asamasam dan Kintap',
         route: '/equipment-reference',
       ),
   ];
@@ -99,9 +99,7 @@ Future<void> openNavigationGroup(
     useSafeArea: true,
     builder: (sheetContext) {
       final bool tablet = MediaQuery.sizeOf(sheetContext).width >= 600;
-      final bool compactGrid = operational
-          ? !tablet
-          : !tablet && options.length <= 3;
+      final bool compactGrid = !tablet;
       return SafeArea(
         top: false,
         child: SizedBox(
