@@ -44,6 +44,97 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
     }
   }
 
+  void _showSegmentCodes(_CostCodeSegment segment) {
+    final List<_CostCodeEntry> entries = _costCodeEntries
+        .where((entry) => entry.segment == segment.filter)
+        .toList(growable: false);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * .72,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              children: <Widget>[
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.muted,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: <Widget>[
+                    CircleAvatar(
+                      backgroundColor: AppColors.mint,
+                      child: Text(
+                        segment.order.toString(),
+                        style: const TextStyle(
+                          color: AppColors.green,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(segment.label, style: AppTextStyles.cardTitle),
+                          Text(
+                            '${segment.digits} digit · ${entries.length} kode tersedia',
+                            style: AppTextStyles.supporting,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: entries.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (BuildContext context, int index) {
+                      final _CostCodeEntry entry = entries[index];
+                      return Card(
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.mint,
+                            child: Icon(
+                              entry.icon,
+                              color: AppColors.green,
+                              size: 19,
+                            ),
+                          ),
+                          title: SelectableText(
+                            entry.code,
+                            style: const TextStyle(
+                              color: AppColors.green,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          subtitle: Text(
+                            entry.description,
+                            style: AppTextStyles.supporting,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool desktop = kIsWeb && MediaQuery.sizeOf(context).width >= 920;
@@ -98,6 +189,18 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
                 icon: const Icon(Icons.picture_as_pdf_outlined),
                 label: const Text('Unduh manual Cost Code (PDF)'),
               ),
+              const SizedBox(height: 22),
+              const Text(
+                'Struktur cost code',
+                style: AppTextStyles.sectionTitle,
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                'Tekan segmen untuk melihat angka yang sesuai.',
+                style: AppTextStyles.supporting,
+              ),
+              const SizedBox(height: 10),
+              _CostCodeStructure(onTap: _showSegmentCodes),
               const SizedBox(height: 10),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -141,6 +244,66 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
       ),
     );
   }
+}
+
+class _CostCodeStructure extends StatelessWidget {
+  const _CostCodeStructure({required this.onTap});
+
+  final ValueChanged<_CostCodeSegment> onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        children: _costCodeStructure
+            .map(
+              (segment) => InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => onTap(segment),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 9,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: AppColors.mint,
+                        child: Text(
+                          segment.order.toString(),
+                          style: const TextStyle(
+                            color: AppColors.green,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          segment.label,
+                          style: AppTextStyles.cardTitle,
+                        ),
+                      ),
+                      Text(
+                        '${segment.digits} digit',
+                        style: AppTextStyles.supporting,
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.muted,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+            .toList(growable: false),
+      ),
+    ),
+  );
 }
 
 class _SearchPrompt extends StatelessWidget {
@@ -251,6 +414,23 @@ class _CostCodeEntry {
         '$segment $code $description'.toLowerCase().contains(value);
   }
 }
+
+class _CostCodeSegment {
+  const _CostCodeSegment(this.order, this.label, this.filter, this.digits);
+
+  final int order;
+  final String label;
+  final String filter;
+  final String digits;
+}
+
+const List<_CostCodeSegment> _costCodeStructure = <_CostCodeSegment>[
+  _CostCodeSegment(1, 'Site', 'Site', '2'),
+  _CostCodeSegment(2, 'Function', 'Function', '2'),
+  _CostCodeSegment(3, 'Pit / Plant', 'Pit/Plant', '4'),
+  _CostCodeSegment(4, 'Activity', 'Activity', '3'),
+  _CostCodeSegment(5, 'Expense element', 'Expense', '5'),
+];
 
 const List<String> _segments = <String>[
   'Semua',
