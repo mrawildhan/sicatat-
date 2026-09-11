@@ -78,6 +78,13 @@ Future<void> openNavigationGroup(
         subtitle: 'Cari SOP, manual, dan drawing',
         route: '/documents',
       ),
+    if (!operational)
+      const _NavigationGroupOption(
+        icon: Icons.account_tree_outlined,
+        title: 'Cost Code',
+        subtitle: 'Cari struktur dan elemen biaya',
+        route: '/cost-codes',
+      ),
   ];
   final route = await showModalBottomSheet<String>(
     context: context,
@@ -85,7 +92,7 @@ Future<void> openNavigationGroup(
     useSafeArea: true,
     builder: (sheetContext) {
       final bool tablet = MediaQuery.sizeOf(sheetContext).width >= 600;
-      final bool compactOperationalGrid = operational && !tablet;
+      final bool compactGrid = !tablet;
       return SafeArea(
         top: false,
         child: SizedBox(
@@ -112,16 +119,16 @@ Future<void> openNavigationGroup(
                 child: GridView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: tablet || compactOperationalGrid ? 3 : 2,
-                    mainAxisSpacing: compactOperationalGrid ? 8 : 12,
-                    crossAxisSpacing: compactOperationalGrid ? 8 : 12,
+                    crossAxisCount: tablet || compactGrid ? 3 : 2,
+                    mainAxisSpacing: compactGrid ? 8 : 12,
+                    crossAxisSpacing: compactGrid ? 8 : 12,
                     childAspectRatio: tablet ? 1.7 : 1.08,
                   ),
                   itemCount: options.length,
                   physics: const NeverScrollableScrollPhysics(),
                   itemBuilder: (_, index) => _NavigationGroupCard(
                     option: options[index],
-                    compact: compactOperationalGrid,
+                    compact: compactGrid,
                     onTap: () =>
                         Navigator.pop(sheetContext, options[index].route),
                   ),
@@ -240,7 +247,7 @@ class GroupedBottomNavigation extends StatelessWidget {
       'purchaseRequisitions' ||
       'outstandingMaintenance' ||
       'meetingMinutes' => 'operational',
-      'warehouse' || 'documents' => 'reference',
+      'warehouse' || 'documents' || 'costCodes' => 'reference',
       _ => selected,
     };
     final index = groups.indexOf(current);

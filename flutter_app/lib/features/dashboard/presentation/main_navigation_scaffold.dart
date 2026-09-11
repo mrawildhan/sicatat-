@@ -23,6 +23,7 @@ enum MainNavigationTab {
   meetingMinutes,
   warehouse,
   documents,
+  costCodes,
   profile,
 }
 
@@ -82,7 +83,8 @@ class MainNavigationScaffold extends ConsumerWidget {
           MainNavigationTab.outstandingMaintenance ||
           MainNavigationTab.meetingMinutes => MainNavigationTab.operational,
           MainNavigationTab.warehouse ||
-          MainNavigationTab.documents => MainNavigationTab.reference,
+          MainNavigationTab.documents ||
+          MainNavigationTab.costCodes => MainNavigationTab.reference,
           _ => selectedTab,
         };
         final items = desktopItems;
@@ -141,6 +143,9 @@ class MainNavigationScaffold extends ConsumerWidget {
             case MainNavigationTab.documents:
               context.go('/documents');
               return;
+            case MainNavigationTab.costCodes:
+              context.go('/cost-codes');
+              return;
             case MainNavigationTab.profile:
               context.go('/dashboard?tab=profile');
               return;
@@ -191,7 +196,7 @@ class MainNavigationScaffold extends ConsumerWidget {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Inspeksi operasional dan pengingat',
+                        'Operasional, referensi, dan informasi kerja',
                         style: TextStyle(
                           fontSize: 12,
                           color: Color(0xFF92B6A6),

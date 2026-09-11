@@ -143,7 +143,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
               ),
               Text(
-                'Inspeksi operasional dan pengingat',
+                'Operasional, referensi, dan informasi kerja',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.muted,
