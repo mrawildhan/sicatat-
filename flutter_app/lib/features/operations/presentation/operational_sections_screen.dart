@@ -22,6 +22,27 @@ import '../../../data/services/preventive_maintenance_service.dart';
 import '../../auth/application/current_user_provider.dart';
 import 'budget_item_sections.dart';
 
+const TextStyle _budgetSectionTitleStyle = TextStyle(
+  fontSize: 18,
+  fontWeight: FontWeight.w900,
+);
+
+const TextStyle _budgetCardTitleStyle = TextStyle(
+  fontSize: 16,
+  fontWeight: FontWeight.w800,
+);
+
+const TextStyle _budgetLabelStyle = TextStyle(
+  color: AppColors.muted,
+  fontSize: 13,
+  height: 1.25,
+);
+
+const TextStyle _budgetAmountStyle = TextStyle(
+  fontSize: 19,
+  fontWeight: FontWeight.w900,
+);
+
 class BudgetOverviewScreen extends StatefulWidget {
   const BudgetOverviewScreen({this.service, super.key});
 
@@ -650,14 +671,11 @@ class _BudgetOverviewBody extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    'Asam-Asam',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-                  ),
+                  Text('Asam-Asam', style: _budgetSectionTitleStyle),
                   SizedBox(height: 4),
                   Text(
                     'Budget dan aktual USD · Januari–Juni 2026',
-                    style: TextStyle(color: AppColors.muted),
+                    style: _budgetLabelStyle,
                   ),
                 ],
               ),
@@ -675,10 +693,7 @@ class _BudgetOverviewBody extends StatelessWidget {
           actual: summary.actualUsd,
         ),
         const SizedBox(height: 18),
-        const Text(
-          'Ringkasan per lokasi',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-        ),
+        const Text('Ringkasan per lokasi', style: _budgetSectionTitleStyle),
         const SizedBox(height: 10),
         Row(
           children: <Widget>[
@@ -795,7 +810,7 @@ class _BudgetSiteCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Text(
                   site == 'CPP' ? 'CPP' : 'PORT',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                  style: _budgetCardTitleStyle,
                 ),
               ],
             ),
@@ -803,20 +818,14 @@ class _BudgetSiteCard extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(
-                _usd(actual),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+              child: Text(_usd(actual), style: _budgetAmountStyle),
             ),
             const SizedBox(height: 2),
             Text(
               'dari ${_usd(budget)}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.muted, fontSize: 11),
+              style: _budgetLabelStyle,
             ),
             const SizedBox(height: 10),
             ClipRRect(
@@ -835,7 +844,7 @@ class _BudgetSiteCard extends StatelessWidget {
                   : 'Sisa ${_usd(remaining)}',
               style: TextStyle(
                 color: overBudget ? AppColors.danger : AppColors.green,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -877,18 +886,9 @@ class _BudgetActionCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
+                  Text(title, style: _budgetCardTitleStyle),
                   const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                    ),
-                  ),
+                  Text(subtitle, style: _budgetLabelStyle),
                 ],
               ),
             ),
@@ -912,14 +912,12 @@ class _BudgetSourceCard extends StatelessWidget {
         backgroundColor: AppColors.mint,
         child: Icon(Icons.table_chart_outlined, color: AppColors.green),
       ),
-      title: const Text(
-        'Sumber data',
-        style: TextStyle(fontWeight: FontWeight.w900),
-      ),
+      title: const Text('Sumber data', style: _budgetCardTitleStyle),
       subtitle: Text(
         syncedAt == null
             ? 'Budget 3271/3275 dan aktual CPP/PORT'
             : 'Diperbarui ${DateFormat('dd/MM/yyyy HH:mm').format(syncedAt!.toLocal())}',
+        style: _budgetLabelStyle,
       ),
     ),
   );
@@ -2659,16 +2657,13 @@ class _BudgetMetricCard extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppColors.muted, fontSize: 11),
+            style: _budgetLabelStyle,
           ),
           const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
-            ),
+            child: Text(value, style: _budgetAmountStyle),
           ),
         ],
       ),

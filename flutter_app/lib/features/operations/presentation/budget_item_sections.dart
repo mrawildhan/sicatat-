@@ -4,6 +4,17 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/operational_budget_models.dart';
 
+const TextStyle _budgetSheetLabelStyle = TextStyle(
+  color: AppColors.muted,
+  fontSize: 13,
+  height: 1.25,
+);
+
+const TextStyle _budgetSheetAmountStyle = TextStyle(
+  fontSize: 14,
+  fontWeight: FontWeight.w900,
+);
+
 class BudgetItemInsights extends StatelessWidget {
   const BudgetItemInsights({
     required this.items,
@@ -204,7 +215,7 @@ class _MonthlyAmount extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
-      Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+      Text(label, style: _budgetSheetLabelStyle),
       const SizedBox(height: 3),
       Text(
         value,
@@ -212,7 +223,7 @@ class _MonthlyAmount extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: color,
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -457,14 +468,11 @@ class _DetailNumbers extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.muted, fontSize: 11),
-          ),
+          Text(label, style: _budgetSheetLabelStyle),
           const SizedBox(height: 5),
           Text(
             _usd(value),
-            style: TextStyle(color: color, fontWeight: FontWeight.w900),
+            style: _budgetSheetAmountStyle.copyWith(color: color),
           ),
         ],
       ),
@@ -562,18 +570,14 @@ class _ItemAmount extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
-      Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+      Text(label, style: _budgetSheetLabelStyle),
       const SizedBox(height: 3),
       FittedBox(
         fit: BoxFit.scaleDown,
         alignment: Alignment.centerLeft,
         child: Text(
           value,
-          style: TextStyle(
-            color: color,
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-          ),
+          style: _budgetSheetAmountStyle.copyWith(color: color),
         ),
       ),
     ],
