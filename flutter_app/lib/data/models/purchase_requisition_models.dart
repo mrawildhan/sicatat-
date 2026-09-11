@@ -1,15 +1,15 @@
 import 'sicatat_types.dart';
 
 enum PurchaseRequisitionSort {
-  arrivalNewest,
-  arrivalOldest;
+  prNewest,
+  prOldest;
 
   String get label => switch (this) {
-    PurchaseRequisitionSort.arrivalNewest => 'Barang datang terbaru',
-    PurchaseRequisitionSort.arrivalOldest => 'Barang datang terlama',
+    PurchaseRequisitionSort.prNewest => 'No. PR terbaru',
+    PurchaseRequisitionSort.prOldest => 'No. PR terlama',
   };
 
-  bool get ascending => this == PurchaseRequisitionSort.arrivalOldest;
+  bool get ascending => this == PurchaseRequisitionSort.prOldest;
 }
 
 class PurchaseRequisition {

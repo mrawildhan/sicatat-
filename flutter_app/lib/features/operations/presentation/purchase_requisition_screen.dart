@@ -24,7 +24,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   final TextEditingController _searchController = TextEditingController();
   PurchaseRequisitionService? _service;
   List<PurchaseRequisition> _items = const <PurchaseRequisition>[];
-  PurchaseRequisitionSort _sort = PurchaseRequisitionSort.arrivalNewest;
+  PurchaseRequisitionSort _sort = PurchaseRequisitionSort.prNewest;
   int? _releaseYear;
   int? _releaseMonth;
   Timer? _debounce;
@@ -369,7 +369,7 @@ class _ResultHeading extends StatelessWidget {
                       child: Row(
                         children: <Widget>[
                           Icon(
-                            item == PurchaseRequisitionSort.arrivalNewest
+                            item == PurchaseRequisitionSort.prNewest
                                 ? Icons.south_rounded
                                 : Icons.north_rounded,
                             size: 18,

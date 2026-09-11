@@ -48,7 +48,7 @@ class PurchaseRequisitionService {
 
   Future<List<PurchaseRequisition>> search(
     String query, {
-    PurchaseRequisitionSort sort = PurchaseRequisitionSort.arrivalNewest,
+    PurchaseRequisitionSort sort = PurchaseRequisitionSort.prNewest,
     int? releaseYear,
     int? releaseMonth,
   }) async {
@@ -70,8 +70,7 @@ class PurchaseRequisitionService {
             .lt('release_date', releaseEnd.toIso8601String());
       }
       response = await request
-          .order('closed_date', ascending: sort.ascending, nullsFirst: false)
-          .order('release_date', ascending: sort.ascending, nullsFirst: false)
+          .order('no_pr', ascending: sort.ascending, nullsFirst: false)
           .limit(60);
     } else {
       var request = _client
@@ -87,8 +86,7 @@ class PurchaseRequisitionService {
             .lt('release_date', releaseEnd.toIso8601String());
       }
       response = await request
-          .order('closed_date', ascending: sort.ascending, nullsFirst: false)
-          .order('release_date', ascending: sort.ascending, nullsFirst: false)
+          .order('no_pr', ascending: sort.ascending, nullsFirst: false)
           .limit(60);
     }
     if (response is! List) {
