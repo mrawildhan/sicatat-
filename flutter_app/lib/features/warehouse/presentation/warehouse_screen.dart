@@ -313,12 +313,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
     padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
     child: Row(
       children: <Widget>[
-        const Expanded(
-          child: Text(
-            'Gudang',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-          ),
-        ),
+        const Expanded(child: Text('Gudang', style: AppTextStyles.pageTitle)),
         if (canSync)
           IconButton(
             onPressed: _syncing ? null : _sync,

@@ -17,6 +17,39 @@ class AppColors {
   static const danger = Color(0xFFD85B52);
 }
 
+/// Skala teks tunggal untuk seluruh layar aplikasi.
+///
+/// Beranda menjadi acuan: judul bagian tetap tegas, judul kartu mudah dipindai,
+/// dan teks pendukung tidak bersaing dengan informasi utama.
+class AppTextStyles {
+  static const pageTitle = TextStyle(
+    fontSize: 24,
+    fontWeight: FontWeight.w900,
+    height: 1.15,
+  );
+  static const sectionTitle = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w900,
+    height: 1.2,
+  );
+  static const cardTitle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w800,
+    height: 1.25,
+  );
+  static const body = TextStyle(fontSize: 14, height: 1.35);
+  static const supporting = TextStyle(
+    color: AppColors.muted,
+    fontSize: 12,
+    height: 1.3,
+  );
+  static const metric = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w900,
+    height: 1.15,
+  );
+}
+
 class AppTheme {
   static ThemeData get light {
     final scheme = ColorScheme.fromSeed(
@@ -36,13 +69,13 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.surface,
       fontFamily: 'Arial',
       textTheme: const TextTheme(
-        displaySmall: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
-        headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+        displaySmall: AppTextStyles.pageTitle,
+        headlineSmall: AppTextStyles.pageTitle,
         titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        bodyLarge: TextStyle(fontSize: 15),
-        bodyMedium: TextStyle(fontSize: 14),
-        bodySmall: TextStyle(fontSize: 12),
+        titleMedium: AppTextStyles.cardTitle,
+        bodyLarge: AppTextStyles.body,
+        bodyMedium: AppTextStyles.body,
+        bodySmall: AppTextStyles.supporting,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.greenDark,

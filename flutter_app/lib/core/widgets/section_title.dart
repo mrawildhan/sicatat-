@@ -15,11 +15,7 @@ class SectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            color: AppColors.ink,
-          ),
+          style: AppTextStyles.sectionTitle.copyWith(color: AppColors.ink),
         ),
         if (action != null) action!,
       ],

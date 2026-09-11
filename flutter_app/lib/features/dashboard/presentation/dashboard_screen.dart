@@ -486,10 +486,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
       children: <Widget>[
-        const Text(
-          'Profil',
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
-        ),
+        const Text('Profil', style: AppTextStyles.pageTitle),
         const SizedBox(height: 18),
         Card(
           child: Padding(
@@ -703,14 +700,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Akses cepat',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-        ),
+        const Text('Akses cepat', style: AppTextStyles.sectionTitle),
         const SizedBox(height: 4),
         const Text(
           'Pilih kelompok menu untuk melihat fitur di dalamnya.',
-          style: TextStyle(color: AppColors.muted, fontSize: 13),
+          style: AppTextStyles.supporting,
         ),
         const SizedBox(height: 8),
         _homeMenuCard(
@@ -772,22 +766,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    Text(title, style: AppTextStyles.cardTitle),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                      ),
+                      style: AppTextStyles.supporting,
                     ),
                   ],
                 ),
@@ -803,14 +788,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _homeMoreActions(BuildContext context, AppUser? user) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
-      const Text(
-        'Pengaturan & bantuan',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-      ),
+      const Text('Pengaturan & bantuan', style: AppTextStyles.sectionTitle),
       const SizedBox(height: 4),
       const Text(
         'Akses umum aplikasi di luar pekerjaan Suhu.',
-        style: TextStyle(color: AppColors.muted, fontSize: 13),
+        style: AppTextStyles.supporting,
       ),
       if (user?.role.canManageMasterData == true) ...<Widget>[
         const SizedBox(height: 8),
@@ -858,22 +840,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    Text(title, style: AppTextStyles.cardTitle),
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                      ),
+                      style: AppTextStyles.supporting,
                     ),
                   ],
                 ),

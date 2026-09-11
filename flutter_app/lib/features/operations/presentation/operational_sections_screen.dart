@@ -22,26 +22,10 @@ import '../../../data/services/preventive_maintenance_service.dart';
 import '../../auth/application/current_user_provider.dart';
 import 'budget_item_sections.dart';
 
-const TextStyle _budgetSectionTitleStyle = TextStyle(
-  fontSize: 18,
-  fontWeight: FontWeight.w900,
-);
-
-const TextStyle _budgetCardTitleStyle = TextStyle(
-  fontSize: 16,
-  fontWeight: FontWeight.w800,
-);
-
-const TextStyle _budgetLabelStyle = TextStyle(
-  color: AppColors.muted,
-  fontSize: 13,
-  height: 1.25,
-);
-
-const TextStyle _budgetAmountStyle = TextStyle(
-  fontSize: 19,
-  fontWeight: FontWeight.w900,
-);
+const TextStyle _budgetSectionTitleStyle = AppTextStyles.sectionTitle;
+const TextStyle _budgetCardTitleStyle = AppTextStyles.cardTitle;
+const TextStyle _budgetLabelStyle = AppTextStyles.supporting;
+const TextStyle _budgetAmountStyle = AppTextStyles.metric;
 
 class BudgetOverviewScreen extends StatefulWidget {
   const BudgetOverviewScreen({this.service, super.key});
@@ -491,20 +475,14 @@ class _MeetingMinutesScreenState extends ConsumerState<MeetingMinutesScreen> {
                       size: 28,
                     ),
                     SizedBox(width: 10),
-                    Text(
-                      'Notulen Rapat',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+                    Text('Notulen Rapat', style: AppTextStyles.pageTitle),
                   ],
                 ),
                 const SizedBox(height: 20),
               ],
               const Text(
                 'Notulen inspeksi dan rapat lapangan',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                style: AppTextStyles.sectionTitle,
               ),
               const SizedBox(height: 6),
               const Text(
@@ -604,13 +582,7 @@ class _OperationalSectionPage extends StatelessWidget {
                 children: <Widget>[
                   Icon(icon, color: AppColors.green, size: 28),
                   const SizedBox(width: 10),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
+                  Text(title, style: AppTextStyles.pageTitle),
                 ],
               ),
               const SizedBox(height: 20),
@@ -1139,10 +1111,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const Text(
-          'PM per crew & lokasi',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-        ),
+        const Text('PM per crew & lokasi', style: AppTextStyles.sectionTitle),
         const SizedBox(height: 5),
         const Text(
           'Pilih crew untuk membuka daftar PM layar penuh.',
@@ -1214,10 +1183,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Text(
-            'CM per lokasi',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-          ),
+          const Text('CM per lokasi', style: AppTextStyles.cardTitle),
           const SizedBox(height: 7),
           Row(
             children: <Widget>[
@@ -3276,13 +3242,7 @@ class _MeetingMinuteEditorScreenState
                           size: 28,
                         ),
                         const SizedBox(width: 10),
-                        Text(
-                          pageTitle,
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+                        Text(pageTitle, style: AppTextStyles.pageTitle),
                         const Spacer(),
                         if (_minute != null)
                           OutlinedButton.icon(

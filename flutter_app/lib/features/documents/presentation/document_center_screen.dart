@@ -118,10 +118,7 @@ class _DocumentCenterScreenState extends State<DocumentCenterScreen> {
               padding: EdgeInsets.fromLTRB(20, 18, 20, 2),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  'Pusat Dokumen',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-                ),
+                child: Text('Pusat Dokumen', style: AppTextStyles.pageTitle),
               ),
             ),
           Expanded(
@@ -133,14 +130,11 @@ class _DocumentCenterScreenState extends State<DocumentCenterScreen> {
                 120 + MediaQuery.paddingOf(context).bottom,
               ),
               children: <Widget>[
-                const Text(
-                  'Tanya dokumen',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-                ),
+                const Text('Tanya dokumen', style: AppTextStyles.sectionTitle),
                 const SizedBox(height: 6),
                 const Text(
                   'Contoh: Berapa minimal orang untuk pekerjaan sandblasting?',
-                  style: TextStyle(color: AppColors.muted),
+                  style: AppTextStyles.supporting,
                 ),
                 const SizedBox(height: 12),
                 TextField(

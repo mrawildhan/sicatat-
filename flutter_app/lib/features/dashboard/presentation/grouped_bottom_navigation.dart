@@ -191,10 +191,9 @@ class _NavigationGroupCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: compact ? 12 : 13,
+                style: AppTextStyles.cardTitle.copyWith(
+                  fontSize: compact ? 13 : 15,
                   height: 1.15,
-                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],

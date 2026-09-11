@@ -285,7 +285,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
     if (showLoading && mounted) setState(() => _loading = true);
     try {
       final String? email = _client.auth.currentUser?.email;
-      if (email == null) throw const FormatException('Tidak ada sesi pengguna aktif.');
+      if (email == null) {
+        throw const FormatException('Tidak ada sesi pengguna aktif.');
+      }
       final String nik = email.split('@').first;
       final List<Object> responses = await Future.wait<Object>(<Future<Object>>[
         _client
@@ -355,7 +357,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
         });
       }
     } on Object catch (error) {
-      if (mounted && showErrors) _message('Pengingat tidak dapat dimuat: $error');
+      if (mounted && showErrors) {
+        _message('Pengingat tidak dapat dimuat: $error');
+      }
     } finally {
       if (mounted && showLoading) setState(() => _loading = false);
     }
@@ -1904,10 +1908,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
           child: Row(
             children: <Widget>[
               const Expanded(
-                child: Text(
-                  'Pengingat',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-                ),
+                child: Text('Pengingat', style: AppTextStyles.pageTitle),
               ),
               IconButton(
                 tooltip: 'Filter pengingat',

@@ -4,11 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/operational_budget_models.dart';
 
-const TextStyle _budgetSheetLabelStyle = TextStyle(
-  color: AppColors.muted,
-  fontSize: 13,
-  height: 1.25,
-);
+const TextStyle _budgetSheetLabelStyle = AppTextStyles.supporting;
 
 const TextStyle _budgetSheetAmountStyle = TextStyle(
   fontSize: 14,

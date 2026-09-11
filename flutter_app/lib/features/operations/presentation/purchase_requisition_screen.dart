@@ -317,12 +317,7 @@ class _DesktopHeader extends StatelessWidget {
           size: 28,
         ),
         const SizedBox(width: 10),
-        const Expanded(
-          child: Text(
-            'Data PR',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-          ),
-        ),
+        const Expanded(child: Text('Data PR', style: AppTextStyles.pageTitle)),
         IconButton(
           tooltip: 'Perbarui data PR',
           onPressed: onRefresh,
