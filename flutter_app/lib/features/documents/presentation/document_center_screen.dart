@@ -17,6 +17,7 @@ class DocumentCenterScreen extends StatefulWidget {
 
 class _DocumentCenterScreenState extends State<DocumentCenterScreen> {
   final TextEditingController _question = TextEditingController();
+  String _questionValue = '';
   _DocumentAnswer? _answer;
   bool _asking = false;
 
@@ -39,7 +40,7 @@ class _DocumentCenterScreenState extends State<DocumentCenterScreen> {
   }
 
   Future<void> _ask() async {
-    final String question = _question.text.trim();
+    final String question = _questionValue.trim();
     if (question.length < 4 || _asking) return;
     setState(() {
       _asking = true;
@@ -146,6 +147,7 @@ class _DocumentCenterScreenState extends State<DocumentCenterScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _question,
+                  onChanged: (value) => _questionValue = value,
                   minLines: 2,
                   maxLines: 4,
                   textInputAction: TextInputAction.send,
