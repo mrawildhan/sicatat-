@@ -23,9 +23,10 @@ class PurchaseRequisitionScreen extends StatefulWidget {
 class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   final TextEditingController _searchController = TextEditingController();
   PurchaseRequisitionService? _service;
-  PurchaseRequisitionSnapshot? _snapshot;
   List<PurchaseRequisition> _items = const <PurchaseRequisition>[];
   PurchaseRequisitionSort _sort = PurchaseRequisitionSort.arrivalNewest;
+  int? _releaseYear;
+  int? _releaseMonth;
   Timer? _debounce;
   bool _loading = true;
   String? _error;
@@ -65,15 +66,11 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
         await service.synchronize();
         snapshot = await service.loadSnapshot();
       }
-      final String query = _searchController.text.trim();
-      final List<PurchaseRequisition> items = query.isEmpty
+      final List<PurchaseRequisition> items = !_hasSearchCriteria
           ? const <PurchaseRequisition>[]
-          : await service.search(query, sort: _sort);
+          : await _find(service);
       if (!mounted) return;
-      setState(() {
-        _snapshot = snapshot;
-        _items = items;
-      });
+      setState(() => _items = items);
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
@@ -87,7 +84,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   Future<void> _search() async {
     final PurchaseRequisitionService? service = _service;
     if (service == null) return;
-    if (_searchController.text.trim().isEmpty) {
+    if (!_hasSearchCriteria) {
       setState(() {
         _items = const <PurchaseRequisition>[];
         _loading = false;
@@ -97,10 +94,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
     }
     setState(() => _loading = true);
     try {
-      final List<PurchaseRequisition> items = await service.search(
-        _searchController.text,
-        sort: _sort,
-      );
+      final List<PurchaseRequisition> items = await _find(service);
       if (mounted) setState(() => _items = items);
     } on Object catch (error) {
       if (mounted) setState(() => _error = _message(error));
@@ -118,6 +112,45 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   void _setSort(PurchaseRequisitionSort sort) {
     if (_sort == sort) return;
     setState(() => _sort = sort);
+    _search();
+  }
+
+  bool get _hasSearchCriteria =>
+      _searchController.text.trim().isNotEmpty || _releaseYear != null;
+
+  Future<List<PurchaseRequisition>> _find(PurchaseRequisitionService service) =>
+      service.search(
+        _searchController.text,
+        sort: _sort,
+        releaseYear: _releaseYear,
+        releaseMonth: _releaseMonth,
+      );
+
+  String get _releasePeriodLabel {
+    if (_releaseYear == null) return 'Filter periode rilis';
+    if (_releaseMonth == null) return 'Tahun $_releaseYear';
+    return '${_monthName(_releaseMonth!)} $_releaseYear';
+  }
+
+  Future<void> _pickReleasePeriod() async {
+    final _ReleasePeriod? period = await showDialog<_ReleasePeriod>(
+      context: context,
+      builder: (BuildContext context) =>
+          _ReleasePeriodPicker(year: _releaseYear, month: _releaseMonth),
+    );
+    if (period == null || !mounted) return;
+    setState(() {
+      _releaseYear = period.year;
+      _releaseMonth = period.month;
+    });
+    await _search();
+  }
+
+  void _clearReleasePeriod() {
+    setState(() {
+      _releaseYear = null;
+      _releaseMonth = null;
+    });
     _search();
   }
 
@@ -160,8 +193,6 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
                         ? null
                         : () => _loadInitial(synchronizeSource: true),
                   ),
-                _SourceCard(snapshot: _snapshot),
-                const SizedBox(height: 16),
                 TextField(
                   controller: _searchController,
                   onChanged: _onQueryChanged,
@@ -184,10 +215,17 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
                           ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
+                _ReleasePeriodBar(
+                  label: _releasePeriodLabel,
+                  active: _releaseYear != null,
+                  onPressed: _pickReleasePeriod,
+                  onClear: _releaseYear == null ? null : _clearReleasePeriod,
+                ),
+                const SizedBox(height: 12),
                 _ResultHeading(
                   count: _items.length,
-                  query: _searchController.text,
+                  hasCriteria: _hasSearchCriteria,
                   sort: _sort,
                   onSortChanged: _setSort,
                 ),
@@ -227,7 +265,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
         ),
       );
     }
-    if (_searchController.text.trim().isEmpty) {
+    if (!_hasSearchCriteria) {
       return const Center(child: _SearchPrompt());
     }
     if (_items.isEmpty) {
@@ -295,72 +333,22 @@ class _DesktopHeader extends StatelessWidget {
   );
 }
 
-class _SourceCard extends StatelessWidget {
-  const _SourceCard({required this.snapshot});
-
-  final PurchaseRequisitionSnapshot? snapshot;
-
-  @override
-  Widget build(BuildContext context) {
-    final PurchaseRequisitionSnapshot? snapshot = this.snapshot;
-    return Card(
-      color: AppColors.mint,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: <Widget>[
-            const CircleAvatar(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.green,
-              child: Icon(Icons.inventory_2_outlined),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    snapshot == null
-                        ? 'Data PR sedang disiapkan'
-                        : '${_number(snapshot.rows)} data PR siap dicari',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    snapshot?.syncedAt == null
-                        ? 'Sumber: spreadsheet PR'
-                        : 'Diperbarui ${DateFormat('dd/MM/yyyy HH:mm').format(snapshot!.syncedAt!.toLocal())}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.muted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ResultHeading extends StatelessWidget {
   const _ResultHeading({
     required this.count,
-    required this.query,
+    required this.hasCriteria,
     required this.sort,
     required this.onSortChanged,
   });
 
   final int count;
-  final String query;
+  final bool hasCriteria;
   final PurchaseRequisitionSort sort;
   final ValueChanged<PurchaseRequisitionSort> onSortChanged;
 
   @override
   Widget build(BuildContext context) {
-    if (query.trim().isEmpty) {
+    if (!hasCriteria) {
       return Text(
         'Cari data PR',
         style: Theme.of(context).textTheme.titleMedium,
@@ -432,6 +420,164 @@ class _ResultHeading extends StatelessWidget {
   }
 }
 
+class _ReleasePeriodBar extends StatelessWidget {
+  const _ReleasePeriodBar({
+    required this.label,
+    required this.active,
+    required this.onPressed,
+    required this.onClear,
+  });
+
+  final String label;
+  final bool active;
+  final VoidCallback onPressed;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: <Widget>[
+      Expanded(
+        child: OutlinedButton.icon(
+          onPressed: onPressed,
+          icon: Icon(
+            Icons.calendar_month_outlined,
+            size: 19,
+            color: active ? AppColors.green : AppColors.muted,
+          ),
+          label: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: active ? AppColors.green : AppColors.muted,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            alignment: Alignment.centerLeft,
+            minimumSize: const Size.fromHeight(44),
+            side: BorderSide(color: active ? AppColors.green : AppColors.line),
+          ),
+        ),
+      ),
+      if (onClear != null) ...<Widget>[
+        const SizedBox(width: 6),
+        IconButton(
+          tooltip: 'Hapus filter periode',
+          onPressed: onClear,
+          icon: const Icon(Icons.close_rounded),
+        ),
+      ],
+    ],
+  );
+}
+
+class _ReleasePeriod {
+  const _ReleasePeriod({this.year, this.month});
+
+  final int? year;
+  final int? month;
+}
+
+class _ReleasePeriodPicker extends StatefulWidget {
+  const _ReleasePeriodPicker({required this.year, required this.month});
+
+  final int? year;
+  final int? month;
+
+  @override
+  State<_ReleasePeriodPicker> createState() => _ReleasePeriodPickerState();
+}
+
+class _ReleasePeriodPickerState extends State<_ReleasePeriodPicker> {
+  late int _year = widget.year ?? 0;
+  late int _month = widget.month ?? 0;
+
+  List<int> get _years => List<int>.generate(
+    DateTime.now().year - 2019,
+    (int index) => DateTime.now().year - index,
+  );
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Filter tanggal rilis',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 5),
+          const Text(
+            'Pilih tahun untuk melihat seluruh PR dalam setahun. Tambahkan bulan bila diperlukan.',
+            style: TextStyle(fontSize: 13, color: AppColors.muted),
+          ),
+          const SizedBox(height: 18),
+          DropdownButtonFormField<int>(
+            initialValue: _year,
+            decoration: const InputDecoration(labelText: 'Tahun rilis'),
+            items: <DropdownMenuItem<int>>[
+              const DropdownMenuItem<int>(value: 0, child: Text('Pilih tahun')),
+              ..._years.map(
+                (int year) =>
+                    DropdownMenuItem<int>(value: year, child: Text('$year')),
+              ),
+            ],
+            onChanged: (int? value) => setState(() {
+              _year = value ?? 0;
+              if (_year == 0) _month = 0;
+            }),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int>(
+            initialValue: _month,
+            decoration: const InputDecoration(labelText: 'Bulan rilis'),
+            items: <DropdownMenuItem<int>>[
+              const DropdownMenuItem<int>(value: 0, child: Text('Semua bulan')),
+              ...List<int>.generate(12, (int index) => index + 1).map(
+                (int month) => DropdownMenuItem<int>(
+                  value: month,
+                  child: Text(_monthName(month)),
+                ),
+              ),
+            ],
+            onChanged: _year == 0
+                ? null
+                : (int? value) => setState(() => _month = value ?? 0),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(context, const _ReleasePeriod()),
+                child: const Text('Hapus filter'),
+              ),
+              const Spacer(),
+              FilledButton(
+                onPressed: _year == 0
+                    ? null
+                    : () => Navigator.pop(
+                        context,
+                        _ReleasePeriod(
+                          year: _year,
+                          month: _month == 0 ? null : _month,
+                        ),
+                      ),
+                child: const Text('Tampilkan PR'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _SearchPrompt extends StatelessWidget {
   const _SearchPrompt();
 
@@ -456,7 +602,7 @@ class _SearchPrompt extends StatelessWidget {
           ),
           SizedBox(height: 5),
           Text(
-            'Gunakan No. PR, No. PO, deskripsi, atau referensi alat.',
+            'Gunakan kata kunci, atau pilih periode rilis untuk melihat daftar PR.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: AppColors.muted),
           ),
@@ -480,7 +626,7 @@ class _PurchaseRequisitionCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 15, 12, 14),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             const CircleAvatar(
               radius: 21,
@@ -494,20 +640,12 @@ class _PurchaseRequisitionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'PR ${item.noPr}',
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'No. PO: ${_display(item.noPo)}',
+                    'PR ${item.noPr}  |  PO ${_display(item.noPo)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.muted,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 6),
                   Text(
                     _display(item.description),
                     maxLines: 2,
@@ -544,10 +682,7 @@ class _PurchaseRequisitionCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Icon(Icons.chevron_right_rounded, color: AppColors.muted),
-            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
           ],
         ),
       ),
@@ -770,7 +905,20 @@ String _display(String? value) => _has(value) ? value!.trim() : '—';
 
 String _dateOrDash(DateTime? value) => value == null ? '—' : _date(value);
 
+String _monthName(int month) => const <String>[
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+][month - 1];
+
 String _date(DateTime value) =>
     DateFormat('dd/MM/yyyy').format(value.toLocal());
-
-String _number(int value) => NumberFormat.decimalPattern('id_ID').format(value);

@@ -49,24 +49,44 @@ class PurchaseRequisitionService {
   Future<List<PurchaseRequisition>> search(
     String query, {
     PurchaseRequisitionSort sort = PurchaseRequisitionSort.arrivalNewest,
+    int? releaseYear,
+    int? releaseMonth,
   }) async {
     final String value = _safeSearch(query);
+    final DateTime? releaseStart = releaseYear == null
+        ? null
+        : DateTime(releaseYear, releaseMonth ?? 1);
+    final DateTime? releaseEnd = releaseYear == null
+        ? null
+        : releaseMonth == null
+        ? DateTime(releaseYear + 1)
+        : DateTime(releaseYear, releaseMonth + 1);
     final Object response;
     if (value.isEmpty) {
-      response = await _client
-          .from('purchase_requisition')
-          .select(_fields)
+      var request = _client.from('purchase_requisition').select(_fields);
+      if (releaseStart != null && releaseEnd != null) {
+        request = request
+            .gte('release_date', releaseStart.toIso8601String())
+            .lt('release_date', releaseEnd.toIso8601String());
+      }
+      response = await request
           .order('closed_date', ascending: sort.ascending, nullsFirst: false)
           .order('release_date', ascending: sort.ascending, nullsFirst: false)
           .limit(60);
     } else {
-      response = await _client
+      var request = _client
           .from('purchase_requisition')
           .select(_fields)
           .or(
             'no_pr.ilike.%$value%,no_po.ilike.%$value%,'
             'description.ilike.%$value%,equip_ref.ilike.%$value%',
-          )
+          );
+      if (releaseStart != null && releaseEnd != null) {
+        request = request
+            .gte('release_date', releaseStart.toIso8601String())
+            .lt('release_date', releaseEnd.toIso8601String());
+      }
+      response = await request
           .order('closed_date', ascending: sort.ascending, nullsFirst: false)
           .order('release_date', ascending: sort.ascending, nullsFirst: false)
           .limit(60);
