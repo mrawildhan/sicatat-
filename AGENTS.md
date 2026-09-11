@@ -75,6 +75,22 @@
 
 This is the active handoff file for Codex. Follow it before editing.
 
+## Current continuation baseline — 2026-09-11
+
+This section overrides older release references in this handoff.
+
+- Current shared source is `origin/master`; current app version is
+  `2.8.33+12313` / `2.8.33`. Verify `flutter_app/pubspec.yaml`,
+  `AppConfig.appVersion`, and `git status` before editing.
+- The owner currently wants **website-first** delivery. Do not build, upload,
+  or publish Android unless the owner explicitly asks for Android. Keep one
+  Flutter source and do not intentionally diverge product behavior.
+- Read `docs/PROJECT_MEMORY.md` for current data integrations, typography
+  rules, Supabase free-storage constraints, and the required commit/push flow.
+- Every completed change must be committed and pushed to `origin/master` after
+  appropriate verification, so another computer can resume from the same
+  state.
+
 ## Current product and non-negotiable rules
 
 - Active app: `flutter_app/` (Flutter/Dart). The JavaScript/Capacitor files in the repository root are historical only.
