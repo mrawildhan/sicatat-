@@ -17,6 +17,7 @@ import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/dashboard/presentation/main_navigation_scaffold.dart';
 import 'features/documents/presentation/document_center_screen.dart';
 import 'features/documents/presentation/cost_code_reference_screen.dart';
+import 'features/documents/presentation/equipment_reference_screen.dart';
 import 'features/guide/presentation/crew_guide_screen.dart';
 import 'features/reminders/presentation/reminder_screen.dart';
 import 'features/operations/presentation/operational_sections_screen.dart';
@@ -299,6 +300,24 @@ final _router = GoRouter(
         child: MainNavigationScaffold(
           selectedTab: MainNavigationTab.costCodes,
           child: CostCodeReferenceScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/equipment-reference',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.equipmentReference,
+          child: EquipmentReferenceScreen(),
         ),
       ),
     ),

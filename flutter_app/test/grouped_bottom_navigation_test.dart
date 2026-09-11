@@ -4,7 +4,7 @@ import 'package:sicatat_flutter/features/dashboard/presentation/grouped_bottom_n
 
 void main() {
   testWidgets(
-    'menu referensi menyertakan gudang dan dokumen serta versi tanpa nama',
+    'menu referensi menyertakan gudang, dokumen, dan equipment serta versi tanpa nama',
     (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -28,6 +28,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Gudang'), findsOneWidget);
       expect(find.text('Pusat Dokumen'), findsOneWidget);
+      expect(find.text('Equipment Reference'), findsOneWidget);
       expect(find.byType(GridView), findsOneWidget);
       expect(find.byType(ListTile), findsNothing);
     },

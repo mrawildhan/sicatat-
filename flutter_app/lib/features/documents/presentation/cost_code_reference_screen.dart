@@ -74,22 +74,6 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
                 ),
                 const SizedBox(height: 16),
               ],
-              _GuideHero(onOpenGuide: _openGuide),
-              const SizedBox(height: 18),
-              const Text(
-                'Struktur cost code',
-                style: AppTextStyles.sectionTitle,
-              ),
-              const SizedBox(height: 5),
-              const Text(
-                'Gunakan lima segmen berikut untuk membaca atau menyusun cost code.',
-                style: AppTextStyles.supporting,
-              ),
-              const SizedBox(height: 10),
-              const _StructureCard(),
-              const SizedBox(height: 20),
-              const Text('Cari referensi', style: AppTextStyles.sectionTitle),
-              const SizedBox(height: 8),
               TextField(
                 controller: _searchController,
                 onChanged: (value) => setState(() => _query = value),
@@ -107,6 +91,12 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
                           },
                         ),
                 ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _openGuide,
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+                label: const Text('Unduh manual Cost Code (PDF)'),
               ),
               const SizedBox(height: 10),
               SingleChildScrollView(
@@ -151,116 +141,6 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
       ),
     );
   }
-}
-
-class _GuideHero extends StatelessWidget {
-  const _GuideHero({required this.onOpenGuide});
-
-  final VoidCallback onOpenGuide;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: AppColors.greenDark,
-      borderRadius: BorderRadius.circular(22),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: Colors.white.withValues(alpha: 0.16),
-              child: const Icon(
-                Icons.account_tree_outlined,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Cost Code',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Panduan struktur dan elemen biaya PT Arutmin Indonesia · Revisi 01 (2014).',
-          style: AppTextStyles.supporting.copyWith(
-            color: Colors.white.withValues(alpha: 0.78),
-          ),
-        ),
-        const SizedBox(height: 14),
-        OutlinedButton.icon(
-          onPressed: onOpenGuide,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.white,
-            side: const BorderSide(color: Colors.white54),
-          ),
-          icon: const Icon(Icons.picture_as_pdf_outlined),
-          label: const Text('Buka panduan PDF lengkap'),
-        ),
-      ],
-    ),
-  );
-}
-
-class _StructureCard extends StatelessWidget {
-  const _StructureCard();
-
-  @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        children: <Widget>[
-          const SelectableText(
-            'XX - XX - XXXX - XXX - XXXXX',
-            style: TextStyle(
-              color: AppColors.green,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.3,
-            ),
-          ),
-          const SizedBox(height: 14),
-          ..._structure.map(
-            (part) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: <Widget>[
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.mint,
-                    child: Text(
-                      part.number,
-                      style: const TextStyle(
-                        color: AppColors.green,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(part.label, style: AppTextStyles.cardTitle),
-                  ),
-                  Text(part.length, style: AppTextStyles.supporting),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 class _SearchPrompt extends StatelessWidget {
@@ -357,14 +237,6 @@ class _CostCodeCard extends StatelessWidget {
   );
 }
 
-class _StructurePart {
-  const _StructurePart(this.number, this.label, this.length);
-
-  final String number;
-  final String label;
-  final String length;
-}
-
 class _CostCodeEntry {
   const _CostCodeEntry(this.segment, this.code, this.description, this.icon);
 
@@ -387,14 +259,6 @@ const List<String> _segments = <String>[
   'Pit/Plant',
   'Activity',
   'Expense',
-];
-
-const List<_StructurePart> _structure = <_StructurePart>[
-  _StructurePart('1', 'Site', '2 digit'),
-  _StructurePart('2', 'Function', '2 digit'),
-  _StructurePart('3', 'Pit / Plant', '4 digit'),
-  _StructurePart('4', 'Activity', '3 digit'),
-  _StructurePart('5', 'Expense element', '5 digit'),
 ];
 
 const List<_CostCodeEntry> _costCodeEntries = <_CostCodeEntry>[

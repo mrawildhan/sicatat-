@@ -85,6 +85,13 @@ Future<void> openNavigationGroup(
         subtitle: 'Cari struktur dan elemen biaya',
         route: '/cost-codes',
       ),
+    if (!operational)
+      const _NavigationGroupOption(
+        icon: Icons.precision_manufacturing_outlined,
+        title: 'Equipment Reference',
+        subtitle: 'Cari unit Asam-Asam dan Kintap',
+        route: '/equipment-reference',
+      ),
   ];
   final route = await showModalBottomSheet<String>(
     context: context,
@@ -92,7 +99,9 @@ Future<void> openNavigationGroup(
     useSafeArea: true,
     builder: (sheetContext) {
       final bool tablet = MediaQuery.sizeOf(sheetContext).width >= 600;
-      final bool compactGrid = !tablet;
+      final bool compactGrid = operational
+          ? !tablet
+          : !tablet && options.length <= 3;
       return SafeArea(
         top: false,
         child: SizedBox(
@@ -104,6 +113,8 @@ Future<void> openNavigationGroup(
                   ? options.length > 6
                         ? 0.76
                         : 0.5
+                  : options.length > 3
+                  ? 0.58
                   : 0.4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,7 +258,10 @@ class GroupedBottomNavigation extends StatelessWidget {
       'purchaseRequisitions' ||
       'outstandingMaintenance' ||
       'meetingMinutes' => 'operational',
-      'warehouse' || 'documents' || 'costCodes' => 'reference',
+      'warehouse' ||
+      'documents' ||
+      'costCodes' ||
+      'equipmentReference' => 'reference',
       _ => selected,
     };
     final index = groups.indexOf(current);

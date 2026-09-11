@@ -67,6 +67,7 @@ tersebut agar pencarian cepat.
 | CM | `sync-corrective-maintenance` | CM dikelompokkan CPP/PORT, mempunyai pencarian nama/pekerjaan/aset/lokasi dan progres terakhir. |
 | Anggaran | `sync-operational-budget` | Asam-Asam, nilai USD, Januari–Juni 2026; budget CPP sheet `3271 (Mtc)`, PORT `3275 (Mtc)`. Data detail disimpan di `operational_budget_item` dan ringkasan bulan di `operational_budget_month`. |
 | Data PR | `sync-purchase-requisitions` | Snapshot `purchase_requisition`. Cari No. PR/PO/deskripsi/equipment reference; filter periode rilis tersedia. Urutan default dan pilihan urut menggunakan **No. PR terbaru/terlama**, bukan Close Date. Close Date tetap dipakai sebagai informasi barang datang. |
+| Referensi Equipment | Data Flutter terkompresi | Snapshot dari workbook Drive `Asamasam.xlsx` (121 unit) dan `Kintap.xlsx` (185 unit). Cari equipment reference, deskripsi, status, tipe, atau account code; tombol sumber Drive menjadi fallback saat data perlu diperbarui. |
 
 Sumber URL/ID spreadsheet yang aktif berada di masing-masing Edge Function
 `supabase/functions/sync-*`; jangan memindahkan URL ini ke Flutter.

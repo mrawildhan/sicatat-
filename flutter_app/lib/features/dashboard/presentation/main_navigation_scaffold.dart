@@ -24,6 +24,7 @@ enum MainNavigationTab {
   warehouse,
   documents,
   costCodes,
+  equipmentReference,
   profile,
 }
 
@@ -84,7 +85,8 @@ class MainNavigationScaffold extends ConsumerWidget {
           MainNavigationTab.meetingMinutes => MainNavigationTab.operational,
           MainNavigationTab.warehouse ||
           MainNavigationTab.documents ||
-          MainNavigationTab.costCodes => MainNavigationTab.reference,
+          MainNavigationTab.costCodes ||
+          MainNavigationTab.equipmentReference => MainNavigationTab.reference,
           _ => selectedTab,
         };
         final items = desktopItems;
@@ -145,6 +147,9 @@ class MainNavigationScaffold extends ConsumerWidget {
               return;
             case MainNavigationTab.costCodes:
               context.go('/cost-codes');
+              return;
+            case MainNavigationTab.equipmentReference:
+              context.go('/equipment-reference');
               return;
             case MainNavigationTab.profile:
               context.go('/dashboard?tab=profile');
