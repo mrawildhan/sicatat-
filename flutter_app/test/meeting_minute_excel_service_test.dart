@@ -137,19 +137,24 @@ void main() {
       expect(sheetXml, isNot(contains('panel-lvmdp.png')));
       expect(sheetXml, isNot(contains('screenshot-email.png')));
       expect(sheetXml, isNot(contains('bukti-pelatihan.png')));
-      expect(sheetXml, contains('<mergeCell ref="A15:A17"/>'));
-      expect(sheetXml, contains('<mergeCell ref="B15:B17"/>'));
+      expect(sheetXml, contains('<c r="A15" s="6"'));
+      expect(sheetXml, contains('<c r="B15" s="6"'));
+      expect(sheetXml, contains('<mergeCell ref="A16:A17"/>'));
+      expect(sheetXml, contains('<mergeCell ref="B16:B17"/>'));
       expect(sheetXml, contains('width="18"'));
       expect(
         utf8.decode(files['xl/drawings/drawing1.xml']!.content),
-        allOf(
+        allOf(<Matcher>[
           contains('Foto pembahasan 1'),
           contains('Foto pembahasan 2'),
+          contains('<xdr:oneCellAnchor>'),
           contains('<xdr:col>3</xdr:col>'),
           contains('<xdr:row>14</xdr:row>'),
           contains('<xdr:row>15</xdr:row>'),
           contains('<xdr:row>16</xdr:row>'),
-        ),
+          contains('<xdr:ext cx="'),
+          isNot(contains('<a:ext cx="0" cy="0"/>')),
+        ]),
       );
       expect(
         files.keys,

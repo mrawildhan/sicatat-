@@ -1,5 +1,6 @@
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as image;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/meeting_minute_models.dart';
@@ -348,98 +349,81 @@ class MeetingMinuteExcelService {
       sheet.cell(column, 14, headers[column], 5);
     }
     final List<_XlsxPhoto> workbookPhotos = <_XlsxPhoto>[];
-    int actionIndex = 0;
     int row = 15;
-    int issueNumber = 1;
-    while (actionIndex < actions.length) {
-      final String issue = _issueText(actions[actionIndex]);
-      final int groupStart = row;
-      int groupEnd = row;
-      do {
-        final MeetingMinuteAction action = actions[actionIndex];
-        final List<MeetingMinuteExportPhoto> actionPhotos = action.id == null
-            ? const <MeetingMinuteExportPhoto>[]
-            : (photosByActionId[action.id!] ??
-                  const <MeetingMinuteExportPhoto>[]);
-        final int actionRow = row;
-        final int actionEndRow =
-            actionRow + (actionPhotos.isEmpty ? 0 : actionPhotos.length - 1);
-        final double actionHeight = _actionHeight(action);
-        sheet.cell(
-          2,
-          actionRow,
-          _displayValue(action.subjectDiscussion),
-          6,
-          height: actionPhotos.isEmpty
-              ? actionHeight
-              : actionHeight < 108
-              ? 108
-              : actionHeight,
-        );
-        if (actionPhotos.isEmpty) {
-          sheet.cell(3, actionRow, 'Tidak ada foto', 6);
-        } else {
-          for (
-            int photoIndex = 0;
-            photoIndex < actionPhotos.length;
-            photoIndex++
-          ) {
-            final int photoRow = actionRow + photoIndex;
-            sheet.cell(
-              3,
-              photoRow,
-              '',
-              6,
-              height: photoIndex == 0 ? null : 108,
-            );
-            workbookPhotos.add(
-              _XlsxPhoto(
-                row: photoRow - 1,
-                column: 3,
-                extension: actionPhotos[photoIndex].mimeType == 'image/png'
-                    ? 'png'
-                    : 'jpg',
-                bytes: actionPhotos[photoIndex].bytes,
-              ),
-            );
-          }
+    for (int actionIndex = 0; actionIndex < actions.length; actionIndex++) {
+      final MeetingMinuteAction action = actions[actionIndex];
+      final List<MeetingMinuteExportPhoto> actionPhotos = action.id == null
+          ? const <MeetingMinuteExportPhoto>[]
+          : (photosByActionId[action.id!] ??
+                const <MeetingMinuteExportPhoto>[]);
+      final int actionRow = row;
+      final int actionEndRow =
+          actionRow + (actionPhotos.isEmpty ? 0 : actionPhotos.length - 1);
+      final double actionHeight = _actionHeight(action);
+      sheet.cell(
+        2,
+        actionRow,
+        _displayValue(action.subjectDiscussion),
+        6,
+        height: actionPhotos.isEmpty
+            ? actionHeight
+            : actionHeight < 108
+            ? 108
+            : actionHeight,
+      );
+      if (actionPhotos.isEmpty) {
+        sheet.cell(3, actionRow, 'Tidak ada foto', 6);
+      } else {
+        for (
+          int photoIndex = 0;
+          photoIndex < actionPhotos.length;
+          photoIndex++
+        ) {
+          final int photoRow = actionRow + photoIndex;
+          sheet.cell(3, photoRow, '', 6, height: photoIndex == 0 ? null : 108);
+          workbookPhotos.add(
+            _XlsxPhoto.fromBytes(
+              row: photoRow - 1,
+              column: 3,
+              extension: actionPhotos[photoIndex].mimeType == 'image/png'
+                  ? 'png'
+                  : 'jpg',
+              bytes: actionPhotos[photoIndex].bytes,
+            ),
+          );
         }
-        _mergeOrCell(
-          sheet,
-          4,
-          actionRow,
-          actionEndRow,
-          _date(action.itemDate, fallback: 'Belum ditentukan'),
-        );
-        _mergeOrCell(
-          sheet,
-          5,
-          actionRow,
-          actionEndRow,
-          _date(action.dueDate, fallback: 'Belum ditentukan'),
-        );
-        _mergeOrCell(
-          sheet,
-          6,
-          actionRow,
-          actionEndRow,
-          _displayValue(action.assignedTo),
-        );
-        _mergeOrCell(
-          sheet,
-          7,
-          actionRow,
-          actionEndRow,
-          _displayValue(action.progressRemark),
-        );
-        row = actionEndRow + 1;
-        groupEnd = actionEndRow;
-        actionIndex++;
-      } while (actionIndex < actions.length &&
-          _issueText(actions[actionIndex]) == issue);
-      _mergeOrCell(sheet, 0, groupStart, groupEnd, '$issueNumber');
-      _mergeOrCell(sheet, 1, groupStart, groupEnd, issue);
-      issueNumber++;
+      }
+      _mergeOrCell(sheet, 0, actionRow, actionEndRow, '${actionIndex + 1}');
+      _mergeOrCell(sheet, 1, actionRow, actionEndRow, _issueText(action));
+      _mergeOrCell(
+        sheet,
+        4,
+        actionRow,
+        actionEndRow,
+        _date(action.itemDate, fallback: 'Belum ditentukan'),
+      );
+      _mergeOrCell(
+        sheet,
+        5,
+        actionRow,
+        actionEndRow,
+        _date(action.dueDate, fallback: 'Belum ditentukan'),
+      );
+      _mergeOrCell(
+        sheet,
+        6,
+        actionRow,
+        actionEndRow,
+        _displayValue(action.assignedTo),
+      );
+      _mergeOrCell(
+        sheet,
+        7,
+        actionRow,
+        actionEndRow,
+        _displayValue(action.progressRemark),
+      );
+      row = actionEndRow + 1;
     }
     final int noteRow = row + 1;
     sheet.merge(
@@ -622,7 +606,7 @@ class MeetingMinuteExcelService {
     for (int index = 0; index < photos.length; index++) {
       final _XlsxPhoto photo = photos[index];
       anchors.write(
-        '''<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>${photo.column}</xdr:col><xdr:colOff>114300</xdr:colOff><xdr:row>${photo.row}</xdr:row><xdr:rowOff>114300</xdr:rowOff></xdr:from><xdr:to><xdr:col>${photo.column + 1}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${photo.row + 1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${index + 1}" name="Foto pembahasan ${index + 1}"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${index + 1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:twoCellAnchor>''',
+        '''<xdr:oneCellAnchor><xdr:from><xdr:col>${photo.column}</xdr:col><xdr:colOff>${photo.leftOffsetEmu}</xdr:colOff><xdr:row>${photo.row}</xdr:row><xdr:rowOff>152400</xdr:rowOff></xdr:from><xdr:ext cx="${photo.widthEmu}" cy="${photo.heightEmu}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${index + 1}" name="Foto pembahasan ${index + 1}"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${index + 1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${photo.widthEmu}" cy="${photo.heightEmu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>''',
       );
     }
     return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -631,17 +615,59 @@ class MeetingMinuteExcelService {
 }
 
 class _XlsxPhoto {
-  const _XlsxPhoto({
+  const _XlsxPhoto._({
     required this.row,
     required this.column,
     required this.extension,
     required this.bytes,
+    required this.widthEmu,
+    required this.heightEmu,
+    required this.leftOffsetEmu,
   });
+
+  factory _XlsxPhoto.fromBytes({
+    required int row,
+    required int column,
+    required String extension,
+    required Uint8List bytes,
+  }) {
+    image.Image? decoded;
+    try {
+      decoded = image.decodeImage(bytes);
+    } on Object {
+      // The export still keeps legacy image bytes; a neutral 4:3 frame is
+      // safer than failing the entire workbook when their metadata is invalid.
+      decoded = null;
+    }
+    final int sourceWidth = decoded?.width ?? 4;
+    final int sourceHeight = decoded?.height ?? 3;
+    const int maxWidthPx = 180;
+    const int maxHeightPx = 108;
+    final double scale =
+        (maxWidthPx / sourceWidth) < (maxHeightPx / sourceHeight)
+        ? maxWidthPx / sourceWidth
+        : maxHeightPx / sourceHeight;
+    final int widthPx = (sourceWidth * scale).round().clamp(1, maxWidthPx);
+    final int heightPx = (sourceHeight * scale).round().clamp(1, maxHeightPx);
+    const int columnWidthPx = 202;
+    return _XlsxPhoto._(
+      row: row,
+      column: column,
+      extension: extension,
+      bytes: bytes,
+      widthEmu: widthPx * 9525,
+      heightEmu: heightPx * 9525,
+      leftOffsetEmu: ((columnWidthPx - widthPx) ~/ 2) * 9525,
+    );
+  }
 
   final int row;
   final int column;
   final String extension;
   final Uint8List bytes;
+  final int widthEmu;
+  final int heightEmu;
+  final int leftOffsetEmu;
 }
 
 class _XlsxSheet {
