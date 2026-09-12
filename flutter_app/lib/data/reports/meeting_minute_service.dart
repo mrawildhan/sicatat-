@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/meeting_minute_models.dart';
 import '../models/sicatat_types.dart';
+import 'meeting_minute_photo_compressor.dart';
 
 class MeetingMinuteService {
   MeetingMinuteService(this._client);
@@ -179,9 +180,10 @@ class MeetingMinuteService {
         'Setiap action plan maksimal dapat memiliki dua foto.',
       );
     }
-    final String extension = _imageExtension(fileName);
-    final String mimeType = extension == 'png' ? 'image/png' : 'image/jpeg';
-    final String safeName = fileName.replaceAll(
+    _imageExtension(fileName);
+    final CompressedMeetingMinutePhoto compressed =
+        MeetingMinutePhotoCompressor.compress(bytes: bytes, fileName: fileName);
+    final String safeName = compressed.fileName.replaceAll(
       RegExp(r'[^a-zA-Z0-9._-]'),
       '-',
     );
@@ -191,8 +193,11 @@ class MeetingMinuteService {
         .from(photoBucket)
         .uploadBinary(
           storagePath,
-          bytes,
-          fileOptions: FileOptions(contentType: mimeType, upsert: false),
+          compressed.bytes,
+          fileOptions: const FileOptions(
+            contentType: CompressedMeetingMinutePhoto.mimeType,
+            upsert: false,
+          ),
         );
     try {
       final Object response = await _client
@@ -201,8 +206,8 @@ class MeetingMinuteService {
             'meeting_minute_action_id': actionId,
             'storage_path': storagePath,
             'file_name': safeName,
-            'mime_type': mimeType,
-            'size_bytes': bytes.lengthInBytes,
+            'mime_type': CompressedMeetingMinutePhoto.mimeType,
+            'size_bytes': compressed.bytes.lengthInBytes,
           })
           .select(
             'id,meeting_minute_action_id,storage_path,file_name,mime_type,position',
@@ -379,12 +384,11 @@ class MeetingMinuteExcelService {
             photoIndex < actionPhotos.length;
             photoIndex++
           ) {
-            final MeetingMinuteExportPhoto photo = actionPhotos[photoIndex];
             final int photoRow = actionRow + photoIndex;
             sheet.cell(
               3,
               photoRow,
-              'Foto ${photoIndex + 1}: ${photo.fileName}',
+              '',
               6,
               height: photoIndex == 0 ? null : 108,
             );
@@ -392,8 +396,10 @@ class MeetingMinuteExcelService {
               _XlsxPhoto(
                 row: photoRow - 1,
                 column: 3,
-                extension: photo.mimeType == 'image/png' ? 'png' : 'jpg',
-                bytes: photo.bytes,
+                extension: actionPhotos[photoIndex].mimeType == 'image/png'
+                    ? 'png'
+                    : 'jpg',
+                bytes: actionPhotos[photoIndex].bytes,
               ),
             );
           }

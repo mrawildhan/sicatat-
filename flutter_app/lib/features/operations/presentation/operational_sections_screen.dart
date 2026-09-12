@@ -3144,7 +3144,7 @@ class _MeetingMinuteEditorScreenState
       final MeetingMinute updated = await _service.loadOne(minute.id);
       if (!mounted) return;
       _applyMinute(updated);
-      _message('Foto pembahasan ditambahkan.');
+      _message('Foto dikompres otomatis lalu ditambahkan.');
     } on Object catch (error) {
       if (mounted) _message('Foto tidak dapat ditambahkan. $error');
     } finally {
@@ -3798,7 +3798,7 @@ class _ActionEditor extends StatelessWidget {
       ),
       if (action.photos.isEmpty)
         const Text(
-          'Simpan sebagai draf terlebih dahulu. Tambahkan 1 atau 2 foto bila perlu sebagai bukti.',
+          'Simpan sebagai draf terlebih dahulu. Foto JPG/JPEG/PNG akan dikompres otomatis sebelum disimpan.',
           style: TextStyle(fontSize: 12, color: AppColors.muted),
         )
       else
