@@ -86,6 +86,12 @@ Sumber URL/ID spreadsheet yang aktif berada di masing-masing Edge Function
 
 ### Ekspor Excel MOM
 
+- Modul Meeting Minutes menggunakan label/pesan Inggris termasuk metadata
+  Excel. Isi bebas pengguna tidak diterjemahkan otomatis.
+- Due date opsional saat menyelesaikan MOM; kosong ditampilkan `Not set`.
+- Kolom A, D, E, F, G, H rata tengah; B/C rata kiri. Foto dipusatkan
+  horizontal dan vertikal dalam tinggi barisnya.
+
 - SpreadsheetML memakai atribut tinggi baris `ht`, bukan `height`. Atribut
   salah diabaikan Excel dan membuat foto melampaui baris.
 - Sel harus diserialisasi berurutan A sampai H; urutan pembuatan sel di kode

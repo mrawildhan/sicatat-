@@ -127,17 +127,17 @@ void main() {
       expect(sheetXml, contains('Pelatihan penggantian ban telah dilakukan.'));
       expect(sheetXml, contains('Issues Description'));
       expect(sheetXml, contains('Action Plan'));
-      expect(sheetXml, contains('Foto'));
+      expect(sheetXml, contains('Photos'));
       expect(sheetXml, contains('Progress /\nRemark'));
-      expect(sheetXml, contains('Tindak lanjut dari'));
+      expect(sheetXml, contains('Follow-up of'));
       expect(
         sheetXml,
-        contains('MOM Ban Bocor Kendaraan Ringan (23 Januari 2026)'),
+        contains('MOM Ban Bocor Kendaraan Ringan (23 January 2026)'),
       );
       expect(sheetXml, isNot(contains('panel-lvmdp.png')));
       expect(sheetXml, isNot(contains('screenshot-email.png')));
       expect(sheetXml, isNot(contains('bukti-pelatihan.png')));
-      expect(sheetXml, contains('<c r="A15" s="6"'));
+      expect(sheetXml, contains('<c r="A15" s="7"'));
       expect(sheetXml, contains('<row r="1" ht="60.0" customHeight="1">'));
       expect(sheetXml, contains('<row r="15" ht="126.0" customHeight="1">'));
       expect(sheetXml, isNot(contains(' height="')));
@@ -146,7 +146,7 @@ void main() {
         lessThan(sheetXml.indexOf('<c r="C15"')),
       );
       expect(sheetXml, contains('<c r="B15" s="6"'));
-      expect(sheetXml, contains('<c r="A16" s="6"'));
+      expect(sheetXml, contains('<c r="A16" s="7"'));
       expect(sheetXml, contains('<c r="B16" s="6"'));
       expect(sheetXml, isNot(contains('<mergeCell ref="A16:A17"/>')));
       expect(sheetXml, isNot(contains('<mergeCell ref="B16:B17"/>')));

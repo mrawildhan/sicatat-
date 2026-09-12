@@ -21,7 +21,7 @@ class MeetingMinutePhotoCompressor {
     final image.Image? decoded = image.decodeImage(bytes);
     if (decoded == null) {
       throw const FormatException(
-        'Foto JPG, JPEG, atau PNG tidak dapat dibaca.',
+        'Unable to read the JPG, JPEG or PNG photo.',
       );
     }
     image.Image normalized = image.bakeOrientation(decoded);

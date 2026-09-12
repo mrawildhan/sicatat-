@@ -9,8 +9,8 @@ extension MeetingMinuteStatusX on MeetingMinuteStatus {
   };
 
   String get label => switch (this) {
-    MeetingMinuteStatus.draft => 'Draf',
-    MeetingMinuteStatus.completed => 'Selesai',
+    MeetingMinuteStatus.draft => 'Draft',
+    MeetingMinuteStatus.completed => 'Completed',
   };
 
   static MeetingMinuteStatus fromStorage(String value) => switch (value) {

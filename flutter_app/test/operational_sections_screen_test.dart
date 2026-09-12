@@ -95,10 +95,10 @@ void main() {
   testWidgets('tampilan awal MOM menjelaskan alur draf', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: MeetingMinutesScreen()));
 
-    expect(find.text('Notulen Rapat'), findsOneWidget);
-    expect(find.text('Belum ada notulen'), findsOneWidget);
-    expect(find.text('Draf  0'), findsOneWidget);
-    expect(find.text('Buat notulen'), findsOneWidget);
+    expect(find.text('Meeting Minutes'), findsOneWidget);
+    expect(find.text('No meeting minutes yet'), findsOneWidget);
+    expect(find.text('Draft  0'), findsOneWidget);
+    expect(find.text('Create minutes'), findsOneWidget);
   });
 
   testWidgets('permintaan barang dapat difilter dari ringkasan status', (

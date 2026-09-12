@@ -21,7 +21,7 @@ class MeetingMinuteService {
         .select(_select)
         .order('updated_at', ascending: false);
     if (response is! List) {
-      throw const FormatException('Data notulen yang diterima tidak valid.');
+      throw const FormatException('Invalid meeting minutes data.');
     }
     return response
         .map(
@@ -166,10 +166,10 @@ class MeetingMinuteService {
     required String fileName,
   }) async {
     if (bytes.isEmpty) {
-      throw const FormatException('Berkas foto tidak berisi data.');
+      throw const FormatException('The photo file is empty.');
     }
     if (bytes.lengthInBytes > 8 * 1024 * 1024) {
-      throw const FormatException('Ukuran foto maksimal 8 MB.');
+      throw const FormatException('Maximum photo size is 8 MB.');
     }
     final Object existing = await _client
         .from('meeting_minute_action_photo')
@@ -178,7 +178,7 @@ class MeetingMinuteService {
         .limit(2);
     if (existing is List && existing.length >= 2) {
       throw const FormatException(
-        'Setiap action plan maksimal dapat memiliki dua foto.',
+        'Each action plan supports up to two photos.',
       );
     }
     _imageExtension(fileName);
@@ -278,7 +278,7 @@ class MeetingMinuteService {
     if (normalized.endsWith('.jpg') || normalized.endsWith('.jpeg')) {
       return 'jpg';
     }
-    throw const FormatException('Gunakan foto JPG, JPEG, atau PNG.');
+    throw const FormatException('Use a JPG, JPEG or PNG photo.');
   }
 }
 
@@ -321,25 +321,25 @@ class MeetingMinuteExcelService {
     }
     sheet.merge(
       'A1:H1',
-      minute.title.isEmpty ? 'NOTULEN RAPAT' : minute.title,
+      minute.title.isEmpty ? 'MEETING MINUTES' : minute.title,
       1,
       60,
     );
-    sheet.metadata(3, 'Tanggal & waktu', _meetingTime(minute));
-    sheet.metadata(4, 'Lokasi', minute.location);
-    sheet.metadata(5, 'Peserta', minute.attendees);
-    sheet.metadata(6, 'Berhalangan hadir', minute.apologies);
-    sheet.metadata(7, 'Pencatat notulen', minute.minuteTaker);
-    sheet.metadata(8, 'Distribusi', minute.distributionList);
-    sheet.metadata(9, 'Agenda baru', minute.newBusinessAgenda);
-    sheet.metadata(10, 'Diajukan oleh', minute.proposedBy);
-    sheet.metadata(11, 'Tindak lanjut dari', _followUpText(minute));
+    sheet.metadata(3, 'Date & time', _meetingTime(minute));
+    sheet.metadata(4, 'Location', minute.location);
+    sheet.metadata(5, 'Attendees', minute.attendees);
+    sheet.metadata(6, 'Apologies', minute.apologies);
+    sheet.metadata(7, 'Minute taker', minute.minuteTaker);
+    sheet.metadata(8, 'Distribution', minute.distributionList);
+    sheet.metadata(9, 'New business', minute.newBusinessAgenda);
+    sheet.metadata(10, 'Proposed by', minute.proposedBy);
+    sheet.metadata(11, 'Follow-up of', _followUpText(minute));
     sheet.merge('A13:H13', 'ACTION PLAN', 4, 22);
     const List<String> headers = <String>[
       'No.',
       'Issues Description',
       'Action Plan',
-      'Foto',
+      'Photos',
       'Date\nRaised',
       'Due\nDate',
       'Resp.\nPerson',
@@ -374,7 +374,7 @@ class MeetingMinuteExcelService {
         height: actionHeight,
       );
       if (actionPhotos.isEmpty) {
-        sheet.cell(3, actionRow, 'Tidak ada foto', 6);
+        sheet.cell(3, actionRow, 'No photo', 7);
       } else {
         for (
           int photoIndex = 0;
@@ -382,7 +382,7 @@ class MeetingMinuteExcelService {
           photoIndex++
         ) {
           if (photoIndex == 0) {
-            sheet.cell(3, actionRow, '', 6);
+            sheet.cell(3, actionRow, '', 7);
           }
           workbookPhotos.add(
             _XlsxPhoto.fromBytes(
@@ -390,6 +390,7 @@ class MeetingMinuteExcelService {
               column: 3,
               slotIndex: photoIndex,
               slotCount: actionPhotos.length,
+              rowHeight: actionHeight,
               extension: actionPhotos[photoIndex].mimeType == 'image/png'
                   ? 'png'
                   : 'jpg',
@@ -398,30 +399,18 @@ class MeetingMinuteExcelService {
           );
         }
       }
-      sheet.cell(0, actionRow, '${actionIndex + 1}', 6);
+      sheet.cell(0, actionRow, '${actionIndex + 1}', 7);
       sheet.cell(1, actionRow, _issueText(action), 6);
-      sheet.cell(
-        4,
-        actionRow,
-        _date(action.itemDate, fallback: 'Belum ditentukan'),
-        6,
-      );
-      sheet.cell(
-        5,
-        actionRow,
-        _date(action.dueDate, fallback: 'Belum ditentukan'),
-        6,
-      );
-      sheet.cell(6, actionRow, _displayValue(action.assignedTo), 6);
-      sheet.cell(7, actionRow, _displayValue(action.progressRemark), 6);
+      sheet.cell(4, actionRow, _date(action.itemDate, fallback: 'Not set'), 7);
+      sheet.cell(5, actionRow, _date(action.dueDate, fallback: 'Not set'), 7);
+      sheet.cell(6, actionRow, _displayValue(action.assignedTo), 7);
+      sheet.cell(7, actionRow, _displayValue(action.progressRemark), 7);
       row = actionRow + 1;
     }
     final int noteRow = row + 1;
     sheet.merge(
       'A$noteRow:H$noteRow',
-      minute.note.trim().isEmpty
-          ? 'CATATAN: —'
-          : 'CATATAN: ${minute.note.trim()}',
+      minute.note.trim().isEmpty ? 'NOTES: —' : 'NOTES: ${minute.note.trim()}',
       3,
       42,
     );
@@ -494,7 +483,7 @@ class MeetingMinuteExcelService {
     final MeetingMinuteReference? source = minute.followUpSource;
     if (source == null) return '—';
     final String title = source.title.trim().isEmpty
-        ? 'Notulen sebelumnya'
+        ? 'Previous minutes'
         : source.title.trim();
     final String date = _date(source.meetingDate, format: 'd MMMM y');
     return date.isEmpty ? title : '$title ($date)';
@@ -504,11 +493,11 @@ class MeetingMinuteExcelService {
     final String issue = action.issueDescription.trim();
     if (issue.isNotEmpty) return issue;
     final String actionPlan = action.subjectDiscussion.trim();
-    return actionPlan.isEmpty ? 'Belum diisi' : actionPlan;
+    return actionPlan.isEmpty ? 'Not specified' : actionPlan;
   }
 
   static String _displayValue(String value) =>
-      value.trim().isEmpty ? 'Belum diisi' : value.trim();
+      value.trim().isEmpty ? 'Not specified' : value.trim();
 
   static double _actionHeight(MeetingMinuteAction action) {
     int estimatedLines(String text, int charactersPerLine) =>
@@ -530,18 +519,18 @@ class MeetingMinuteExcelService {
     if (value == null) return fallback;
     if (format == 'd MMMM y') {
       const List<String> months = <String>[
-        'Januari',
-        'Februari',
-        'Maret',
+        'January',
+        'February',
+        'March',
         'April',
-        'Mei',
-        'Juni',
-        'Juli',
-        'Agustus',
+        'May',
+        'June',
+        'July',
+        'August',
         'September',
-        'Oktober',
+        'October',
         'November',
-        'Desember',
+        'December',
       ];
       return '${value.day} ${months[value.month - 1]} ${value.year}';
     }
@@ -567,7 +556,7 @@ class MeetingMinuteExcelService {
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>''';
   static const String _styles =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="22"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Arial"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B3D2E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F3ED"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF19735B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf></cellXfs></styleSheet>''';
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="22"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Arial"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B3D2E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F3ED"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF19735B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="8"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf></cellXfs></styleSheet>''';
 
   static const String _sheetRelationships =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -582,7 +571,7 @@ class MeetingMinuteExcelService {
     for (int index = 0; index < photos.length; index++) {
       final _XlsxPhoto photo = photos[index];
       anchors.write(
-        '''<xdr:oneCellAnchor><xdr:from><xdr:col>${photo.column}</xdr:col><xdr:colOff>${photo.leftOffsetEmu}</xdr:colOff><xdr:row>${photo.row}</xdr:row><xdr:rowOff>152400</xdr:rowOff></xdr:from><xdr:ext cx="${photo.widthEmu}" cy="${photo.heightEmu}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${index + 1}" name="Foto pembahasan ${index + 1}"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${index + 1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${photo.widthEmu}" cy="${photo.heightEmu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>''',
+        '''<xdr:oneCellAnchor><xdr:from><xdr:col>${photo.column}</xdr:col><xdr:colOff>${photo.leftOffsetEmu}</xdr:colOff><xdr:row>${photo.row}</xdr:row><xdr:rowOff>${photo.topOffsetEmu}</xdr:rowOff></xdr:from><xdr:ext cx="${photo.widthEmu}" cy="${photo.heightEmu}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${index + 1}" name="Foto pembahasan ${index + 1}"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${index + 1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${photo.widthEmu}" cy="${photo.heightEmu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>''',
       );
     }
     return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -599,6 +588,7 @@ class _XlsxPhoto {
     required this.widthEmu,
     required this.heightEmu,
     required this.leftOffsetEmu,
+    required this.topOffsetEmu,
   });
 
   factory _XlsxPhoto.fromBytes({
@@ -606,6 +596,7 @@ class _XlsxPhoto {
     required int column,
     required int slotIndex,
     required int slotCount,
+    required double rowHeight,
     required String extension,
     required Uint8List bytes,
   }) {
@@ -650,6 +641,7 @@ class _XlsxPhoto {
       widthEmu: widthPx * 9525,
       heightEmu: heightPx * 9525,
       leftOffsetEmu: leftPx * 9525,
+      topOffsetEmu: (((rowHeight * 4 / 3) - heightPx) / 2).round() * 9525,
     );
   }
 
@@ -660,6 +652,7 @@ class _XlsxPhoto {
   final int widthEmu;
   final int heightEmu;
   final int leftOffsetEmu;
+  final int topOffsetEmu;
 }
 
 class _XlsxSheet {
