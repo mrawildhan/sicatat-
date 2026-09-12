@@ -314,7 +314,7 @@ class MeetingMinuteExcelService {
       }
     }
     sheet.merge(
-      'A1:G1',
+      'A1:H1',
       minute.title.isEmpty ? 'NOTULEN RAPAT' : minute.title,
       1,
       30,
@@ -328,11 +328,12 @@ class MeetingMinuteExcelService {
     sheet.metadata(9, 'Agenda baru', minute.newBusinessAgenda);
     sheet.metadata(10, 'Diajukan oleh', minute.proposedBy);
     sheet.metadata(11, 'Tindak lanjut dari', _followUpText(minute));
-    sheet.merge('A13:G13', 'ACTION PLAN', 4, 22);
+    sheet.merge('A13:H13', 'ACTION PLAN', 4, 22);
     const List<String> headers = <String>[
       'No.',
       'Issues Description',
       'Action Plan',
+      'Foto',
       'Date\nRaised',
       'Due\nDate',
       'Resp.\nPerson',
@@ -356,36 +357,75 @@ class MeetingMinuteExcelService {
             : (photosByActionId[action.id!] ??
                   const <MeetingMinuteExportPhoto>[]);
         final int actionRow = row;
-        final int actionEndRow = actionRow + actionPhotos.length;
+        final int actionEndRow =
+            actionRow + (actionPhotos.isEmpty ? 0 : actionPhotos.length - 1);
         final double actionHeight = _actionHeight(action);
         sheet.cell(
           2,
           actionRow,
-          action.subjectDiscussion,
+          _displayValue(action.subjectDiscussion),
           6,
-          height: actionHeight,
+          height: actionPhotos.isEmpty
+              ? actionHeight
+              : actionHeight < 108
+              ? 108
+              : actionHeight,
         );
-        _mergeOrCell(sheet, 3, actionRow, actionEndRow, _date(action.itemDate));
-        _mergeOrCell(sheet, 4, actionRow, actionEndRow, _date(action.dueDate));
-        _mergeOrCell(sheet, 5, actionRow, actionEndRow, action.assignedTo);
-        _mergeOrCell(sheet, 6, actionRow, actionEndRow, action.progressRemark);
-        for (
-          int photoIndex = 0;
-          photoIndex < actionPhotos.length;
-          photoIndex++
-        ) {
-          final MeetingMinuteExportPhoto photo = actionPhotos[photoIndex];
-          final int photoRow = actionRow + photoIndex + 1;
-          sheet.cell(2, photoRow, photo.fileName, 6, height: 108);
-          workbookPhotos.add(
-            _XlsxPhoto(
-              row: photoRow - 1,
-              column: 2,
-              extension: photo.mimeType == 'image/png' ? 'png' : 'jpg',
-              bytes: photo.bytes,
-            ),
-          );
+        if (actionPhotos.isEmpty) {
+          sheet.cell(3, actionRow, 'Tidak ada foto', 6);
+        } else {
+          for (
+            int photoIndex = 0;
+            photoIndex < actionPhotos.length;
+            photoIndex++
+          ) {
+            final MeetingMinuteExportPhoto photo = actionPhotos[photoIndex];
+            final int photoRow = actionRow + photoIndex;
+            sheet.cell(
+              3,
+              photoRow,
+              'Foto ${photoIndex + 1}: ${photo.fileName}',
+              6,
+              height: photoIndex == 0 ? null : 108,
+            );
+            workbookPhotos.add(
+              _XlsxPhoto(
+                row: photoRow - 1,
+                column: 3,
+                extension: photo.mimeType == 'image/png' ? 'png' : 'jpg',
+                bytes: photo.bytes,
+              ),
+            );
+          }
         }
+        _mergeOrCell(
+          sheet,
+          4,
+          actionRow,
+          actionEndRow,
+          _date(action.itemDate, fallback: 'Belum ditentukan'),
+        );
+        _mergeOrCell(
+          sheet,
+          5,
+          actionRow,
+          actionEndRow,
+          _date(action.dueDate, fallback: 'Belum ditentukan'),
+        );
+        _mergeOrCell(
+          sheet,
+          6,
+          actionRow,
+          actionEndRow,
+          _displayValue(action.assignedTo),
+        );
+        _mergeOrCell(
+          sheet,
+          7,
+          actionRow,
+          actionEndRow,
+          _displayValue(action.progressRemark),
+        );
         row = actionEndRow + 1;
         groupEnd = actionEndRow;
         actionIndex++;
@@ -397,7 +437,7 @@ class MeetingMinuteExcelService {
     }
     final int noteRow = row + 1;
     sheet.merge(
-      'A$noteRow:G$noteRow',
+      'A$noteRow:H$noteRow',
       minute.note.trim().isEmpty
           ? 'CATATAN: —'
           : 'CATATAN: ${minute.note.trim()}',
@@ -481,8 +521,13 @@ class MeetingMinuteExcelService {
 
   static String _issueText(MeetingMinuteAction action) {
     final String issue = action.issueDescription.trim();
-    return issue.isEmpty ? action.subjectDiscussion.trim() : issue;
+    if (issue.isNotEmpty) return issue;
+    final String actionPlan = action.subjectDiscussion.trim();
+    return actionPlan.isEmpty ? 'Belum diisi' : actionPlan;
   }
+
+  static String _displayValue(String value) =>
+      value.trim().isEmpty ? 'Belum diisi' : value.trim();
 
   static void _mergeOrCell(
     _XlsxSheet sheet,
@@ -511,8 +556,12 @@ class MeetingMinuteExcelService {
     return (lines * 15 + 12).clamp(52, 520).toDouble();
   }
 
-  static String _date(DateTime? value, {String format = 'dd/MM/yyyy'}) {
-    if (value == null) return '';
+  static String _date(
+    DateTime? value, {
+    String format = 'dd/MM/yyyy',
+    String fallback = '',
+  }) {
+    if (value == null) return fallback;
     if (format == 'd MMMM y') {
       const List<String> months = <String>[
         'Januari',
@@ -603,7 +652,7 @@ class _XlsxSheet {
   }
 
   void merge(String range, String value, int style, [double? height]) {
-    final RegExpMatch match = RegExp(r'^([A-G]+)(\d+):').firstMatch(range)!;
+    final RegExpMatch match = RegExp(r'^([A-Z]+)(\d+):').firstMatch(range)!;
     final int row = int.parse(match.group(2)!);
     _add(
       row,
@@ -615,7 +664,7 @@ class _XlsxSheet {
 
   void metadata(int row, String label, String value) {
     cell(0, row, label, 2, height: 32);
-    merge('B$row:G$row', value.isEmpty ? '—' : value, 3);
+    merge('B$row:H$row', value.isEmpty ? '—' : value, 3);
   }
 
   void _add(int row, String content, double? height) {
@@ -642,7 +691,7 @@ class _XlsxSheet {
     }
     final int lastRow = keys.isEmpty ? 1 : keys.last;
     return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:G$lastRow"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="6" customWidth="1"/><col min="2" max="2" width="38" customWidth="1"/><col min="3" max="3" width="48" customWidth="1"/><col min="4" max="4" width="13" customWidth="1"/><col min="5" max="5" width="13" customWidth="1"/><col min="6" max="6" width="16" customWidth="1"/><col min="7" max="7" width="24" customWidth="1"/></cols><sheetData>$rows</sheetData><mergeCells count="${_merges.length}">${_merges.map((String range) => '<mergeCell ref="$range"/>').join()}</mergeCells>${hasPhotos ? '<drawing r:id="rId1"/>' : ''}</worksheet>''';
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:H$lastRow"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="34" customWidth="1"/><col min="3" max="3" width="44" customWidth="1"/><col min="4" max="4" width="28" customWidth="1"/><col min="5" max="5" width="13" customWidth="1"/><col min="6" max="6" width="13" customWidth="1"/><col min="7" max="7" width="18" customWidth="1"/><col min="8" max="8" width="24" customWidth="1"/></cols><sheetData>$rows</sheetData><mergeCells count="${_merges.length}">${_merges.map((String range) => '<mergeCell ref="$range"/>').join()}</mergeCells>${hasPhotos ? '<drawing r:id="rId1"/>' : ''}</worksheet>''';
   }
 
   static String _escape(String value) => value

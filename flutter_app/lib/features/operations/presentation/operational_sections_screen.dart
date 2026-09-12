@@ -2996,6 +2996,23 @@ class _MeetingMinuteEditorScreenState
     if (!hasActionPlan) {
       return 'Isi minimal satu action plan sebelum notulen diselesaikan.';
     }
+    for (int index = 0; index < _actions.length; index++) {
+      final _ActionDraft action = _actions[index];
+      if (action.subject.text.trim().isEmpty) continue;
+      final String label = 'Action plan ${index + 1}';
+      if (action.issue.text.trim().isEmpty) {
+        return '$label wajib memiliki issues description.';
+      }
+      if (action.itemDate == null) {
+        return '$label wajib memiliki date raised.';
+      }
+      if (action.dueDate == null) {
+        return '$label wajib memiliki due date.';
+      }
+      if (action.assignedTo.text.trim().isEmpty) {
+        return '$label wajib memiliki resp. person.';
+      }
+    }
     return null;
   }
 
@@ -3754,10 +3771,10 @@ class _ActionEditor extends StatelessWidget {
         children: <Widget>[
           const Icon(Icons.photo_camera_back_outlined, color: AppColors.green),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Foto bukti action plan (opsional, maksimal dua)',
-              style: TextStyle(fontWeight: FontWeight.w700),
+              'Foto bukti action plan (${action.photos.length}/2)',
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
           if (action.photos.length < 2)
@@ -3770,7 +3787,7 @@ class _ActionEditor extends StatelessWidget {
       ),
       if (action.photos.isEmpty)
         const Text(
-          'Simpan sebagai draf terlebih dahulu, lalu maksimal dua foto dapat ditambahkan.',
+          'Simpan sebagai draf terlebih dahulu. Tambahkan 1 atau 2 foto bila perlu sebagai bukti.',
           style: TextStyle(fontSize: 12, color: AppColors.muted),
         )
       else

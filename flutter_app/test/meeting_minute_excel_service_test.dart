@@ -8,7 +8,7 @@ import 'package:sicatat_flutter/data/reports/meeting_minute_service.dart';
 
 void main() {
   test(
-    'export MOM mengelompokkan action plan dan foto di bawah action plan',
+    'export MOM menampilkan kolom foto untuk satu dan dua foto action plan',
     () {
       final MeetingMinute minute = MeetingMinute(
         id: 'mom-1',
@@ -66,8 +66,23 @@ void main() {
             ]),
           ),
           MeetingMinuteExportPhoto(
-            actionId: 'action-1',
+            actionId: 'action-2',
             fileName: 'screenshot-email.png',
+            mimeType: 'image/png',
+            bytes: Uint8List.fromList(<int>[
+              0x89,
+              0x50,
+              0x4e,
+              0x47,
+              0x0d,
+              0x0a,
+              0x1a,
+              0x0a,
+            ]),
+          ),
+          MeetingMinuteExportPhoto(
+            actionId: 'action-2',
+            fileName: 'bukti-pelatihan.png',
             mimeType: 'image/png',
             bytes: Uint8List.fromList(<int>[
               0x89,
@@ -112,6 +127,10 @@ void main() {
       expect(sheetXml, contains('Pelatihan penggantian ban telah dilakukan.'));
       expect(sheetXml, contains('Issues Description'));
       expect(sheetXml, contains('Action Plan'));
+      expect(sheetXml, contains('Foto'));
+      expect(sheetXml, contains('Foto 1: panel-lvmdp.png'));
+      expect(sheetXml, contains('Foto 1: screenshot-email.png'));
+      expect(sheetXml, contains('Foto 2: bukti-pelatihan.png'));
       expect(sheetXml, contains('Progress /\nRemark'));
       expect(sheetXml, contains('Tindak lanjut dari'));
       expect(
@@ -120,21 +139,27 @@ void main() {
       );
       expect(sheetXml, contains('panel-lvmdp.png'));
       expect(sheetXml, contains('screenshot-email.png'));
-      expect(sheetXml, contains('<mergeCell ref="A15:A18"/>'));
-      expect(sheetXml, contains('<mergeCell ref="B15:B18"/>'));
+      expect(sheetXml, contains('<mergeCell ref="A15:A17"/>'));
+      expect(sheetXml, contains('<mergeCell ref="B15:B17"/>'));
+      expect(sheetXml, contains('width="18"'));
       expect(
         utf8.decode(files['xl/drawings/drawing1.xml']!.content),
         allOf(
           contains('Foto pembahasan 1'),
           contains('Foto pembahasan 2'),
-          contains('<xdr:col>2</xdr:col>'),
+          contains('<xdr:col>3</xdr:col>'),
+          contains('<xdr:row>14</xdr:row>'),
           contains('<xdr:row>15</xdr:row>'),
           contains('<xdr:row>16</xdr:row>'),
         ),
       );
       expect(
         files.keys,
-        containsAll(<String>['xl/media/image1.png', 'xl/media/image2.png']),
+        containsAll(<String>[
+          'xl/media/image1.png',
+          'xl/media/image2.png',
+          'xl/media/image3.png',
+        ]),
       );
     },
   );
