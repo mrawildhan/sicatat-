@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/platform/file_download.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/material_request_models.dart';
@@ -3087,13 +3088,23 @@ class _MeetingMinuteEditorScreenState
           .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '-')
           .replaceAll(RegExp(r'^-+|-+$'), '')
           .toLowerCase();
-      await Share.shareXFiles(<XFile>[
-        XFile.fromData(
-          Uint8List.fromList(bytes),
+      final String fileName =
+          'mom-${safeTitle.isEmpty ? 'notulen' : safeTitle}.xlsx';
+      if (kIsWeb) {
+        downloadFile(
+          bytes: Uint8List.fromList(bytes),
+          fileName: fileName,
           mimeType: MeetingMinuteExcelService.mimeType,
-          name: 'mom-${safeTitle.isEmpty ? 'notulen' : safeTitle}.xlsx',
-        ),
-      ]);
+        );
+      } else {
+        await Share.shareXFiles(<XFile>[
+          XFile.fromData(
+            Uint8List.fromList(bytes),
+            mimeType: MeetingMinuteExcelService.mimeType,
+            name: fileName,
+          ),
+        ]);
+      }
     } on Object catch (error) {
       if (mounted) _message('Excel notulen tidak dapat dibuat. $error');
     }
