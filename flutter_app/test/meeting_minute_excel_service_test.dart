@@ -139,8 +139,10 @@ void main() {
       expect(sheetXml, isNot(contains('bukti-pelatihan.png')));
       expect(sheetXml, contains('<c r="A15" s="6"'));
       expect(sheetXml, contains('<c r="B15" s="6"'));
-      expect(sheetXml, contains('<mergeCell ref="A16:A17"/>'));
-      expect(sheetXml, contains('<mergeCell ref="B16:B17"/>'));
+      expect(sheetXml, contains('<c r="A16" s="6"'));
+      expect(sheetXml, contains('<c r="B16" s="6"'));
+      expect(sheetXml, isNot(contains('<mergeCell ref="A16:A17"/>')));
+      expect(sheetXml, isNot(contains('<mergeCell ref="B16:B17"/>')));
       expect(sheetXml, contains('width="18"'));
       expect(
         utf8.decode(files['xl/drawings/drawing1.xml']!.content),
@@ -151,7 +153,7 @@ void main() {
           contains('<xdr:col>3</xdr:col>'),
           contains('<xdr:row>14</xdr:row>'),
           contains('<xdr:row>15</xdr:row>'),
-          contains('<xdr:row>16</xdr:row>'),
+          isNot(contains('<xdr:row>16</xdr:row>')),
           contains('<xdr:ext cx="'),
           isNot(contains('<a:ext cx="0" cy="0"/>')),
         ]),

@@ -357,19 +357,21 @@ class MeetingMinuteExcelService {
           : (photosByActionId[action.id!] ??
                 const <MeetingMinuteExportPhoto>[]);
       final int actionRow = row;
-      final int actionEndRow =
-          actionRow + (actionPhotos.isEmpty ? 0 : actionPhotos.length - 1);
-      final double actionHeight = _actionHeight(action);
+      // Keep an action as one complete visual row.  Repeating a row per photo
+      // made the surrounding information look detached and caused tall,
+      // uneven galleries in Excel.  A single image is centred; two or more
+      // images share the same frame side-by-side.
+      final double actionHeight = actionPhotos.isEmpty
+          ? _actionHeight(action)
+          : _actionHeight(action) < 126
+          ? 126
+          : _actionHeight(action);
       sheet.cell(
         2,
         actionRow,
         _displayValue(action.subjectDiscussion),
         6,
-        height: actionPhotos.isEmpty
-            ? actionHeight
-            : actionHeight < 108
-            ? 108
-            : actionHeight,
+        height: actionHeight,
       );
       if (actionPhotos.isEmpty) {
         sheet.cell(3, actionRow, 'Tidak ada foto', 6);
@@ -379,12 +381,15 @@ class MeetingMinuteExcelService {
           photoIndex < actionPhotos.length;
           photoIndex++
         ) {
-          final int photoRow = actionRow + photoIndex;
-          sheet.cell(3, photoRow, '', 6, height: photoIndex == 0 ? null : 108);
+          if (photoIndex == 0) {
+            sheet.cell(3, actionRow, '', 6);
+          }
           workbookPhotos.add(
             _XlsxPhoto.fromBytes(
-              row: photoRow - 1,
+              row: actionRow - 1,
               column: 3,
+              slotIndex: photoIndex,
+              slotCount: actionPhotos.length,
               extension: actionPhotos[photoIndex].mimeType == 'image/png'
                   ? 'png'
                   : 'jpg',
@@ -393,37 +398,23 @@ class MeetingMinuteExcelService {
           );
         }
       }
-      _mergeOrCell(sheet, 0, actionRow, actionEndRow, '${actionIndex + 1}');
-      _mergeOrCell(sheet, 1, actionRow, actionEndRow, _issueText(action));
-      _mergeOrCell(
-        sheet,
+      sheet.cell(0, actionRow, '${actionIndex + 1}', 6);
+      sheet.cell(1, actionRow, _issueText(action), 6);
+      sheet.cell(
         4,
         actionRow,
-        actionEndRow,
         _date(action.itemDate, fallback: 'Belum ditentukan'),
+        6,
       );
-      _mergeOrCell(
-        sheet,
+      sheet.cell(
         5,
         actionRow,
-        actionEndRow,
         _date(action.dueDate, fallback: 'Belum ditentukan'),
-      );
-      _mergeOrCell(
-        sheet,
         6,
-        actionRow,
-        actionEndRow,
-        _displayValue(action.assignedTo),
       );
-      _mergeOrCell(
-        sheet,
-        7,
-        actionRow,
-        actionEndRow,
-        _displayValue(action.progressRemark),
-      );
-      row = actionEndRow + 1;
+      sheet.cell(6, actionRow, _displayValue(action.assignedTo), 6);
+      sheet.cell(7, actionRow, _displayValue(action.progressRemark), 6);
+      row = actionRow + 1;
     }
     final int noteRow = row + 1;
     sheet.merge(
@@ -519,21 +510,6 @@ class MeetingMinuteExcelService {
   static String _displayValue(String value) =>
       value.trim().isEmpty ? 'Belum diisi' : value.trim();
 
-  static void _mergeOrCell(
-    _XlsxSheet sheet,
-    int column,
-    int startRow,
-    int endRow,
-    String value,
-  ) {
-    if (startRow == endRow) {
-      sheet.cell(column, startRow, value, 6);
-      return;
-    }
-    final String letter = String.fromCharCode(65 + column);
-    sheet.merge('$letter$startRow:$letter$endRow', value, 6);
-  }
-
   static double _actionHeight(MeetingMinuteAction action) {
     int estimatedLines(String text, int charactersPerLine) =>
         text.split('\n').fold<int>(0, (int total, String line) {
@@ -628,6 +604,8 @@ class _XlsxPhoto {
   factory _XlsxPhoto.fromBytes({
     required int row,
     required int column,
+    required int slotIndex,
+    required int slotCount,
     required String extension,
     required Uint8List bytes,
   }) {
@@ -641,15 +619,29 @@ class _XlsxPhoto {
     }
     final int sourceWidth = decoded?.width ?? 4;
     final int sourceHeight = decoded?.height ?? 3;
-    const int maxWidthPx = 180;
-    const int maxHeightPx = 108;
+    const int columnWidthPx = 286;
+    const int horizontalPaddingPx = 12;
+    const int gapPx = 10;
+    const int maxHeightPx = 148;
+    final int normalizedSlotCount = slotCount < 1 ? 1 : slotCount;
+    final int availableWidthPx =
+        columnWidthPx -
+        (horizontalPaddingPx * 2) -
+        (gapPx * (normalizedSlotCount - 1));
+    final int slotWidthPx = (availableWidthPx / normalizedSlotCount).floor();
     final double scale =
-        (maxWidthPx / sourceWidth) < (maxHeightPx / sourceHeight)
-        ? maxWidthPx / sourceWidth
+        (slotWidthPx / sourceWidth) < (maxHeightPx / sourceHeight)
+        ? slotWidthPx / sourceWidth
         : maxHeightPx / sourceHeight;
-    final int widthPx = (sourceWidth * scale).round().clamp(1, maxWidthPx);
+    final int widthPx = (sourceWidth * scale).round().clamp(1, slotWidthPx);
     final int heightPx = (sourceHeight * scale).round().clamp(1, maxHeightPx);
-    const int columnWidthPx = 202;
+    final int safeSlotIndex = slotIndex
+        .clamp(0, normalizedSlotCount - 1)
+        .toInt();
+    final int leftPx =
+        horizontalPaddingPx +
+        (safeSlotIndex * (slotWidthPx + gapPx)) +
+        ((slotWidthPx - widthPx) ~/ 2);
     return _XlsxPhoto._(
       row: row,
       column: column,
@@ -657,7 +649,7 @@ class _XlsxPhoto {
       bytes: bytes,
       widthEmu: widthPx * 9525,
       heightEmu: heightPx * 9525,
-      leftOffsetEmu: ((columnWidthPx - widthPx) ~/ 2) * 9525,
+      leftOffsetEmu: leftPx * 9525,
     );
   }
 
@@ -723,7 +715,7 @@ class _XlsxSheet {
     }
     final int lastRow = keys.isEmpty ? 1 : keys.last;
     return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:H$lastRow"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="34" customWidth="1"/><col min="3" max="3" width="44" customWidth="1"/><col min="4" max="4" width="28" customWidth="1"/><col min="5" max="5" width="13" customWidth="1"/><col min="6" max="6" width="13" customWidth="1"/><col min="7" max="7" width="18" customWidth="1"/><col min="8" max="8" width="24" customWidth="1"/></cols><sheetData>$rows</sheetData><mergeCells count="${_merges.length}">${_merges.map((String range) => '<mergeCell ref="$range"/>').join()}</mergeCells>${hasPhotos ? '<drawing r:id="rId1"/>' : ''}</worksheet>''';
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:H$lastRow"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="36" customWidth="1"/><col min="3" max="3" width="46" customWidth="1"/><col min="4" max="4" width="40" customWidth="1"/><col min="5" max="5" width="14" customWidth="1"/><col min="6" max="6" width="14" customWidth="1"/><col min="7" max="7" width="18" customWidth="1"/><col min="8" max="8" width="26" customWidth="1"/></cols><sheetData>$rows</sheetData><mergeCells count="${_merges.length}">${_merges.map((String range) => '<mergeCell ref="$range"/>').join()}</mergeCells>${hasPhotos ? '<drawing r:id="rId1"/>' : ''}</worksheet>''';
   }
 
   static String _escape(String value) => value
