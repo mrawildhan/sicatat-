@@ -323,7 +323,7 @@ class MeetingMinuteExcelService {
       'A1:H1',
       minute.title.isEmpty ? 'NOTULEN RAPAT' : minute.title,
       1,
-      30,
+      60,
     );
     sheet.metadata(3, 'Tanggal & waktu', _meetingTime(minute));
     sheet.metadata(4, 'Lokasi', minute.location);
@@ -346,7 +346,7 @@ class MeetingMinuteExcelService {
       'Progress /\nRemark',
     ];
     for (int column = 0; column < headers.length; column++) {
-      sheet.cell(column, 14, headers[column], 5);
+      sheet.cell(column, 14, headers[column], 5, height: 36);
     }
     final List<_XlsxPhoto> workbookPhotos = <_XlsxPhoto>[];
     int row = 15;
@@ -567,7 +567,7 @@ class MeetingMinuteExcelService {
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>''';
   static const String _styles =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="16"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Arial"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B3D2E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F3ED"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF16A9D6"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs></styleSheet>''';
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="22"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Arial"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B3D2E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F3ED"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF19735B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf></cellXfs></styleSheet>''';
 
   static const String _sheetRelationships =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -687,15 +687,15 @@ class _XlsxSheet {
   }
 
   void metadata(int row, String label, String value) {
-    cell(0, row, label, 2, height: 32);
+    cell(0, row, label, 2, height: 24);
     merge('B$row:H$row', value.isEmpty ? '—' : value, 3);
   }
 
   void _add(int row, String content, double? height) {
     final List<String> values = _rows.putIfAbsent(row, () => <String>[]);
     if (height != null &&
-        !values.any((String value) => value.startsWith('height='))) {
-      values.add('height="$height" customHeight="1"');
+        !values.any((String value) => value.startsWith('ht='))) {
+      values.add('ht="$height" customHeight="1"');
     }
     values.add(content);
   }
@@ -708,9 +708,11 @@ class _XlsxSheet {
       final String attributes = values
           .where((String value) => !value.startsWith('<'))
           .join(' ');
-      final String content = values
-          .where((String value) => value.startsWith('<'))
-          .join();
+      // Excel requires ascending cell references, even when built photo-first.
+      final List<String> cells =
+          values.where((String value) => value.startsWith('<')).toList()
+            ..sort((a, b) => a.compareTo(b));
+      final String content = cells.join();
       rows.write('<row r="$row" $attributes>$content</row>');
     }
     final int lastRow = keys.isEmpty ? 1 : keys.last;

@@ -84,6 +84,15 @@ Sumber URL/ID spreadsheet yang aktif berada di masing-masing Edge Function
 
 ## Checklist perubahan
 
+### Ekspor Excel MOM
+
+- SpreadsheetML memakai atribut tinggi baris `ht`, bukan `height`. Atribut
+  salah diabaikan Excel dan membuat foto melampaui baris.
+- Sel harus diserialisasi berurutan A sampai H; urutan pembuatan sel di kode
+  dapat berbeda. Urutan XML yang salah membuat nomor/isu tidak terbaca Excel.
+- Foto memakai ukuran proporsional dalam kolom D, maksimal dua foto sejajar.
+  Baris foto 126 pt, judul 60 pt. Uji regresi memeriksa tinggi dan urutan sel.
+
 1. Periksa `git status` dan versi aplikasi; jangan menyentuh perubahan atau
    folder lokal milik pengguna.
 2. Gunakan `AppTextStyles` untuk UI baru dan pertahankan alur navigasi serta

@@ -138,6 +138,13 @@ void main() {
       expect(sheetXml, isNot(contains('screenshot-email.png')));
       expect(sheetXml, isNot(contains('bukti-pelatihan.png')));
       expect(sheetXml, contains('<c r="A15" s="6"'));
+      expect(sheetXml, contains('<row r="1" ht="60.0" customHeight="1">'));
+      expect(sheetXml, contains('<row r="15" ht="126.0" customHeight="1">'));
+      expect(sheetXml, isNot(contains(' height="')));
+      expect(
+        sheetXml.indexOf('<c r="A15"'),
+        lessThan(sheetXml.indexOf('<c r="C15"')),
+      );
       expect(sheetXml, contains('<c r="B15" s="6"'));
       expect(sheetXml, contains('<c r="A16" s="6"'));
       expect(sheetXml, contains('<c r="B16" s="6"'));
