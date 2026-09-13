@@ -10,7 +10,7 @@ This is the active handoff file for Claude Code. Follow it before editing.
 - Never put a Supabase service-role key in Flutter/Dart, APK, docs, or Git. Only the server-side edge function may use it.
 - Preserve the duplicate-sheet rule: one `module + date + shift` sheet globally, enforced in Flutter and the Supabase trigger.
 - Keep Android Back navigation inside the app; use `AppBackScope` / `AppBackButton` for new top-level pages.
-- Temperature safety: 60–69°C is warning/orange, >=70°C critical/red. Values outside -50..250°C require explicit anomaly confirmation and note.
+- Temperature safety: 60–69°C is warning, >=70°C critical/red. The warning color differs by surface — the live in-app UI (`temperature_form_screen.dart`) renders it as `AppColors.warning` (amber/yellow, `0xFFF2B84B`), while PDF/CSV exports (`sheet_export_screen.dart`) render it as a genuine orange (`PdfColors.orange300/500/700`) — these are two distinct constants, not the same color reused. `flutter_app/docs/PANDUAN-CREW-SICATAT.md`'s "Kuning" label for this band matches the in-app color; don't treat that as a documentation error. Values outside -50..250°C require explicit anomaly confirmation and note.
 - New submissions are final immediately; the sheet creator may explicitly reopen a submitted sheet for revision and resubmit it. Legacy verified sheets remain locked and auditable.
 
 ## Fast start
