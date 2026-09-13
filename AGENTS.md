@@ -1,5 +1,7 @@
 # SICATAT — Codex Handoff
 
+**How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
+
 ## Rilis foto MOM & ekspor Excel 2.7.2 — 2026-09-07
 
 - Website produksi 2.7.2: https://sicatat-5l5.pages.dev/?versi=2-7-2-mom-foto#/meeting-minutes . Pratinjau deployment: https://65dd237f.sicatat-5l5.pages.dev/?versi=2-7-2-mom-foto#/meeting-minutes .
@@ -75,13 +77,22 @@
 
 This is the active handoff file for Codex. Follow it before editing.
 
-## Current continuation baseline — 2026-09-11
+## Current continuation baseline — 2026-09-13
 
 This section overrides older release references in this handoff.
 
 - Current shared source is `origin/master`; current app version is
-  `2.8.33+12313` / `2.8.33`. Verify `flutter_app/pubspec.yaml`,
-  `AppConfig.appVersion`, and `git status` before editing.
+  `2.8.34+12314` / `2.8.34` (HEAD `b0c138f`). Verify `flutter_app/pubspec.yaml`,
+  `AppConfig.appVersion`, `git log -1`, and `git status` before editing —
+  this baseline moves roughly daily, don't trust this number without
+  re-checking.
+- All known local checkouts (`D:\Arutmin\Project\sicatat` and the
+  `C:\Users\ASUS\.codex\worktrees\{9261,284f,42e3}\sicatat` worktrees) were
+  confirmed fast-forwarded to this exact commit on 2026-09-13, with no
+  uncommitted feature work left stashed on any of them (all reviewed and
+  dropped). Don't assume any one worktree is "the" canonical source over
+  another — `origin/master` on GitHub is canonical; every local checkout
+  should just match it.
 - The owner currently wants **website-first** delivery. Do not build, upload,
   or publish Android unless the owner explicitly asks for Android. Keep one
   Flutter source and do not intentionally diverge product behavior.
@@ -101,15 +112,16 @@ This section overrides older release references in this handoff.
 - Preserve the duplicate-sheet rule: one `module + date + shift` sheet globally, enforced in Flutter and the Supabase trigger.
 - Keep Android Back navigation inside the app; use `AppBackScope` / `AppBackButton` for new top-level pages.
 - Temperature safety: 60–69°C is warning/orange, >=70°C critical/red. Values outside -50..250°C require explicit anomaly confirmation and note.
-- Verified sheets must remain locked; use the Verify/Return/revision workflow and audit trail.
+- Sheet revision has two distinct, non-conflicting mechanisms — confirmed by reading `flutter_app/lib/data/local/local_database.dart` on 2026-09-13:
+  1. **Creator self-service reopen** (`reopenSheetForCorrection`, ~line 1199): the sheet's own creator can reopen their own *submitted-but-not-yet-verified* sheet back to draft, correct it, and resubmit. Blocked once the sheet is verified ("A verified sheet cannot be reopened").
+  2. **Reviewer verify/return** (`verifySheet` ~line 1314, `returnSheetForCorrection` ~line 1369): a reviewer (foreman/supervisor/admin) marks a submitted sheet `verified` (locks it permanently, auditable) or `returned` (sends it back with a required reason, distinct from the creator's own self-reopen). Only `draft` or `returned` sheets can have their readings changed.
+  Both must keep working; don't collapse this into a single "verify/return" description or a single "creator reopen" description — each covers a different actor and a different point in the lifecycle.
 
-## Source rilis tunggal — wajib untuk setiap chat
+## Sumber rilis tunggal
 
-- Sumber rilis yang telah diverifikasi adalah `origin/master`, dengan versi `2.6.5+10265` di `flutter_app/pubspec.yaml` dan `2.6.5` di `AppConfig.appVersion` (dirilis 2026-09-04). Worktree `C:\Users\ASUS\.codex\worktrees\42e3\sicatat` adalah checkout yang digunakan untuk rilis ini.
-- Sebelum mengubah, membangun, atau menerbitkan apa pun: baca kedua penanda versi tersebut, periksa `git status`, dan bandingkan dengan versi aplikasi Android serta website yang sedang rilis. Pertahankan seluruh perubahan pengguna yang sudah ada.
-- Worktree `C:\Users\ASUS\.codex\worktrees\284f\sicatat` dan salinan utama `D:\Arutmin\Project\sicatat` pernah bertanda `2.5.4+10254`; keduanya **dilarang** dipakai untuk build atau deploy sampai telah ditarik dan diverifikasi sama dengan `origin/master`.
-- Bila sebuah chat dibuka pada source lama, hentikan proses rilis. Tarik `origin/master` dan verifikasi versi rilis terlebih dahulu; jangan menghapus, menggantikan, atau membangun ulang fitur berdasarkan source lama.
-- Jangan pernah menerbitkan website atau Android dari versi yang lebih rendah daripada baseline rilis. Setiap perubahan fungsional harus dikerjakan dari source rilis tunggal, diverifikasi dengan `flutter analyze` dan `flutter test`, lalu diperbarui di website dan Android sesuai prosedur rilis.
+- `origin/master` di GitHub (`https://github.com/mrawildhan/sicatat-`) adalah satu-satunya sumber kanonis. Jangan menyebut worktree/checkout tertentu sebagai "canonical" secara permanen di file ini — nama worktree yang dulu dianggap paling maju (mis. `42e3`) bisa saja jadi paling tertinggal beberapa hari kemudian (persis yang terjadi 2026-09-07 → 2026-09-13, lihat riwayat rilis di atas).
+- Sebelum mengubah, membangun, atau menerbitkan apa pun: jalankan `git fetch origin --prune`, lalu `git log HEAD..origin/master --oneline | wc -l` di checkout yang sedang dipakai. Kalau hasilnya bukan 0, checkout itu tertinggal — jangan build/publish dari sana. Tarik dulu (`git stash push -u` bila ada perubahan tracked, lalu `git merge --ff-only origin/master` atau `git pull --ff-only origin master`).
+- Jangan pernah menerbitkan website atau Android dari commit yang lebih lama daripada `origin/master`. Setiap perubahan fungsional harus diverifikasi dengan `flutter analyze` dan `flutter test`, di-commit, lalu di-push ke `origin/master` sebelum diklaim selesai.
 
 ## Fast start
 
@@ -121,7 +133,7 @@ flutter test
 flutter build apk --release --split-per-abi
 ```
 
-For this workspace, the latest Android artifact is `flutter_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` (v2.1.2+212). Build output is intentionally ignored by Git.
+Android builds are rare under the current website-first policy (see "Current continuation baseline") — don't assume a specific APK artifact/version is sitting in `flutter_app/build/app/outputs/flutter-apk/` without checking; build output is intentionally ignored by Git, so nothing there reflects the checked-in source version.
 
 ## Source map
 
@@ -136,9 +148,14 @@ For this workspace, the latest Android artifact is `flutter_app/build/app/output
 | Supabase repository | `flutter_app/lib/data/repositories/supabase_sicatat_repository.dart` |
 | PDF/CSV exports | `flutter_app/lib/features/reports/presentation/`, `flutter_app/lib/data/reports/report_export_service.dart` |
 | Admin user screen | `flutter_app/lib/features/users/presentation/user_management_screen.dart` |
+| Document Center / AI Q&A / cost code & equipment reference | `flutter_app/lib/features/documents/presentation/`, `supabase/functions/ask-technical-documents/`, `cloudflare/document-ai/` |
+| Warehouse | `flutter_app/lib/features/warehouse/presentation/warehouse_screen.dart`, `supabase/functions/sync-warehouse-data/` |
+| Operational budget, purchase requisitions, Meeting Minutes (MOM), maintenance sections | `flutter_app/lib/features/operations/presentation/`, `supabase/functions/sync-operational-budget/`, `supabase/functions/sync-purchase-requisitions/`, `supabase/functions/sync-preventive-maintenance/`, `supabase/functions/sync-corrective-maintenance/` |
+| Reminders | `flutter_app/lib/features/reminders/presentation/reminder_screen.dart` |
 | Database schema/migrations | `supabase/schema.sql`, `supabase/migrations/` |
 | Admin account creation edge function | `supabase/functions/create-crew-user/index.ts` |
 | Full product/recovery specification | `docs/PRD-SICATAT-v0.5.md` |
+| Day-to-day handoff notes (more current than this table) | `docs/PROJECT_MEMORY.md` |
 
 ## Current UX behavior
 
@@ -151,8 +168,8 @@ For this workspace, the latest Android artifact is `flutter_app/build/app/output
 
 ## Supabase deployment checklist
 
-1. Apply `supabase/schema.sql` to a new project, then every migration in chronological order.
-2. Confirm these migrations are present in production: `20260819_prevent_duplicate_shift_sheets.sql` and `20260820_verified_sheet_lock.sql`.
+1. Apply `supabase/schema.sql` to a new project, then **every** migration in `supabase/migrations/` in chronological order — there are 90+ as of 2026-09-13, don't assume the two named below are the only ones required.
+2. Spot-check these two are present (they enforce the duplicate-sheet and verified-sheet-lock rules from "Current product and non-negotiable rules" above): `20260819_prevent_duplicate_shift_sheets.sql` and `20260820_verified_sheet_lock.sql`.
 3. Deploy the user-creation function when needed:
 
 ```powershell
@@ -170,7 +187,7 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 2. Create a dated Shift Pagi or Malam sheet; make draft input, reopen it, and fill Round 2.
 3. Leave entries missing; confirm red summary card returns to the missing input.
 4. Check duplicate date+shift+module creation is rejected from a second account.
-5. Submit, reopen before verification, then verify/return as a reviewer.
+5. Submit as the creator; reopen it yourself for correction while it's still unverified and resubmit (creator self-service path); separately, as a reviewer (foreman/supervisor/admin) either verify a submitted sheet (should lock it — reopening afterward must fail) or return it with a reason (distinct from the creator's own reopen).
 6. Export values 59, 60, 69, 70°C; inspect PDF colours and CSV `Temperature Alert` values.
 7. As admin, open User Management, tap Add User, create a test account, and confirm its login.
 
