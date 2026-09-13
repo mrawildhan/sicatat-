@@ -6,7 +6,8 @@ Dokumen ini adalah pegangan singkat bagi pengembang berikutnya. Baca juga
 ## Handoff terbaru — 13 September 2026
 
 - Sumber terbaru berada di `origin/master`. Commit awal untuk pekerjaan
-  berikutnya adalah `519e4f0`; versi aplikasi tetap `2.8.34+12314` / `2.8.34`.
+  berikutnya adalah `8bec4d2` (perbaikan dokumentasi `AGENTS.md`, tidak
+  mengubah kode); versi aplikasi tetap `2.8.34+12314` / `2.8.34`.
 - Website produksi sudah memakai bundle yang sama dengan commit `ff086b3`:
   `https://sicatat-5l5.pages.dev/?versi=2-8-34-mom-english#/dashboard`.
   Deploy terakhir diverifikasi dengan checksum `main.dart.js` lokal dan
