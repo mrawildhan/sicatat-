@@ -3,6 +3,36 @@
 Dokumen ini adalah pegangan singkat bagi pengembang berikutnya. Baca juga
 `AGENTS.md`, terutama aturan keamanan dan rilis.
 
+## Handoff terbaru — 13 September 2026
+
+- Sumber terbaru berada di `origin/master`. Commit awal untuk pekerjaan
+  berikutnya adalah `519e4f0`; versi aplikasi tetap `2.8.34+12314` / `2.8.34`.
+- Website produksi sudah memakai bundle yang sama dengan commit `ff086b3`:
+  `https://sicatat-5l5.pages.dev/?versi=2-8-34-mom-english#/dashboard`.
+  Deploy terakhir diverifikasi dengan checksum `main.dart.js` lokal dan
+  produksi yang sama.
+- Pemilik tetap meminta website-first. Jangan build, upload, atau publish APK
+  Android kecuali diminta secara eksplisit.
+- Meeting Minutes sekarang menggunakan label dan pesan UI bahasa Inggris.
+  Due date opsional. Ekspor Excel memakai metadata Inggris, judul 60 pt,
+  nomor/foto/date raised/due date/responsible person/progress rata tengah,
+  dan maksimal dua foto proporsional sejajar dalam satu baris action plan.
+- Foto MOM dikompres otomatis menjadi JPEG, sisi terpanjang maksimal 1280 px,
+  target sekitar 600 KB, sebelum masuk bucket privat. Excel menampilkan gambar,
+  bukan nama file.
+- Data contoh MOM `Contoh MOM - Ban Bocor Kendaraan Ringan - Tindak lanjut`
+  sudah memiliki dua issue description dan tiga foto yang dibagi 1 foto pada
+  action pertama serta 2 foto pada action kedua.
+- Slide satu halaman terbaru berisi 15 menu/section dengan screenshot website
+  tanggal 13 September 2026 dan penjelasan singkat. Artefak final:
+  `output/ppt/sicatat-semua-menu-terbaru.pptx` (commit `519e4f0`).
+- Seluruh 21 Flutter tests dan `flutter analyze` terakhir lulus sebelum deploy
+  Meeting Minutes. Finalizer PowerPoint menyatakan package, layout, font Arial,
+  dan jumlah satu slide valid.
+- Folder lokal `.codex-build/`, `.wrangler/`, `flutter_app/.wrangler/`,
+  `flutter_app/android/build/`, `flutter_app/supabase/`, `output/pdf/`, dan
+  `outputs/` tidak dilacak. Jangan ikut commit atau hapus tanpa kebutuhan.
+
 ## Kondisi produk saat ini
 
 - Aplikasi aktif adalah Flutter di `flutter_app/`; kode JavaScript/Capacitor di
