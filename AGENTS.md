@@ -2,6 +2,13 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Audit keamanan RLS & header website — 2026-09-14
+
+- Temuan: 11 tabel lama dari `schema.sql` (`module`, `form_template`, `equipment`, `measurement_point`, `threshold`, `shift`, `roster`, `roster_anchor`, `attachment`, `audit_log`, `app_version`) tidak pernah diberi RLS, sehingga anon key publik bisa membaca/mengubah/menghapus master data, memalsukan `audit_log`, dan menaikkan `app_version.min_version` untuk memblokir semua app Android.
+- Perbaikan `20260914090000_lock_master_data_and_audit_rls.sql`: master data dibaca user SICATAT aktif, ditulis `admin`/`supervisor_smg` (sama dengan `RoleGuard` `/admin/*`); `app_version` tetap dibaca publik, ditulis admin; `audit_log` append-only (upsert identik diizinkan agar retry sync tidak macet, perubahan/hapus ditolak trigger); `occupied_temperature_shift_ids` menolak anonim; baca `app_release`/APK butuh user SICATAT aktif. Tabel baru WAJIB `enable row level security` + policy di migrasi yang sama.
+- Signup publik Supabase masih aktif — `authenticated` belum tentu akun SICATAT. Selalu cek `current_sicatat_user_id()` (policy maupun edge function). `ask-technical-documents` kini menolak akun non-SICATAT. Menonaktifkan signup di Dashboard (Authentication → Sign In / Providers) aman karena `create-crew-user` memakai admin API.
+- Website: `flutter_app/web/_headers` menambah HSTS, anti-clickjacking (`X-Frame-Options`/`frame-ancestors`), dan Permissions-Policy. CSP `script-src` belum dipasang karena CanvasKit dimuat dari gstatic.
+
 ## Rilis foto MOM & ekspor Excel 2.7.2 — 2026-09-07
 
 - Website produksi 2.7.2: https://sicatat-5l5.pages.dev/?versi=2-7-2-mom-foto#/meeting-minutes . Pratinjau deployment: https://65dd237f.sicatat-5l5.pages.dev/?versi=2-7-2-mom-foto#/meeting-minutes .

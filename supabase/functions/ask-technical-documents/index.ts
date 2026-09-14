@@ -316,6 +316,12 @@ Deno.serve(async (req) => {
   });
   const { data: { user }, error: authError } = await caller.auth.getUser();
   if (authError || !user) return json({ ok: false, error: "Sesi masuk tidak valid." }, 401);
+  // Public sign-up is enabled on the project; only active SICATAT accounts may
+  // read internal documents or spend AI quota.
+  const { data: sicatatUserId, error: profileError } = await caller.rpc("current_sicatat_user_id");
+  if (profileError || !sicatatUserId) {
+    return json({ ok: false, error: "Akun SICATAT tidak aktif atau tidak ditemukan." }, 403);
+  }
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   const cloudflareUrl = Deno.env.get("CLOUDFLARE_DOCUMENTS_URL");
   const cloudflareToken = Deno.env.get("CLOUDFLARE_DOCUMENTS_TOKEN");
