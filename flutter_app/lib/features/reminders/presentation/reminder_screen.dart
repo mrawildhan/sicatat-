@@ -24,6 +24,20 @@ const List<String> _categories = <String>[
   'Other',
 ];
 
+/// Categories stay stored in English (existing rows and email templates use
+/// these values); only the text shown to crew is Indonesian.
+String _categoryLabel(String category) => switch (category) {
+  'General' => 'Umum',
+  'Taxes' => 'Pajak',
+  'Vehicle document' => 'Dokumen kendaraan',
+  'Servicing' => 'Servis',
+  'Inspection' => 'Inspeksi',
+  'Certification' => 'Sertifikasi',
+  'Safety' => 'Keselamatan',
+  'Other' => 'Lainnya',
+  _ => category,
+};
+
 const List<String> _priorities = <String>['low', 'normal', 'high', 'critical'];
 
 enum _ReminderFilter { all, overdue, dueSoon, open, completed }
@@ -548,7 +562,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                             .map(
                               (String value) => DropdownMenuItem<String>(
                                 value: value,
-                                child: Text(value),
+                                child: Text(_categoryLabel(value)),
                               ),
                             )
                             .toList(growable: false),
@@ -1626,6 +1640,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
           final String searchableText = <String>[
             item.title,
             item.category,
+            _categoryLabel(item.category),
             item.assetCode ?? '',
             item.documentNumber ?? '',
             item.description ?? '',
@@ -1826,6 +1841,30 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      // Keep the status chips directly under the search field.
+                      // The active-filter banner used to sit above them, so
+                      // typing a search pushed the chips into the spot where
+                      // the first result card had been and taps hit a filter.
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: <Widget>[
+                            _filterChip('Semua', _ReminderFilter.all),
+                            const SizedBox(width: 8),
+                            _filterChip('Terlambat', _ReminderFilter.overdue),
+                            const SizedBox(width: 8),
+                            _filterChip(
+                              'Segera jatuh tempo',
+                              _ReminderFilter.dueSoon,
+                            ),
+                            const SizedBox(width: 8),
+                            _filterChip('Terbuka', _ReminderFilter.open),
+                            const SizedBox(width: 8),
+                            _filterChip('Selesai', _ReminderFilter.completed),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       if (_hasActiveFilter) ...<Widget>[
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -1863,28 +1902,8 @@ class _ReminderScreenState extends State<ReminderScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                       ],
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: <Widget>[
-                            _filterChip('Semua', _ReminderFilter.all),
-                            const SizedBox(width: 8),
-                            _filterChip('Terlambat', _ReminderFilter.overdue),
-                            const SizedBox(width: 8),
-                            _filterChip(
-                              'Segera jatuh tempo',
-                              _ReminderFilter.dueSoon,
-                            ),
-                            const SizedBox(width: 8),
-                            _filterChip('Terbuka', _ReminderFilter.open),
-                            const SizedBox(width: 8),
-                            _filterChip('Selesai', _ReminderFilter.completed),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
                       if (_visibleItems.isEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 50),
@@ -2075,7 +2094,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${item.documentNumber ?? item.assetCode ?? 'Tanpa nomor dokumen'} · ${item.category}',
+                      '${item.documentNumber ?? item.assetCode ?? 'Tanpa nomor dokumen'} · ${_categoryLabel(item.category)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -2205,7 +2224,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
               _infoRow(
                 Icons.category_outlined,
                 'Kategori',
-                '${item.category}${item.assetCode == null ? '' : ' · ${item.assetCode}'}',
+                '${_categoryLabel(item.category)}${item.assetCode == null ? '' : ' · ${item.assetCode}'}',
               ),
               if (item.governmentAgency != null)
                 _infoRow(

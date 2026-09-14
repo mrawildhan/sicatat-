@@ -30,6 +30,27 @@ Do not paste any credential into Flutter source, an APK, Git, or chat. If an
 old Resend key was ever exposed, revoke it in Resend; it is not used by this
 implementation.
 
+## When reminder emails stop sending (expired Gmail token)
+
+If the OAuth consent screen is still in **Testing**, Google expires the refresh
+token after 7 days. That is why emails failed from 2026-09-02 after the token
+was set on 2026-08-25. `operational_reminder_delivery.error_message` now shows
+the Gmail reason (for example `invalid_grant`).
+
+1. Google Cloud Console → **APIs & Services → OAuth consent screen** →
+   **Publish app** (status *In production*) so new tokens do not expire weekly.
+   For the `gmail.send` scope Google may show an "unverified app" warning to
+   the sender account; continuing as `arutminreminder@gmail.com` is fine.
+2. **APIs & Services → Credentials** → open the OAuth client and copy its
+   Client ID and Client secret. If it is a *Web application* client, add
+   `http://127.0.0.1:53682/callback` under *Authorized redirect URIs*.
+3. From the repository root run `node scripts/renew-gmail-refresh-token.mjs`,
+   paste the Client ID and secret, sign in as `arutminreminder@gmail.com`, and
+   click Allow. The script stores all `GMAIL_*` secrets in Supabase without
+   printing them.
+4. Send one test reminder email to the test mailbox and confirm the delivery
+   row is `sent`.
+
 ## Operational use
 
 1. Sign in as an active admin and open **Operational reminders**.

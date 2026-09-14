@@ -1575,6 +1575,8 @@ class _MaterialRequestProcessSheetState
   late MaterialRequestStatus _status;
   late final TextEditingController _note;
 
+  bool get _rejecting => _status == MaterialRequestStatus.rejected;
+
   @override
   void initState() {
     super.initState();
@@ -1637,19 +1639,27 @@ class _MaterialRequestProcessSheetState
           minLines: 2,
           maxLines: 5,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Catatan planner',
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            labelText: _rejecting ? 'Alasan penolakan *' : 'Catatan planner',
             hintText: 'Contoh: sedang dicarikan supplier atau alasan penolakan',
+            // A rejection without a reason leaves the requester with no idea
+            // what to change, so the note is required for "Ditolak".
+            errorText: _rejecting && _note.text.trim().isEmpty
+                ? 'Isi alasan penolakan agar pemohon tahu tindak lanjutnya.'
+                : null,
           ),
         ),
         const SizedBox(height: 18),
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: () => Navigator.pop(
-              context,
-              _MaterialRequestDecision(status: _status, note: _note.text),
-            ),
+            onPressed: _rejecting && _note.text.trim().isEmpty
+                ? null
+                : () => Navigator.pop(
+                    context,
+                    _MaterialRequestDecision(status: _status, note: _note.text),
+                  ),
             child: const Text('Simpan status'),
           ),
         ),
@@ -2767,7 +2777,7 @@ class _MeetingMinuteTile extends StatelessWidget {
           padding: const EdgeInsets.only(top: 5),
           child: Text(
             item.followUpSource == null
-                ? '$date • ${item.actions.length} action plans'
+                ? '$date • ${item.actions.length} action ${item.actions.length == 1 ? 'plan' : 'plans'}'
                 : '$date • Follow-up of ${item.followUpSource!.title.trim().isEmpty ? 'previous minutes' : item.followUpSource!.title}',
           ),
         ),
