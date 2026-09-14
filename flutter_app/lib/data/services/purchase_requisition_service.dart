@@ -74,6 +74,8 @@ class PurchaseRequisitionService {
             .lt('release_date', releaseEnd.toIso8601String());
       }
       response = await request
+          // no_pr is free text from the sheet; no_pr_number is its numeric part.
+          .order('no_pr_number', ascending: sort.ascending, nullsFirst: false)
           .order('no_pr', ascending: sort.ascending, nullsFirst: false)
           .limit(pageSize + 1);
     } else {
@@ -90,6 +92,8 @@ class PurchaseRequisitionService {
             .lt('release_date', releaseEnd.toIso8601String());
       }
       response = await request
+          // no_pr is free text from the sheet; no_pr_number is its numeric part.
+          .order('no_pr_number', ascending: sort.ascending, nullsFirst: false)
           .order('no_pr', ascending: sort.ascending, nullsFirst: false)
           .limit(pageSize + 1);
     }
