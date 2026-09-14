@@ -188,6 +188,14 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
 
   String _value(double? value) =>
       value == null ? '' : formatThresholdNumber(value);
+  // Mirrors assessTemperature: the minimum is the at-or-above limit and the
+  // maximum only a fallback, so a lone value reads as "≥ value".
+  String _range(String name, double? min, double? max) {
+    if (min == null && max == null) return '$name bawaan';
+    if (min == null || max == null) return '$name ≥${_value(min ?? max)}°C';
+    return '$name ${_value(min)}–${_value(max)}°C';
+  }
+
   Future<void> _edit(_Threshold? item) async {
     final List<_PointOption> options = <_PointOption>[
       ..._points,
@@ -261,18 +269,39 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        _numberField(warningMin, 'Warning minimum (°C)'),
+                        _numberField(
+                          warningMin,
+                          'Warning minimum (°C)',
+                          () => setModalState(() => problem = null),
+                        ),
                         const SizedBox(height: 10),
-                        _numberField(warningMax, 'Warning maximum (°C)'),
+                        _numberField(
+                          warningMax,
+                          'Warning maximum (°C)',
+                          () => setModalState(() => problem = null),
+                        ),
                         const SizedBox(height: 10),
-                        _numberField(alarmMin, 'Alarm minimum (°C)'),
+                        _numberField(
+                          alarmMin,
+                          'Alarm minimum (°C)',
+                          () => setModalState(() => problem = null),
+                        ),
                         const SizedBox(height: 10),
-                        _numberField(alarmMax, 'Alarm maximum (°C)'),
+                        _numberField(
+                          alarmMax,
+                          'Alarm maximum (°C)',
+                          () => setModalState(() => problem = null),
+                        ),
                         const SizedBox(height: 10),
-                        _numberField(delta, 'Perubahan maksimum antar ronde'),
+                        _numberField(
+                          delta,
+                          'Perubahan maksimum antar ronde',
+                          () => setModalState(() => problem = null),
+                        ),
                         const SizedBox(height: 10),
                         TextField(
                           controller: source,
+                          onChanged: (_) => setModalState(() => problem = null),
                           decoration: const InputDecoration(
                             labelText: 'Sumber / referensi engineering *',
                           ),
@@ -361,18 +390,22 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
     }
   }
 
-  Widget _numberField(TextEditingController controller, String label) =>
-      TextField(
-        controller: controller,
-        keyboardType: const TextInputType.numberWithOptions(
-          decimal: true,
-          signed: true,
-        ),
-        inputFormatters: <TextInputFormatter>[
-          FilteringTextInputFormatter.allow(RegExp(r'^-?\d*[.,]?\d*')),
-        ],
-        decoration: InputDecoration(labelText: label),
-      );
+  Widget _numberField(
+    TextEditingController controller,
+    String label,
+    VoidCallback onChanged,
+  ) => TextField(
+    controller: controller,
+    onChanged: (_) => onChanged(),
+    keyboardType: const TextInputType.numberWithOptions(
+      decimal: true,
+      signed: true,
+    ),
+    inputFormatters: <TextInputFormatter>[
+      FilteringTextInputFormatter.allow(RegExp(r'^-?\d*[.,]?\d*')),
+    ],
+    decoration: InputDecoration(labelText: label),
+  );
   void _dispose(List<TextEditingController> controllers) {
     for (final TextEditingController controller in controllers) {
       controller.dispose();
@@ -438,7 +471,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                               ),
                             ),
                             subtitle: Text(
-                              'Warning ${_value(item.warningMin)}-${_value(item.warningMax)} · Alarm ${_value(item.alarmMin)}-${_value(item.alarmMax)}${item.delta == null ? '' : ' · Δ ${_value(item.delta)}'}',
+                              '${_range('Warning', item.warningMin, item.warningMax)} · ${_range('Alarm', item.alarmMin, item.alarmMax)}${item.delta == null ? '' : ' · Δ ${_value(item.delta)}°C'}',
                             ),
                             trailing: Chip(
                               label: Text(
