@@ -452,8 +452,10 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     }
   }
 
+  // Raw string: a single backslash. `r'\\d'` means a literal backslash plus
+  // "d", which rejected every valid time and made shifts impossible to save.
   bool _time(String value) =>
-      RegExp(r'^([01]\\d|2[0-3]):[0-5]\\d$').hasMatch(value);
+      RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(value);
   @override
   Widget build(BuildContext context) => AppBackScope(
     fallbackRoute: '/admin',
@@ -631,7 +633,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
           .map((String item) => item.trim())
           .where((String item) => item.isNotEmpty)
           .toList(growable: false);
-      if (!RegExp(r'^\\d{4}-\\d{2}-\\d{2}$').hasMatch(startDate) ||
+      if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(startDate) ||
           teamOrder.isEmpty) {
         throw const FormatException(
           'Masukkan tanggal yang valid dan minimal satu kode regu.',
