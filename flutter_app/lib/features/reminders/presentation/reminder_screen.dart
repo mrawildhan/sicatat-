@@ -310,17 +310,17 @@ class _ReminderScreenState extends State<ReminderScreen> {
             .select(
               'id,site_id,title,due_date,recipient_emails,category,asset_code,document_number,government_agency,description,priority,assigned_to,location,status,reminder_schedule,custom_reminder_days,recurrence_months,completed_at,completed_note,last_sent_at,operational_reminder_evidence(id,file_name,storage_path,mime_type,size_bytes,uploaded_at,attachment_type)',
             )
-            .order('due_date'),
+            .order('due_date', ascending: true),
         _client
             .from('reminder_recipient')
             .select('email')
             .eq('is_active', true)
-            .order('email'),
+            .order('email', ascending: true),
         _client
             .from('site')
             .select('id,name')
             .eq('is_active', true)
-            .order('name'),
+            .order('name', ascending: true),
         _client
             .from('app_user')
             .select('id,nik,name,role,team_id,site_id,phone,is_active')

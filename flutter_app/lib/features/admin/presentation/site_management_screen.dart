@@ -52,7 +52,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
       final Object response = await Supabase.instance.client
           .from('site')
           .select('id,code,name,is_active')
-          .order('name');
+          .order('name', ascending: true);
       if (response is! List) {
         throw const FormatException('Respons lokasi tidak valid.');
       }

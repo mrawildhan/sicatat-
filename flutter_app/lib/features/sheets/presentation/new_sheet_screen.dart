@@ -91,7 +91,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         .from('team')
         .select('id,name,site_id')
         .eq('is_active', true)
-        .order('code');
+        .order('code', ascending: true);
     if (response is! List) {
       throw const FormatException('Respons regu tidak valid.');
     }

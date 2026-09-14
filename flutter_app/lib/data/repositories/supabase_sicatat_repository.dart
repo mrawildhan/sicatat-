@@ -74,7 +74,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
         .from('shift')
         .select('id, code, name')
         .eq('is_active', true)
-        .order('code');
+        .order('code', ascending: true);
     if (response is! List) {
       throw const FormatException('Server mengembalikan daftar shift yang tidak valid.');
     }
@@ -142,7 +142,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
         )
         .isFilter('equipment_id', null)
         .eq('is_active', true)
-        .order('sort_order');
+        .order('sort_order', ascending: true);
     if (response is! List) {
       throw const FormatException(
         'Server mengembalikan titik ukur gearbox yang tidak valid.',
@@ -182,15 +182,15 @@ class SupabaseSicatatRepository implements SicatatRepository {
           .from('equipment')
           .select('id, code, name, section, sort_order')
           .eq('is_active', true)
-          .order('section')
-          .order('sort_order'),
+          .order('section', ascending: true)
+          .order('sort_order', ascending: true),
       client
           .from('measurement_point')
           .select(
             'id, code, label, equipment_id, data_type, unit, is_required, sort_order',
           )
           .eq('is_active', true)
-          .order('sort_order'),
+          .order('sort_order', ascending: true),
       _loadActiveThresholdRows(),
     ]);
     if (responses[0] is! List ||

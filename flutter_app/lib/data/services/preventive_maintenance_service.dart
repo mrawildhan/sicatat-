@@ -47,10 +47,10 @@ class PreventiveMaintenanceService {
         .select(
           'work_order,work_order_description,equipment_reference,crew_code,site_code,status_code,raised_on,planned_start_on,assigned_to,assigned_to_description,priority,priority_description',
         )
-        .order('site_code')
-        .order('crew_code')
-        .order('planned_start_on')
-        .order('work_order');
+        .order('site_code', ascending: true)
+        .order('crew_code', ascending: true)
+        .order('planned_start_on', ascending: true)
+        .order('work_order', ascending: true);
     if (response is! List) {
       throw const FormatException(
         'Data PM mengembalikan format yang tidak valid.',
@@ -72,9 +72,9 @@ class PreventiveMaintenanceService {
         .select(
           'work_order,work_order_description,equipment_reference,site_code,priority,raised_on,latest_progress',
         )
-        .order('site_code')
-        .order('raised_on')
-        .order('work_order');
+        .order('site_code', ascending: true)
+        .order('raised_on', ascending: true)
+        .order('work_order', ascending: true);
     if (response is! List) {
       throw const FormatException(
         'Data CM mengembalikan format yang tidak valid.',

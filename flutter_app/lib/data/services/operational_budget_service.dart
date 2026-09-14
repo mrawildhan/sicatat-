@@ -37,8 +37,8 @@ class OperationalBudgetService {
         .inFilter('site_code', const <String>['CPP', 'PORT'])
         .gte('period_start', '2026-01-01')
         .lte('period_start', '2026-06-01')
-        .order('period_start')
-        .order('site_code');
+        .order('period_start', ascending: true)
+        .order('site_code', ascending: true);
     if (response is! List) {
       throw const FormatException(
         'Data anggaran mengembalikan format tidak valid.',

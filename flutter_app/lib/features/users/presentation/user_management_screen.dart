@@ -139,18 +139,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             .from('team')
             .select('id,name')
             .eq('is_active', true)
-            .order('code'),
+            .order('code', ascending: true),
         Supabase.instance.client
             .from('site')
             .select('id,name')
             .eq('is_active', true)
-            .order('name'),
+            .order('name', ascending: true),
         Supabase.instance.client
             .from('app_user')
             .select(
               'id,nik,name,role,team_id,site_id,phone,is_active,team:team_id(name),site:site_id(name)',
             )
-            .order('name'),
+            .order('name', ascending: true),
       ]);
       final Object teamResponse = responses[0];
       final Object siteResponse = responses[1];

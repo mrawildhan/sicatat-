@@ -86,7 +86,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
             'registration_code.ilike.%$query%,tool_name.ilike.%$query%,mnemonic.ilike.%$query%,serial_number.ilike.%$query%',
           );
         }
-        stockResponse = (await request.order('tool_name').limit(100)) as Object;
+        stockResponse = (await request.order('tool_name', ascending: true).limit(100)) as Object;
       } else {
         dynamic request = _client
             .from('warehouse_stock')
@@ -102,7 +102,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
           );
         }
         stockResponse =
-            (await request.order('description').limit(100)) as Object;
+            (await request.order('description', ascending: true).limit(100)) as Object;
       }
       if (stockResponse is! List) {
         throw const FormatException('Warehouse returned an invalid response.');

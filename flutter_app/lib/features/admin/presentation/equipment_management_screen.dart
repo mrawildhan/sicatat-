@@ -66,8 +66,8 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
           .from('equipment')
           .select('id,code,name,section,sort_order,is_active')
           .eq('module_id', moduleId)
-          .order('section')
-          .order('sort_order');
+          .order('section', ascending: true)
+          .order('sort_order', ascending: true);
       if (response is! List) {
         throw const FormatException('Respons peralatan tidak valid.');
       }
@@ -376,14 +376,14 @@ class _MeasurementPointManagementScreenState
                   'id,code,label,data_type,unit,is_required,sort_order,is_active',
                 )
                 .isFilter('equipment_id', null)
-                .order('sort_order')
+                .order('sort_order', ascending: true)
           : await Supabase.instance.client
                 .from('measurement_point')
                 .select(
                   'id,code,label,data_type,unit,is_required,sort_order,is_active',
                 )
                 .eq('equipment_id', widget.equipmentId!)
-                .order('sort_order');
+                .order('sort_order', ascending: true);
       if (response is! List) {
         throw const FormatException('Respons titik ukur tidak valid.');
       }

@@ -65,12 +65,12 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
         Supabase.instance.client
             .from('team')
             .select('id,code,name,site_id,is_active,site:site_id(name)')
-            .order('code'),
+            .order('code', ascending: true),
         Supabase.instance.client
             .from('site')
             .select('id,name')
             .eq('is_active', true)
-            .order('name'),
+            .order('name', ascending: true),
       ]);
       final Object response = responses[0];
       final Object siteResponse = responses[1];
@@ -305,7 +305,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
       final Object response = await Supabase.instance.client
           .from('shift')
           .select('id,code,name,start_time,end_time,is_active')
-          .order('code');
+          .order('code', ascending: true);
       if (response is! List) {
         throw const FormatException('Respons shift tidak valid.');
       }

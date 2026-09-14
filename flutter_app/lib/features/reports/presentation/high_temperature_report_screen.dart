@@ -71,7 +71,7 @@ class _HighTemperatureReportScreenState
       final Object response = await Supabase.instance.client
           .from('team')
           .select('id,name')
-          .order('code');
+          .order('code', ascending: true);
       if (response is! List) {
         throw const FormatException('Respons regu tidak valid.');
       }

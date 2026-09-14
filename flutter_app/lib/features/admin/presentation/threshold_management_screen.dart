@@ -107,7 +107,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
             .from('measurement_point')
             .select('id,label,unit,equipment:equipment_id(name)')
             .eq('is_active', true)
-            .order('code'),
+            .order('code', ascending: true),
         Supabase.instance.client
             .from('threshold')
             .select(

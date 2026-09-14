@@ -2,6 +2,12 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Urutan data Supabase & uji live Data master — 2026-09-14
+
+- `postgrest-dart` mengurutkan **menurun** bila `ascending` tidak ditulis (berbeda dengan SQL dan postgrest-js; tertulis di dokumentasi paketnya). 34 pemanggilan `.order(...)` tanpa arah membuat Lokasi kerja, regu, pengguna, dan email tampil Z→A; Pengingat menampilkan jatuh tempo terjauh paling atas (yang terlambat di bawah); Gudang memakai `.order(...).limit(100)` sehingga tanpa kata kunci yang tampil justru 100 baris terakhir menurut abjad. Semua kini `ascending: true`. `test/order_direction_test.dart` gagal bila ada `.order('kolom')` baru tanpa arah. Form suhu, Anggaran, dan PM/CM tidak terdampak karena mengurutkan ulang di aplikasi.
+- Data master: semua layar hanya punya tambah/ubah/aktif-nonaktif, tanpa hapus. Uji live Lokasi kerja lolos (buat `UJI-WEB` → ubah nama → nonaktifkan). Jangan menambah peralatan, titik ukur, atau shift di produksi untuk uji (langsung muncul di form crew), dan jangan membuat pengguna uji (form butuh PIN).
+- Temuan data: semua `measurement_point` peralatan ber-`sort_order = 0`, jadi urutan kolom di form suhu tidak stabil (Hydraulic Pump 1 dan 2 berbeda, Remark kadang di tengah). Perlu keputusan urutan baku sebelum mengisi `sort_order`.
+
 ## Email pengingat & perbaikan hasil uji live — 2026-09-14
 
 - Email pengingat gagal terkirim sejak 2026-09-02; sukses terakhir 2026-08-27. `_shared/reminder_email.ts` mencoba Gmail dulu (secret `GMAIL_*` diset 2026-08-25, refresh token kemungkinan kedaluwarsa bila aplikasi OAuth masih mode Testing), lalu Resend, yang menjawab "API key is invalid". Perbaikan kredensial harus dilakukan pemilik: perbarui `GMAIL_REFRESH_TOKEN` atau set `RESEND_API_KEY` yang valid di Supabase → Edge Functions → Secrets. Jangan menaruh kunci di repo.

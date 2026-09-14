@@ -56,7 +56,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       final Object response = await Supabase.instance.client
           .from('team')
           .select('id,name')
-          .order('code');
+          .order('code', ascending: true);
       if (response is! List) return;
       final List<_TeamOption> teams = response
           .map(
