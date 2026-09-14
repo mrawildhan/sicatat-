@@ -23,7 +23,7 @@ flutter test
 flutter build apk --release --split-per-abi
 ```
 
-For this workspace, the latest Android artifact is `flutter_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` (v2.1.5+215). Build output is intentionally ignored by Git.
+Android release APKs land in `flutter_app/build/app/outputs/flutter-apk/` (only `app-arm64-v8a-release.apk` is published, to save Supabase storage). Build output is intentionally ignored by Git, so check `flutter_app/pubspec.yaml` and the active `app_release` row for the current version instead of trusting a number written here.
 
 ## Source map
 

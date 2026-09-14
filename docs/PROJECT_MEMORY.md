@@ -3,7 +3,14 @@
 Dokumen ini adalah pegangan singkat bagi pengembang berikutnya. Baca juga
 `AGENTS.md`, terutama aturan keamanan dan rilis.
 
-## Handoff terbaru — 13 September 2026
+## Handoff terbaru — 14 September 2026
+
+- Versi aplikasi `2.8.35+12315`: perbaikan audit keamanan dan UX kini dirilis
+  ke website dan Android (APK arm64-v8a). Rincian audit, RLS, dan alur rilis
+  ada di bagian 2026-09-14 pada `AGENTS.md`.
+- Signup publik Supabase dimatikan; akun baru hanya lewat User Management.
+
+## Handoff sebelumnya — 13 September 2026
 
 - Sumber terbaru berada di `origin/master`. Commit awal untuk pekerjaan
   berikutnya adalah `8bec4d2` (perbaikan dokumentasi `AGENTS.md`, tidak

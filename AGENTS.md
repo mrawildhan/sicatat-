@@ -2,6 +2,12 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Rilis Android & website 2.8.35 — 2026-09-14
+
+- Pemilik meminta Android diperbarui agar perbaikan audit (bagian di bawah) juga sampai ke APK. Versi `2.8.35+12315`, `AppConfig.appVersion` `2.8.35`, cache suffix web `2.8.35-android-release`.
+- Hanya `arm64-v8a` (version code 14315) yang diunggah ke `app-releases` dan diaktifkan lewat `20260914120000_publish_sicatat_2_8_35_audit_fixes.sql`. APK 2.8.33 dihapus dari bucket untuk menghemat kuota; 2.8.34 disimpan sebagai cadangan.
+- APK rilis ditandatangani keystore debug mesin ini (`~/.android/debug.keystore`, SHA-256 `b1d69e78…dc574584`), sama dengan semua rilis sebelumnya. Build dari mesin lain tidak bisa meng-update app di HP crew.
+
 ## Audit keamanan RLS & header website — 2026-09-14
 
 - Temuan: 11 tabel lama dari `schema.sql` (`module`, `form_template`, `equipment`, `measurement_point`, `threshold`, `shift`, `roster`, `roster_anchor`, `attachment`, `audit_log`, `app_version`) tidak pernah diberi RLS, sehingga anon key publik bisa membaca/mengubah/menghapus master data, memalsukan `audit_log`, dan menaikkan `app_version.min_version` untuk memblokir semua app Android.
@@ -92,7 +98,7 @@ This is the active handoff file for Codex. Follow it before editing.
 This section overrides older release references in this handoff.
 
 - Current shared source is `origin/master`; current app version is
-  `2.8.34+12314` / `2.8.34` (HEAD `b0c138f`). Verify `flutter_app/pubspec.yaml`,
+  `2.8.35+12315` / `2.8.35` (Android + website, 2026-09-14). Verify `flutter_app/pubspec.yaml`,
   `AppConfig.appVersion`, `git log -1`, and `git status` before editing —
   this baseline moves roughly daily, don't trust this number without
   re-checking.
