@@ -117,7 +117,7 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
                   children: <Widget>[
                     TextField(
                       controller: code,
-                      decoration: const InputDecoration(labelText: 'Code'),
+                      decoration: const InputDecoration(labelText: 'Kode'),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -435,7 +435,7 @@ class _MeasurementPointManagementScreenState
                   children: <Widget>[
                     TextField(
                       controller: code,
-                      decoration: const InputDecoration(labelText: 'Code'),
+                      decoration: const InputDecoration(labelText: 'Kode'),
                     ),
                     const SizedBox(height: 12),
                     TextField(

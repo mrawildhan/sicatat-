@@ -130,7 +130,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                   children: <Widget>[
                     TextField(
                       controller: code,
-                      decoration: const InputDecoration(labelText: 'Code'),
+                      decoration: const InputDecoration(labelText: 'Kode'),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -355,7 +355,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                   children: <Widget>[
                     TextField(
                       controller: code,
-                      decoration: const InputDecoration(labelText: 'Code'),
+                      decoration: const InputDecoration(labelText: 'Kode'),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -686,7 +686,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
               padding: const EdgeInsets.all(20),
               children: <Widget>[
                 const Text(
-                  'Set the reference used for the three-day Day - Night - Off rotation.',
+                  'Tentukan acuan rotasi tiga hari: Pagi - Malam - Libur.',
                 ),
                 const SizedBox(height: 18),
                 Card(
@@ -698,7 +698,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(
-                                'Cycle starts: ${_anchor!.startDate}',
+                                'Siklus mulai: ${_anchor!.startDate}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w800,
                                 ),
