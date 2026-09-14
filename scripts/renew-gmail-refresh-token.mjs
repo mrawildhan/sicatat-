@@ -115,6 +115,19 @@ if (!clientId || !clientSecret) {
   console.error("Client ID dan Client secret wajib diisi.");
   process.exit(1);
 }
+// A wrong paste (secret in the ID prompt, cut-off text, quotes) otherwise only
+// surfaces as Google's "OAuth client was not found / invalid_client" page.
+if (!/^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(clientId)) {
+  console.error(
+    "Client ID tidak valid. Formatnya angka-huruf yang diakhiri .apps.googleusercontent.com.\n" +
+      "Salin ulang dari Google Auth Platform -> Clients (bukan Client secret), lalu jalankan lagi.",
+  );
+  process.exit(1);
+}
+if (clientSecret.endsWith(".apps.googleusercontent.com")) {
+  console.error("Yang ditempel sebagai Client secret adalah Client ID. Jalankan lagi dan tempel secret-nya.");
+  process.exit(1);
+}
 
 const state = randomBytes(16).toString("hex");
 const codePromise = listenForCode(state);
@@ -126,7 +139,9 @@ const consentUrl =
     response_type: "code",
     scope: SCOPE,
     access_type: "offline",
-    prompt: "consent",
+    // Always show the account chooser so a browser already signed in to a
+    // different Google account can switch to the sender mailbox.
+    prompt: "select_account consent",
     login_hint: SENDER,
     state,
   });
