@@ -14,6 +14,8 @@
 - Label "Code" di form Regu, Shift, Peralatan, dan Titik ukur kini "Kode"; teks Rotasi regu kini berbahasa Indonesia.
 - Pencarian Gudang dulu berhenti diam-diam di 100 baris ("bolt" punya 201 hasil). Kini diminta 101 baris; bila lebih dari 100, daftar diakhiri catatan agar kata kunci dipersempit. Respons pencarian lama yang datang terlambat tidak lagi menimpa hasil pencarian terbaru.
 - Rilis 2.8.36 (Android arm64 versionCode 14316 + website `2.8.36-android-release`) membawa semua perbaikan website sejak 2.8.35. APK diperiksa dengan `aapt2 dump badging`, diunggah dengan `--content-type application/vnd.android.package-archive` (tanpa itu CLI mengirim `application/zip` dan bucket menjawab 415), lalu diaktifkan lewat `20260914140000_publish_sicatat_2_8_36_master_data_fixes.sql`. APK 2.8.34 dihapus dari storage sesuai pola dua versi.
+- Data PR juga berhenti di 60 baris ("bearing" punya 89 hasil) dan badge "60+ hasil" muncul walau hasil tepat 60. Kini service meminta 61 baris (`PurchaseRequisitionService.pageSize`), badge 60+ hanya bila memang lebih, dan akhir daftar memberi catatan untuk mempersempit kata kunci atau periode rilis.
+- Uji langsung menu baca-saja (2.8.36): Anggaran cocok dengan DB (US$354.360 / 298.679, CPP melebihi 34.436, PORT sisa 90.117); Outstanding PM & CM cocok (CPP A/B/C 25/27/25, PORT 18/18/18, CM 33/20); pencarian Cost code "maintenance" → 2 referensi; Pusat Dokumen menjawab "Minimal 3 (tiga) orang" untuk sandblasting dengan sumber ASM-COP-160 dan ASM-COP-171 (~23 detik); unduh APK 2.8.36 lewat signed URL berhasil (file ZIP). Catatan uji: Browser pane yang tersembunyi membuat Flutter berhenti menggambar (screenshot timeout) — tampilkan pane dulu.
 
 ## Email pengingat & perbaikan hasil uji live — 2026-09-14
 
