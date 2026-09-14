@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/app_navigation.dart';
@@ -10,25 +11,52 @@ class _PointOption {
     required this.label,
     required this.unit,
     this.equipmentName,
+    this.section = '',
+    this.equipmentOrder = 0,
+    this.pointOrder = 0,
   });
   final String id;
   final String label;
   final String unit;
   final String? equipmentName;
+  final String section;
+  final int equipmentOrder;
+  final int pointOrder;
   factory _PointOption.fromJson(JsonMap json) {
     final Object? rawEquipment = json['equipment'];
     final JsonMap? equipment = rawEquipment == null
         ? null
         : requireJsonMap(rawEquipment, source: 'point equipment');
+    int order(Object? value) => value is num ? value.toInt() : 0;
     return _PointOption(
       id: json.requiredString('id'),
       label: json.requiredString('label'),
       unit: json.optionalString('unit') ?? '',
       equipmentName: equipment?.optionalString('name'),
+      section: equipment?.optionalString('section') ?? '',
+      equipmentOrder: order(equipment?['sort_order']),
+      pointOrder: order(json['sort_order']),
     );
   }
   String get display =>
-      '${equipmentName == null ? '' : '$equipmentName · '}$label${unit.isEmpty ? '' : ' ($unit)'}';
+      '${equipmentName ?? 'Gearbox bersama'} · $label${unit.isEmpty ? '' : ' ($unit)'}';
+
+  /// Same order as the crew form: equipment by section and sort order, each
+  /// equipment's points by sort order, shared gearbox points last.
+  static int compare(_PointOption a, _PointOption b) {
+    final int shared = (a.equipmentName == null ? 1 : 0).compareTo(
+      b.equipmentName == null ? 1 : 0,
+    );
+    if (shared != 0) return shared;
+    final int section = a.section.compareTo(b.section);
+    if (section != 0) return section;
+    final int equipment = a.equipmentOrder.compareTo(b.equipmentOrder);
+    if (equipment != 0) return equipment;
+    final int name = (a.equipmentName ?? '').compareTo(b.equipmentName ?? '');
+    if (name != 0) return name;
+    final int point = a.pointOrder.compareTo(b.pointOrder);
+    return point != 0 ? point : a.label.compareTo(b.label);
+  }
 }
 
 class _Threshold {
@@ -36,6 +64,7 @@ class _Threshold {
     required this.id,
     required this.pointId,
     required this.pointName,
+    this.equipmentName,
     required this.isActive,
     required this.sourceNote,
     this.warningMin,
@@ -47,6 +76,7 @@ class _Threshold {
   final String id;
   final String pointId;
   final String pointName;
+  final String? equipmentName;
   final bool isActive;
   final String sourceNote;
   final double? warningMin;
@@ -54,6 +84,8 @@ class _Threshold {
   final double? alarmMin;
   final double? alarmMax;
   final double? delta;
+  String get pointDisplay =>
+      equipmentName == null ? pointName : '$equipmentName · $pointName';
   factory _Threshold.fromJson(JsonMap json) {
     final JsonMap point = requireJsonMap(
       json['measurement_point'],
@@ -68,6 +100,12 @@ class _Threshold {
       id: json.requiredString('id'),
       pointId: json.requiredString('measurement_point_id'),
       pointName: point.requiredString('label'),
+      equipmentName: point['equipment'] == null
+          ? null
+          : requireJsonMap(
+              point['equipment'],
+              source: 'threshold equipment',
+            ).optionalString('name'),
       isActive: json.requiredBool('is_active'),
       sourceNote: json.optionalString('source_note') ?? '',
       warningMin: number('warning_min'),
@@ -105,26 +143,30 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
       final List<Object> results = await Future.wait<Object>(<Future<Object>>[
         Supabase.instance.client
             .from('measurement_point')
-            .select('id,label,unit,equipment:equipment_id(name)')
+            .select(
+              'id,label,unit,sort_order,equipment:equipment_id(name,section,sort_order)',
+            )
             .eq('is_active', true)
-            .order('code', ascending: true),
+            .eq('data_type', 'numeric'),
         Supabase.instance.client
             .from('threshold')
             .select(
-              'id,measurement_point_id,warning_min,warning_max,alarm_min,alarm_max,delta_max_per_round,is_active,source_note,measurement_point:measurement_point_id(label)',
+              'id,measurement_point_id,warning_min,warning_max,alarm_min,alarm_max,delta_max_per_round,is_active,source_note,measurement_point:measurement_point_id(label,equipment:equipment_id(name))',
             )
             .order('effective_from', ascending: false),
       ]);
       if (results[0] is! List || results[1] is! List) {
         throw const FormatException('Respons batas suhu tidak valid.');
       }
-      final List<_PointOption> points = (results[0] as List<Object?>)
-          .map(
-            (Object? row) => _PointOption.fromJson(
-              requireJsonMap(row, source: 'measurement point'),
-            ),
-          )
-          .toList(growable: false);
+      final List<_PointOption> points =
+          (results[0] as List<Object?>)
+              .map(
+                (Object? row) => _PointOption.fromJson(
+                  requireJsonMap(row, source: 'measurement point'),
+                ),
+              )
+              .toList()
+            ..sort(_PointOption.compare);
       final List<_Threshold> items = (results[1] as List<Object?>)
           .map(
             (Object? row) =>
@@ -144,14 +186,26 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
     }
   }
 
-  String _value(double? value) => value == null ? '' : value.toString();
+  String _value(double? value) =>
+      value == null ? '' : formatThresholdNumber(value);
   Future<void> _edit(_Threshold? item) async {
-    if (_points.isEmpty) {
-      _notice('Tambahkan titik ukur aktif terlebih dahulu.');
+    final List<_PointOption> options = <_PointOption>[
+      ..._points,
+      if (item != null && !_points.any((point) => point.id == item.pointId))
+        _PointOption(
+          id: item.pointId,
+          label: item.pointName,
+          unit: '',
+          equipmentName: item.equipmentName,
+        ),
+    ];
+    if (options.isEmpty) {
+      _notice('Tambahkan titik ukur suhu yang aktif terlebih dahulu.');
       return;
     }
-    String pointId = item?.pointId ?? _points.first.id;
+    String pointId = item?.pointId ?? options.first.id;
     bool active = item?.isActive ?? true;
+    String? problem;
     final TextEditingController warningMin = TextEditingController(
       text: _value(item?.warningMin),
     );
@@ -170,105 +224,126 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
     final TextEditingController source = TextEditingController(
       text: item?.sourceNote ?? '',
     );
-    final bool? saved = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) => StatefulBuilder(
-        builder:
-            (
-              BuildContext context,
-              void Function(void Function()) setModalState,
-            ) => AlertDialog(
-              title: Text(
-                item == null ? 'Tambah batas suhu' : 'Ubah batas suhu',
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    DropdownButtonFormField<String>(
-                      initialValue: pointId,
-                      items: _points
-                          .map(
-                            (point) => DropdownMenuItem<String>(
-                              value: point.id,
-                              child: Text(point.display),
+    final Map<String, Object?>? payload =
+        await showDialog<Map<String, Object?>>(
+          context: context,
+          builder: (BuildContext dialogContext) => StatefulBuilder(
+            builder:
+                (
+                  BuildContext context,
+                  void Function(void Function()) setModalState,
+                ) => AlertDialog(
+                  title: Text(
+                    item == null ? 'Tambah batas suhu' : 'Ubah batas suhu',
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        DropdownButtonFormField<String>(
+                          initialValue: pointId,
+                          isExpanded: true,
+                          items: options
+                              .map(
+                                (point) => DropdownMenuItem<String>(
+                                  value: point.id,
+                                  child: Text(
+                                    point.display,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(growable: false),
+                          onChanged: (String? value) =>
+                              setModalState(() => pointId = value ?? pointId),
+                          decoration: const InputDecoration(
+                            labelText: 'Titik ukur',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _numberField(warningMin, 'Warning minimum (°C)'),
+                        const SizedBox(height: 10),
+                        _numberField(warningMax, 'Warning maximum (°C)'),
+                        const SizedBox(height: 10),
+                        _numberField(alarmMin, 'Alarm minimum (°C)'),
+                        const SizedBox(height: 10),
+                        _numberField(alarmMax, 'Alarm maximum (°C)'),
+                        const SizedBox(height: 10),
+                        _numberField(delta, 'Perubahan maksimum antar ronde'),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: source,
+                          decoration: const InputDecoration(
+                            labelText: 'Sumber / referensi engineering *',
+                          ),
+                        ),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          value: active,
+                          onChanged: (bool value) =>
+                              setModalState(() => active = value),
+                          title: const Text('Aktif'),
+                        ),
+                        Text(
+                          'Batas yang dikosongkan memakai bawaan: warning 60°C, alarm 70°C.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                        ),
+                        if (problem case final String message) ...<Widget>[
+                          const SizedBox(height: 8),
+                          Text(
+                            message,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontWeight: FontWeight.w700,
                             ),
-                          )
-                          .toList(growable: false),
-                      onChanged: (String? value) =>
-                          setModalState(() => pointId = value ?? pointId),
-                      decoration: const InputDecoration(
-                        labelText: 'Titik ukur',
-                      ),
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 10),
-                    _numberField(warningMin, 'Warning minimum'),
-                    const SizedBox(height: 10),
-                    _numberField(warningMax, 'Warning maximum'),
-                    const SizedBox(height: 10),
-                    _numberField(alarmMin, 'Alarm minimum'),
-                    const SizedBox(height: 10),
-                    _numberField(alarmMax, 'Alarm maximum'),
-                    const SizedBox(height: 10),
-                    _numberField(delta, 'Perubahan maksimum antar ronde'),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: source,
-                      decoration: const InputDecoration(
-                        labelText: 'Sumber / referensi engineering',
-                      ),
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Batal'),
                     ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      value: active,
-                      onChanged: (bool value) =>
-                          setModalState(() => active = value),
-                      title: const Text('Aktif'),
+                    FilledButton(
+                      onPressed: () {
+                        final result = validateThresholdInput(
+                          pointId: pointId,
+                          warningMin: warningMin.text,
+                          warningMax: warningMax.text,
+                          alarmMin: alarmMin.text,
+                          alarmMax: alarmMax.text,
+                          delta: delta.text,
+                          sourceNote: source.text,
+                          isActive: active,
+                        );
+                        if (result.payload
+                            case final Map<String, Object?> valid) {
+                          Navigator.pop(dialogContext, valid);
+                        } else {
+                          setModalState(() => problem = result.error);
+                        }
+                      },
+                      child: const Text('Simpan'),
                     ),
                   ],
                 ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Batal'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Simpan'),
-                ),
-              ],
-            ),
-      ),
-    );
-    if (saved != true) {
-      _dispose(<TextEditingController>[
-        warningMin,
-        warningMax,
-        alarmMin,
-        alarmMax,
-        delta,
-        source,
-      ]);
-      return;
-    }
-    try {
-      final String sourceNote = source.text.trim();
-      if (sourceNote.isEmpty) {
-        throw const FormatException(
-          'Sumber atau referensi engineering wajib diisi.',
+          ),
         );
-      }
-      final Map<String, Object?> payload = <String, Object?>{
-        'measurement_point_id': pointId,
-        'warning_min': _number(warningMin.text),
-        'warning_max': _number(warningMax.text),
-        'alarm_min': _number(alarmMin.text),
-        'alarm_max': _number(alarmMax.text),
-        'delta_max_per_round': _number(delta.text),
-        'source_note': sourceNote,
-        'is_active': active,
-      };
+    _dispose(<TextEditingController>[
+      warningMin,
+      warningMax,
+      alarmMin,
+      alarmMax,
+      delta,
+      source,
+    ]);
+    if (payload == null) return;
+    try {
       if (item == null) {
         await Supabase.instance.client.from('threshold').insert(payload);
       } else {
@@ -283,15 +358,6 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
       }
     } on Object catch (error) {
       if (mounted) _notice('Batas suhu tidak dapat disimpan: $error');
-    } finally {
-      _dispose(<TextEditingController>[
-        warningMin,
-        warningMax,
-        alarmMin,
-        alarmMax,
-        delta,
-        source,
-      ]);
     }
   }
 
@@ -302,10 +368,11 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
           decimal: true,
           signed: true,
         ),
+        inputFormatters: <TextInputFormatter>[
+          FilteringTextInputFormatter.allow(RegExp(r'^-?\d*[.,]?\d*')),
+        ],
         decoration: InputDecoration(labelText: label),
       );
-  double? _number(String value) =>
-      value.trim().isEmpty ? null : double.tryParse(value.trim());
   void _dispose(List<TextEditingController> controllers) {
     for (final TextEditingController controller in controllers) {
       controller.dispose();
@@ -365,7 +432,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                           child: ListTile(
                             onTap: () => _edit(item),
                             title: Text(
-                              item.pointName,
+                              item.pointDisplay,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w800,
                               ),
@@ -384,5 +451,99 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                     ),
             ),
     ),
+  );
+}
+
+/// Formats a threshold for display without a trailing ".0".
+String formatThresholdNumber(double value) => value == value.roundToDouble()
+    ? value.toStringAsFixed(0)
+    : value.toString();
+
+/// Parses and checks the threshold dialog before anything is sent, so a wrong
+/// value keeps the dialog open instead of silently saving an empty limit.
+@visibleForTesting
+({Map<String, Object?>? payload, String? error}) validateThresholdInput({
+  required String pointId,
+  required String warningMin,
+  required String warningMax,
+  required String alarmMin,
+  required String alarmMax,
+  required String delta,
+  required String sourceNote,
+  required bool isActive,
+}) {
+  ({Map<String, Object?>? payload, String? error}) fail(String message) =>
+      (payload: null, error: message);
+  const Map<String, String> labels = <String, String>{
+    'warning_min': 'Warning minimum',
+    'warning_max': 'Warning maximum',
+    'alarm_min': 'Alarm minimum',
+    'alarm_max': 'Alarm maximum',
+    'delta_max_per_round': 'Perubahan maksimum antar ronde',
+  };
+  final Map<String, String> raw = <String, String>{
+    'warning_min': warningMin,
+    'warning_max': warningMax,
+    'alarm_min': alarmMin,
+    'alarm_max': alarmMax,
+    'delta_max_per_round': delta,
+  };
+  final Map<String, double?> values = <String, double?>{};
+  for (final MapEntry<String, String> entry in raw.entries) {
+    final String text = entry.value.trim().replaceAll(',', '.');
+    if (text.isEmpty) {
+      values[entry.key] = null;
+      continue;
+    }
+    final double? parsed = double.tryParse(text);
+    if (parsed == null || !parsed.isFinite) {
+      return fail('${labels[entry.key]} harus berupa angka.');
+    }
+    values[entry.key] = parsed;
+  }
+  final double? wMin = values['warning_min'];
+  final double? wMax = values['warning_max'];
+  final double? aMin = values['alarm_min'];
+  final double? aMax = values['alarm_max'];
+  final double? maxDelta = values['delta_max_per_round'];
+  if (wMin == null && wMax == null && aMin == null && aMax == null) {
+    return fail('Isi minimal satu batas warning atau alarm.');
+  }
+  if (wMin != null && wMax != null && wMin > wMax) {
+    return fail(
+      'Warning minimum tidak boleh lebih besar dari warning maximum.',
+    );
+  }
+  if (aMin != null && aMax != null && aMin > aMax) {
+    return fail('Alarm minimum tidak boleh lebih besar dari alarm maximum.');
+  }
+  // Mirrors assessTemperature: the minimum wins, the maximum is a
+  // fallback, and an empty pair falls back to the 60/70°C defaults.
+  final double warningAt = wMin ?? wMax ?? 60;
+  final double alarmAt = aMin ?? aMax ?? 70;
+  if (warningAt >= alarmAt) {
+    return fail(
+      'Batas warning (${formatThresholdNumber(warningAt)}°C) harus lebih rendah dari batas alarm (${formatThresholdNumber(alarmAt)}°C).',
+    );
+  }
+  if (maxDelta != null && maxDelta <= 0) {
+    return fail('Perubahan maksimum antar ronde harus lebih dari 0.');
+  }
+  final String note = sourceNote.trim();
+  if (note.isEmpty) {
+    return fail('Sumber atau referensi engineering wajib diisi.');
+  }
+  return (
+    payload: <String, Object?>{
+      'measurement_point_id': pointId,
+      'warning_min': wMin,
+      'warning_max': wMax,
+      'alarm_min': aMin,
+      'alarm_max': aMax,
+      'delta_max_per_round': maxDelta,
+      'source_note': note,
+      'is_active': isActive,
+    },
+    error: null,
   );
 }
