@@ -240,6 +240,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
   final TextEditingController _searchController = TextEditingController();
   RealtimeChannel? _reminderChannel;
   Timer? _realtimeRefreshDebounce;
+  DateTime? _lastLoadCompletedAt;
   _ReminderFilter _filter = _ReminderFilter.all;
   String _searchQuery = '';
   String? _siteFilterId;
@@ -361,6 +362,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         _message('Pengingat tidak dapat dimuat: $error');
       }
     } finally {
+      _lastLoadCompletedAt = DateTime.now();
       if (mounted && showLoading) setState(() => _loading = false);
     }
   }
@@ -382,6 +384,15 @@ class _ReminderScreenState extends State<ReminderScreen> {
   void _queueRealtimeRefresh() {
     _realtimeRefreshDebounce?.cancel();
     _realtimeRefreshDebounce = Timer(const Duration(milliseconds: 450), () {
+      // Saving, completing or deleting already reloads the list itself; the
+      // realtime echo of that same change would fetch everything a second
+      // time. Changes from other users outside this window still refresh.
+      final DateTime? lastLoad = _lastLoadCompletedAt;
+      if (lastLoad != null &&
+          DateTime.now().difference(lastLoad) <
+              const Duration(milliseconds: 1500)) {
+        return;
+      }
       if (mounted) unawaited(_load(showLoading: false, showErrors: false));
     });
   }

@@ -171,7 +171,8 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     final picked = await showDatePicker(
       context: context,
       firstDate: DateTime(2024),
-      lastDate: DateTime(2035),
+      // Same upper bound as the sheet list date filter.
+      lastDate: DateTime(2040, 12, 31),
       initialDate: _date,
     );
     if (picked == null) return;

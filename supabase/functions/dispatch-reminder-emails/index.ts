@@ -132,7 +132,10 @@ Deno.serve(async (req) => {
       )
       .eq("status", "open")
       .gte("due_date", today)
-      .limit(100);
+      // No arbitrary cap: an unordered limit(100) silently skipped reminders
+      // once more than 100 open reminders were still ahead of their due date.
+      .order("due_date", { ascending: true })
+      .range(0, 4999);
     if (error) throw error;
 
     const dueToday = (reminders ?? []).flatMap((reminder) =>

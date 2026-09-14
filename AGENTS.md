@@ -2,6 +2,14 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Email pengingat & perbaikan hasil uji live — 2026-09-14
+
+- Email pengingat gagal terkirim sejak 2026-09-02; sukses terakhir 2026-08-27. `_shared/reminder_email.ts` mencoba Gmail dulu (secret `GMAIL_*` diset 2026-08-25, refresh token kemungkinan kedaluwarsa bila aplikasi OAuth masih mode Testing), lalu Resend, yang menjawab "API key is invalid". Perbaikan kredensial harus dilakukan pemilik: perbarui `GMAIL_REFRESH_TOKEN` atau set `RESEND_API_KEY` yang valid di Supabase → Edge Functions → Secrets. Jangan menaruh kunci di repo.
+- Perbaikan kode (sudah deploy `send-reminder-email` v30 verify_jwt=true, `dispatch-reminder-emails` v18 verify_jwt=false): `error_message` pengiriman sekarang memuat alasan Gmail dan Resend sekaligus (termasuk kode OAuth seperti `invalid_grant`); dispatcher tidak lagi memakai `.limit(100)` tanpa urutan yang bisa melewatkan pengingat bila pengingat terbuka mendatang lebih dari 100.
+- `net._http_response` untuk cron pukul 00:00 dan 22:00 UTC selalu timeout 5 detik, tetapi fungsi tetap berjalan sampai selesai (log sync gudang 2026-09-13 `completed`). Itu bukan penyebab email gagal.
+- Website: daftar Pengingat tidak lagi dimuat dua kali setelah simpan/selesai/hapus (gema realtime diabaikan 1,5 detik setelah muat lokal); form suhu kembali ke atas saat pindah sisi/ronde (sebelumnya terbuka di posisi gulir lama sehingga kolom mudah tertukar); batas tanggal Buat sheet disamakan jadi 2040 dengan filter daftar. Cache suffix `2.8.35-reminder-fixes`.
+- Contoh data yang sengaja disimpan: sheet suhu 31/12/2034 Crew C Pagi (submitted) dan pengingat "Contoh Pengingat Uji Website" (UJI-WEB-001, jatuh tempo 2034-12-31). Menandai pengingat selesai mewajibkan file bukti.
+
 ## Bug simpan pembacaan suhu di website — 2026-09-14
 
 - Ditemukan saat mengisi sheet suhu secara live di website (sheet uji 31/12/2034 Crew C Pagi): "Simpan draf & lanjutkan" selalu gagal dengan "Data peralatan tidak dapat disimpan. Silakan coba lagi.", tanpa request ke Supabase dan tanpa log console.

@@ -207,7 +207,9 @@ async function getGmailAccessToken(
       tokenResponse.status,
       tokenData.error,
     );
-    throw new Error("Gmail authorization is invalid or expired.");
+    const reason =
+      typeof tokenData.error === "string" ? " (" + tokenData.error + ")" : "";
+    throw new Error("Gmail authorization is invalid or expired" + reason + ".");
   }
   return tokenData.access_token as string;
 }
@@ -370,6 +372,10 @@ export async function sendReminderEmail(
     "--sicatat-boundary--",
   ].join("\r\n");
 
+  // Keep every provider failure so the delivery row explains the real cause.
+  // Previously only the last (Resend) error was stored and an expired Gmail
+  // authorization stayed hidden in the function logs.
+  const providerErrors: string[] = [];
   if (gmailClientId && gmailClientSecret && gmailRefreshToken && gmailSenderEmail) {
     try {
       const accessToken = await getGmailAccessToken(
@@ -403,26 +409,40 @@ export async function sendReminderEmail(
         recipients,
       };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
         "Gmail delivery failed; attempting configured Resend fallback.",
-        error instanceof Error ? error.message : error,
+        message,
       );
+      providerErrors.push("Gmail: " + message);
     }
+  } else {
+    providerErrors.push("Gmail: not configured");
   }
 
   if (resendApiKey && resendSenderEmail) {
-    const providerId = await sendWithResend({
-      apiKey: resendApiKey,
-      senderEmail: resendSenderEmail,
-      recipients,
-      subject,
-      html,
-      text,
-    });
-    return { providerId: "resend:" + providerId, recipients };
+    try {
+      const providerId = await sendWithResend({
+        apiKey: resendApiKey,
+        senderEmail: resendSenderEmail,
+        recipients,
+        subject,
+        html,
+        text,
+      });
+      return { providerId: "resend:" + providerId, recipients };
+    } catch (error) {
+      providerErrors.push(
+        "Resend: " + (error instanceof Error ? error.message : String(error)),
+      );
+    }
+  } else {
+    providerErrors.push("Resend: not configured");
   }
 
   throw new Error(
-    "Email delivery is unavailable. Renew Gmail authorization or configure RESEND_API_KEY and RESEND_FROM_EMAIL in Supabase secrets.",
+    "Email delivery is unavailable. " +
+      providerErrors.join(" | ") +
+      ". Renew Gmail authorization or configure a valid RESEND_API_KEY and RESEND_FROM_EMAIL in Supabase secrets.",
   );
 }

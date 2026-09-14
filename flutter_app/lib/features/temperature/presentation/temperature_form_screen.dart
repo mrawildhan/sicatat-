@@ -36,6 +36,7 @@ class TemperatureFormScreen extends ConsumerStatefulWidget {
 
 class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
   final _reason = TextEditingController();
+  final ScrollController _formScroll = ScrollController();
   final Map<String, TextEditingController> _controllers =
       <String, TextEditingController>{};
   final Map<String, bool?> _booleanValues = <String, bool?>{};
@@ -65,10 +66,20 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
   @override
   void dispose() {
     _reason.dispose();
+    _formScroll.dispose();
     for (final controller in _controllers.values) {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  /// A new step or side reuses the same ListView; without this the next entry
+  /// opened at the previous scroll offset and crew could type into the wrong
+  /// field.
+  void _scrollFormToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _formScroll.hasClients) _formScroll.jumpTo(0);
+    });
   }
 
   InspectionStep get _step => _steps[_stepIndex];
@@ -407,6 +418,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
       if (!mounted) return;
       setState(() => _showEquipment = false);
       await _loadCurrentEntry();
+      _scrollFormToTop();
     } catch (_) {
       if (mounted) {
         setState(
@@ -487,6 +499,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
       if (_side == 'BARAT') {
         setState(() => _side = 'TIMUR');
         await _loadCurrentEntry();
+        _scrollFormToTop();
       } else if (_stepIndex < _steps.length - 1) {
         setState(() {
           _stepIndex += 1;
@@ -494,6 +507,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
           _showEquipment = true;
         });
         await _loadCurrentEntry();
+        _scrollFormToTop();
       } else {
         context.go('/summary?sheetId=${sheet.id}');
       }
@@ -555,6 +569,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
             _progress(),
             Expanded(
               child: ListView(
+                controller: _formScroll,
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 children: <Widget>[
                   _timeCard(),
