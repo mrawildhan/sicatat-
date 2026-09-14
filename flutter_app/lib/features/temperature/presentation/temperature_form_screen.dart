@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -817,8 +818,15 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
         controller: controller,
         enabled: !_isSaving,
         keyboardType: numeric
-            ? const TextInputType.numberWithOptions(decimal: true)
+            ? const TextInputType.numberWithOptions(decimal: true, signed: true)
             : TextInputType.text,
+        // The web keyboard type does not block letters, and an unparseable
+        // value is silently skipped on save. Allow only a signed decimal.
+        inputFormatters: numeric
+            ? <TextInputFormatter>[
+                FilteringTextInputFormatter.allow(RegExp(r'^-?\d*[.,]?\d*')),
+              ]
+            : null,
         maxLines: numeric ? 1 : 2,
         onChanged: (_) => setState(() {}),
         decoration: InputDecoration(

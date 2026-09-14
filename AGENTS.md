@@ -2,6 +2,14 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Bug simpan pembacaan suhu di website — 2026-09-14
+
+- Ditemukan saat mengisi sheet suhu secara live di website (sheet uji 31/12/2034 Crew C Pagi): "Simpan draf & lanjutkan" selalu gagal dengan "Data peralatan tidak dapat disimpan. Silakan coba lagi.", tanpa request ke Supabase dan tanpa log console.
+- Penyebab: `LocalDatabase` mengirim nilai `bool` Dart (`value_boolean` Oil Level, `is_anomaly`) ke SQLite lokal. Android `sqflite` mengubahnya diam-diam menjadi 0/1, tetapi worker web `sqflite_common_ffi_web` menolak dengan `Invalid sql argument type 'bool': true`, sehingga transaksi pembacaan batal. Kemungkinan terjadi sejak website memakai `sqflite_common_ffi_web` (baseline 2.5.9); pembacaan terakhir di server tercatat 24 Agustus 2026, jadi tidak ada input crew yang terlihat hilang.
+- Perbaikan: `LocalDatabase.sqliteValues` menyimpan bool sebagai 0/1 (payload antrean ke Supabase tetap boolean JSON); dijaga oleh `test/local_database_values_test.dart`. Nilai lokal baru WAJIB lewat `_sqliteValues`, jangan menyisipkan `bool` langsung.
+- Sekalian: kolom angka di form suhu kini hanya menerima desimal bertanda. Sebelumnya di web huruf bisa diketik ("39Uji…") dan nilai yang tidak bisa di-parse dilewati diam-diam saat simpan.
+- Cara menangkap error SQLite web yang ditelan build release: bungkus `window.MessageChannel` di halaman dan catat pesan `port1` (setiap request sqflite web dijawab lewat channel sendiri).
+
 ## Rilis Android & website 2.8.35 — 2026-09-14
 
 - Pemilik meminta Android diperbarui agar perbaikan audit (bagian di bawah) juga sampai ke APK. Versi `2.8.35+12315`, `AppConfig.appVersion` `2.8.35`, cache suffix web `2.8.35-android-release`.

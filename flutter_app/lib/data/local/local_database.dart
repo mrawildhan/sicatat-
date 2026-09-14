@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -26,10 +27,26 @@ class LocalDatabase {
   // sqflite rejects null values in maps passed to insert/update. Nullable
   // columns must be omitted locally; the queued JSON payload may still retain
   // nulls when an explicit server-side update needs to clear a value.
-  static Map<String, Object?> _sqliteValues(Map<String, Object?> values) =>
+  // Booleans are stored as 0/1: Android's sqflite converts them silently, but
+  // the web worker (sqflite_common_ffi_web) throws "Invalid sql argument type
+  // 'bool'", which made every Oil Level / anomaly reading fail on the website.
+  @visibleForTesting
+  static Map<String, Object?> sqliteValues(Map<String, Object?> values) =>
       Map<String, Object?>.fromEntries(
-        values.entries.where((entry) => entry.value != null),
+        values.entries
+            .where((entry) => entry.value != null)
+            .map(
+              (entry) => entry.value is bool
+                  ? MapEntry<String, Object?>(
+                      entry.key,
+                      (entry.value! as bool) ? 1 : 0,
+                    )
+                  : entry,
+            ),
       );
+
+  static Map<String, Object?> _sqliteValues(Map<String, Object?> values) =>
+      sqliteValues(values);
 
   Future<Database> get database async {
     if (_database != null) return _database!;
