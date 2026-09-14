@@ -7,6 +7,8 @@
 - Pemilik meminta Android diperbarui agar perbaikan audit (bagian di bawah) juga sampai ke APK. Versi `2.8.35+12315`, `AppConfig.appVersion` `2.8.35`, cache suffix web `2.8.35-android-release`.
 - Hanya `arm64-v8a` (version code 14315) yang diunggah ke `app-releases` dan diaktifkan lewat `20260914120000_publish_sicatat_2_8_35_audit_fixes.sql`. APK 2.8.33 dihapus dari bucket untuk menghemat kuota; 2.8.34 disimpan sebagai cadangan.
 - APK rilis ditandatangani keystore debug mesin ini (`~/.android/debug.keystore`, SHA-256 `b1d69e78…dc574584`), sama dengan semua rilis sebelumnya. Build dari mesin lain tidak bisa meng-update app di HP crew.
+- Verifikasi: `flutter analyze` bersih, 21 test lulus; `main.dart.js` produksi sama dengan build lokal. APK x86_64 2.8.35 di emulator `Medium_Phone` (menimpa 2.5.2, tanda tangan cocok): sesi login pulih, beranda menampilkan "Versi 2.8.35", Outstanding PM & CM terbuka ±4 detik dengan data crew/CM, Android Back tetap di dalam app, panduan menyebut "Kuning" untuk 60–69°C. Pembuatan/hapus sheet dan unduh update di HP fisik arm64 belum diuji.
+- Emulator tidak bisa resolve DNS sesudah boot (IP jalan, nama host gagal) sehingga app menampilkan "Internet connection required". Itu masalah emulator, bukan app: jalankan `adb shell settings put global private_dns_mode off` lalu buka ulang app.
 
 ## Audit keamanan RLS & header website — 2026-09-14
 
