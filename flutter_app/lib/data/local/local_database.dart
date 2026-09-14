@@ -101,7 +101,80 @@ class LocalDatabase {
       legacyDatabasePath: await localDatabasePath('sicatat_localSQLite.db'),
     );
     await _recoverLegacyConflictsIfNeeded(_database!);
+    await _requeueDroppedChildConflictsIfNeeded(_database!);
     return _database!;
+  }
+
+  /// Before 2026-09-14 an update to an already-synced round, unit status or
+  /// reading (for example the first round time on the website) was reported
+  /// as having a "missing" parent. SyncService then marked it and every child
+  /// row as a conflict and removed them from the queue, so the values never
+  /// reached Supabase. Re-queue those rows once as idempotent upserts.
+  Future<void> _requeueDroppedChildConflictsIfNeeded(Database database) async {
+    const markerId = 'child_update_conflicts_requeued_v1';
+    final marker = await database.query(
+      'cache_app_config',
+      columns: <String>['id'],
+      where: 'id = ?',
+      whereArgs: const <Object?>[markerId],
+      limit: 1,
+    );
+    if (marker.isNotEmpty) return;
+    await database.transaction((transaction) async {
+      // Parents first so the FIFO queue never sends a child before its round.
+      const queries = <(String table, String sql)>[
+        (
+          'round',
+          "select r.* from round r join sheet s on s.id = r.sheet_id "
+              "where r.sync_status = 'conflict' and s.sync_status <> 'conflict' "
+              'order by r.rowid',
+        ),
+        (
+          'unit_status',
+          "select u.* from unit_status u join round r on r.id = u.round_id "
+              "join sheet s on s.id = r.sheet_id "
+              "where u.sync_status = 'conflict' and s.sync_status <> 'conflict' "
+              'order by u.rowid',
+        ),
+        (
+          'reading',
+          "select d.* from reading d join round r on r.id = d.round_id "
+              "join sheet s on s.id = r.sheet_id "
+              "where d.sync_status = 'conflict' and s.sync_status <> 'conflict' "
+              'order by d.rowid',
+        ),
+      ];
+      for (final (table, sql) in queries) {
+        for (final row in await transaction.rawQuery(sql)) {
+          final clientUuid = row['client_uuid'];
+          if (clientUuid is! String) continue;
+          final payload = Map<String, Object?>.from(row);
+          if (table == 'reading') {
+            // SQLite keeps booleans as 0/1; Supabase expects JSON booleans.
+            final Object? boolean = payload['value_boolean'];
+            payload['value_boolean'] = boolean is num ? boolean != 0 : null;
+            final Object? anomaly = payload['is_anomaly'];
+            payload['is_anomaly'] = anomaly is num && anomaly != 0;
+          }
+          await transaction.update(
+            table,
+            <String, Object?>{'sync_status': 'pending'},
+            where: 'client_uuid = ?',
+            whereArgs: <Object?>[clientUuid],
+          );
+          await _enqueueLegacyRow(
+            transaction,
+            entityType: table,
+            clientUuid: clientUuid,
+            payload: payload,
+          );
+        }
+      }
+      await transaction.insert('cache_app_config', <String, Object?>{
+        'id': markerId,
+        'data': DateTime.now().toUtc().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    });
   }
 
   Future<void> _importLegacyDatabaseIfNeeded(
@@ -1573,8 +1646,29 @@ class LocalDatabase {
     };
     if (parents.isEmpty) return SyncParentStatus.root;
     final db = await database;
+    // Update payloads carry only the changed columns (a round's `jam`, a
+    // corrected reading), not the parent foreign key. Resolve the parent from
+    // the local row instead of treating it as missing: a "missing" parent is
+    // marked as a conflict and silently drops the update and every child row.
+    Map<String, Object?>? ownRow;
+    if (item.operation == SyncOperation.update) {
+      final rows = await db.query(
+        item.entityType.storageValue,
+        where: 'client_uuid = ?',
+        whereArgs: <Object?>[item.clientUuid],
+        limit: 1,
+      );
+      ownRow = rows.isEmpty ? null : rows.single;
+    }
+    const parentColumns = <String, String>{
+      'sheet': 'sheet_id',
+      'round': 'round_id',
+      'unit_status': 'unit_status_id',
+    };
     var pending = false;
-    for (final (table, rawParentId) in parents) {
+    for (final (table, payloadParentId) in parents) {
+      final rawParentId =
+          payloadParentId ?? ownRow?[parentColumns[table]];
       if (rawParentId is! String || rawParentId.isEmpty) {
         return SyncParentStatus.missing;
       }
