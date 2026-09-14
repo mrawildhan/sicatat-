@@ -32,6 +32,14 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
   bool _syncing = false;
   String? _spreadsheetUpdatedOn;
 
+  /// Rows shown per search. One extra row is requested to know whether the
+  /// keyword matches more than this, so the list can say so.
+  static const int _pageSize = 100;
+  bool _hasMore = false;
+
+  /// Debounced searches can finish out of order; only the newest may render.
+  int _requestSerial = 0;
+
   @override
   void initState() {
     super.initState();
@@ -49,8 +57,12 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
   void _onSearchChanged() {
     _searchDebounce?.cancel();
     if (_search.text.trim().length < 2) {
+      // Drop any search still in flight so it cannot refill the list.
+      _requestSerial++;
       setState(() {
         _hasSearched = false;
+        _hasMore = false;
+        _loading = false;
         _items = const <_WarehouseStock>[];
         _tools = const <_WarehouseTool>[];
       });
@@ -61,10 +73,12 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
 
   Future<void> _load() async {
     final String query = _search.text.trim().replaceAll(',', ' ');
+    final int serial = ++_requestSerial;
     if (query.length < 2) {
       if (mounted) {
         setState(() {
           _hasSearched = false;
+          _hasMore = false;
           _items = const <_WarehouseStock>[];
           _tools = const <_WarehouseTool>[];
           _loading = false;
@@ -86,7 +100,11 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
             'registration_code.ilike.%$query%,tool_name.ilike.%$query%,mnemonic.ilike.%$query%,serial_number.ilike.%$query%',
           );
         }
-        stockResponse = (await request.order('tool_name', ascending: true).limit(100)) as Object;
+        stockResponse =
+            (await request
+                    .order('tool_name', ascending: true)
+                    .limit(_pageSize + 1))
+                as Object;
       } else {
         dynamic request = _client
             .from('warehouse_stock')
@@ -102,14 +120,19 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
           );
         }
         stockResponse =
-            (await request.order('description', ascending: true).limit(100)) as Object;
+            (await request
+                    .order('description', ascending: true)
+                    .limit(_pageSize + 1))
+                as Object;
       }
       if (stockResponse is! List) {
         throw const FormatException('Warehouse returned an invalid response.');
       }
-      final List<Object?> warehouseRows = stockResponse.cast<Object?>();
-      if (!mounted) return;
+      final List<Object?> allRows = stockResponse.cast<Object?>();
+      if (!mounted || serial != _requestSerial) return;
+      final List<Object?> warehouseRows = allRows.take(_pageSize).toList();
       setState(() {
+        _hasMore = allRows.length > _pageSize;
         if (_showTools) {
           _tools = warehouseRows
               .map(
@@ -127,9 +150,13 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
         _hasSearched = true;
       });
     } on Object catch (error) {
-      if (mounted) _message('Data Gudang tidak dapat dimuat: $error');
+      if (mounted && serial == _requestSerial) {
+        _message('Data Gudang tidak dapat dimuat: $error');
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && serial == _requestSerial) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -292,9 +319,17 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
                     ? const _WarehouseEmptyState()
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                        itemCount: _showTools ? _tools.length : _items.length,
+                        itemCount:
+                            (_showTools ? _tools.length : _items.length) +
+                            (_hasMore ? 1 : 0),
                         separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (_, int index) => _showTools
+                        itemBuilder: (_, int index) =>
+                            index ==
+                                (_showTools ? _tools.length : _items.length)
+                            ? const _WarehouseMoreResultsNotice(
+                                shown: _pageSize,
+                              )
+                            : _showTools
                             ? _WarehouseToolCard(item: _tools[index])
                             : _WarehouseCard(
                                 item: _items[index],
@@ -818,3 +853,29 @@ String _priceLabel(num? value) => value == null
 
 String _stockLabel(num value, String? uoi) =>
     '${value % 1 == 0 ? value.toInt() : value} ${uoi ?? ''}'.trim();
+
+class _WarehouseMoreResultsNotice extends StatelessWidget {
+  const _WarehouseMoreResultsNotice({required this.shown});
+  final int shown;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    child: Row(
+      children: <Widget>[
+        Icon(
+          Icons.info_outline_rounded,
+          color: Theme.of(context).colorScheme.outline,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Menampilkan $shown hasil pertama. Masih ada hasil lain; '
+            'perjelas kata kunci atau pilih gudang untuk mempersempit.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ],
+    ),
+  );
+}
