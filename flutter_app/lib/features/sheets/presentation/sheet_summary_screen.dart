@@ -348,7 +348,18 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
     setState(() => _isSubmitting = true);
     try {
       if (sheet.syncStatus == SheetSyncStatus.synced) {
-        await Supabase.instance.client.from('sheet').delete().eq('id', sheetId);
+        // RLS and triggers can reject a delete without raising an error, so
+        // keep the local copy unless the server confirms the row is gone.
+        final Object deleted = await Supabase.instance.client
+            .from('sheet')
+            .delete()
+            .eq('id', sheetId)
+            .select('id');
+        if (deleted is! List || deleted.isEmpty) {
+          throw StateError(
+            'server tidak menghapus sheet ini (tidak diizinkan atau terkunci).',
+          );
+        }
       }
       await LocalDatabase.instance.deleteSheetLocal(sheetId);
       if (mounted) context.go('/sheets');

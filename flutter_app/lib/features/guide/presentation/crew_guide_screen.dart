@@ -29,7 +29,7 @@ class CrewGuideScreen extends StatelessWidget {
           ),
           (
             title: 'D. Warna temperatur',
-            body: 'Hijau berarti di bawah 60 C. Oranye berarti 60 sampai 69 C dan perlu perhatian. Merah berarti 70 C atau lebih dan harus segera dilaporkan sesuai prosedur operasi.',
+            body: 'Hijau berarti di bawah 60 C. Kuning berarti 60 sampai 69 C dan perlu perhatian. Merah berarti 70 C atau lebih dan harus segera dilaporkan sesuai prosedur operasi.',
           ),
           (
             title: 'E. Ringkasan dan submit',
@@ -153,7 +153,7 @@ class CrewGuideScreen extends StatelessWidget {
                 ),
                 _GuideEntry(
                   'Warna suhu',
-                  'Hijau berarti di bawah 60°C. Oranye berarti 60–69°C dan perlu perhatian. Merah berarti 70°C atau lebih dan harus segera dilaporkan.',
+                  'Hijau berarti di bawah 60°C. Kuning berarti 60–69°C dan perlu perhatian. Merah berarti 70°C atau lebih dan harus segera dilaporkan.',
                 ),
                 _GuideEntry(
                   'Ringkasan dan kirim',

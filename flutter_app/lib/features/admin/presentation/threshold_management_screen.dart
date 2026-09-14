@@ -329,29 +329,59 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(20),
-                itemCount: _items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, int index) {
-                  final _Threshold item = _items[index];
-                  return Card(
-                    child: ListTile(
-                      onTap: () => _edit(item),
-                      title: Text(
-                        item.pointName,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        'Warning ${_value(item.warningMin)}-${_value(item.warningMax)} · Alarm ${_value(item.alarmMin)}-${_value(item.alarmMax)}${item.delta == null ? '' : ' · Δ ${_value(item.delta)}'}',
-                      ),
-                      trailing: Chip(
-                        label: Text(item.isActive ? 'Aktif' : 'Tidak aktif'),
-                      ),
+              child: _items.isEmpty
+                  ? ListView(
+                      padding: const EdgeInsets.fromLTRB(24, 80, 24, 120),
+                      children: <Widget>[
+                        Icon(
+                          Icons.thermostat_auto_outlined,
+                          size: 56,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Belum ada batas suhu khusus',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Tekan Tambah batas suhu untuk menambahkan batas peringatan dan alarm per titik ukur.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                        ),
+                      ],
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(20),
+                      itemCount: _items.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (_, int index) {
+                        final _Threshold item = _items[index];
+                        return Card(
+                          child: ListTile(
+                            onTap: () => _edit(item),
+                            title: Text(
+                              item.pointName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Warning ${_value(item.warningMin)}-${_value(item.warningMax)} · Alarm ${_value(item.alarmMin)}-${_value(item.alarmMax)}${item.delta == null ? '' : ' · Δ ${_value(item.delta)}'}',
+                            ),
+                            trailing: Chip(
+                              label: Text(
+                                item.isActive ? 'Aktif' : 'Tidak aktif',
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
     ),
   );

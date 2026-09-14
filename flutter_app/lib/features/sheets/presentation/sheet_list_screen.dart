@@ -278,6 +278,20 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
 
   Widget _temperatureSummary() {
     final activity = _todayActivity;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text(
+          'Hari ini di perangkat ini',
+          style: TextStyle(color: AppColors.muted, fontSize: 12),
+        ),
+        const SizedBox(height: 6),
+        _temperatureSummaryRow(activity),
+      ],
+    );
+  }
+
+  Widget _temperatureSummaryRow(DashboardActivity? activity) {
     return Row(
       children: <Widget>[
         _temperatureSummaryTile(

@@ -301,36 +301,59 @@ class _OutstandingMaintenanceScreenState
       _loading = true;
       _error = null;
     });
-    try {
-      _service ??= widget.service ?? _createService();
-      final PreventiveMaintenanceService? service = _service;
-      if (service == null) {
-        if (mounted) {
-          setState(() => _items = const <PreventiveMaintenanceWorkOrder>[]);
-        }
-        return;
-      }
-      final PreventiveMaintenanceSyncResult sync = await service.synchronize();
-      final List<PreventiveMaintenanceWorkOrder> items = await service
-          .loadOutstanding();
-      final List<CorrectiveMaintenanceWorkOrder> correctiveItems = await service
-          .loadCorrectiveOutstanding();
+    _service ??= widget.service ?? _createService();
+    final PreventiveMaintenanceService? service = _service;
+    if (service == null) {
       if (mounted) {
         setState(() {
-          _items = items;
-          _correctiveItems = correctiveItems;
-          _syncedAt = sync.updatedAt;
+          _items = const <PreventiveMaintenanceWorkOrder>[];
+          _loading = false;
         });
       }
+      return;
+    }
+    // Show the stored snapshot first; refreshing it from Google Sheets through
+    // both sync functions takes several seconds.
+    try {
+      await _loadSnapshot(service);
     } on Object catch (error) {
       if (mounted) {
+        setState(
+          () => _error =
+              'Data PM belum dapat dimuat. Periksa koneksi lalu coba lagi.\n$error',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+    try {
+      final PreventiveMaintenanceSyncResult sync = await service.synchronize();
+      if (!mounted) return;
+      setState(() => _syncedAt = sync.updatedAt);
+      if (sync.changed || _error != null) {
+        await _loadSnapshot(service);
+        if (mounted) setState(() => _error = null);
+      }
+    } on Object catch (error) {
+      if (mounted && _items.isEmpty && _correctiveItems.isEmpty) {
         setState(
           () => _error =
               'Data PM belum dapat diperbarui. Periksa koneksi lalu coba lagi.\n$error',
         );
       }
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadSnapshot(PreventiveMaintenanceService service) async {
+    final List<PreventiveMaintenanceWorkOrder> items = await service
+        .loadOutstanding();
+    final List<CorrectiveMaintenanceWorkOrder> correctiveItems = await service
+        .loadCorrectiveOutstanding();
+    if (mounted) {
+      setState(() {
+        _items = items;
+        _correctiveItems = correctiveItems;
+      });
     }
   }
 

@@ -88,42 +88,61 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
       if (response is! List) {
         throw const FormatException('Respons sheet tidak valid.');
       }
-      final List<_IncompleteSheet> loaded = <_IncompleteSheet>[];
-      for (final Object? rawSheet in response) {
-        final JsonMap sheet = requireJsonMap(
-          rawSheet,
-          source: 'incomplete sheet',
-        );
-        final String sheetId = sheet.requiredString('id');
+      final List<JsonMap> sheets = response
+          .map(
+            (Object? rawSheet) =>
+                requireJsonMap(rawSheet, source: 'incomplete sheet'),
+          )
+          .toList(growable: false);
+      final List<String> sheetIds = sheets
+          .map((JsonMap sheet) => sheet.requiredString('id'))
+          .toList(growable: false);
+      final Map<String, String> sheetIdByRound = <String, String>{};
+      if (sheetIds.isNotEmpty) {
         final Object roundsResponse = await Supabase.instance.client
             .from('round')
-            .select('id')
-            .eq('sheet_id', sheetId);
+            .select('id,sheet_id')
+            .inFilter('sheet_id', sheetIds);
         if (roundsResponse is! List) {
           throw const FormatException('Respons ronde tidak valid.');
         }
-        final List<String> roundIds = roundsResponse
-            .map(
-              (Object? rawRound) => requireJsonMap(
-                rawRound,
-                source: 'round',
-              ).requiredString('id'),
-            )
-            .toList(growable: false);
-        int completed = 0;
-        if (roundIds.isNotEmpty) {
-          final PostgrestResponse<List<Map<String, dynamic>>> countResponse =
-              await Supabase.instance.client
-                  .from('unit_status')
-                  .select('id')
-                  .inFilter('round_id', roundIds)
-                  .not('unit_code', 'is', null)
-                  .not('status', 'is', null)
-                  .count(CountOption.exact);
-          completed = countResponse.count;
+        for (final Object? rawRound in roundsResponse) {
+          final JsonMap round = requireJsonMap(rawRound, source: 'round');
+          sheetIdByRound[round.requiredString('id')] = round.requiredString(
+            'sheet_id',
+          );
         }
-        loaded.add(_IncompleteSheet.fromJson(sheet, completed));
       }
+      final Map<String, int> completedBySheet = <String, int>{};
+      if (sheetIdByRound.isNotEmpty) {
+        final Object statusResponse = await Supabase.instance.client
+            .from('unit_status')
+            .select('round_id')
+            .inFilter('round_id', sheetIdByRound.keys.toList(growable: false))
+            .not('unit_code', 'is', null)
+            .not('status', 'is', null);
+        if (statusResponse is! List) {
+          throw const FormatException('Respons status unit tidak valid.');
+        }
+        for (final Object? rawStatus in statusResponse) {
+          final String roundId = requireJsonMap(
+            rawStatus,
+            source: 'unit status',
+          ).requiredString('round_id');
+          final String? sheetId = sheetIdByRound[roundId];
+          if (sheetId != null) {
+            completedBySheet[sheetId] = (completedBySheet[sheetId] ?? 0) + 1;
+          }
+        }
+      }
+      final List<_IncompleteSheet> loaded = sheets
+          .map(
+            (JsonMap sheet) => _IncompleteSheet.fromJson(
+              sheet,
+              completedBySheet[sheet.requiredString('id')] ?? 0,
+            ),
+          )
+          .toList(growable: false);
       if (mounted) setState(() => _items = loaded);
     } on Object catch (error) {
       if (mounted) setState(() => _error = '$error');
