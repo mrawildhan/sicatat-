@@ -30,6 +30,17 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   Timer? _debounce;
   bool _loading = true;
   String? _error;
+  bool _hasMore = false;
+
+  /// Debounced searches can finish out of order; only the newest may render.
+  int _requestSerial = 0;
+
+  void _applyResults(List<PurchaseRequisition> items) {
+    _hasMore = items.length > PurchaseRequisitionService.pageSize;
+    _items = _hasMore
+        ? items.take(PurchaseRequisitionService.pageSize).toList()
+        : items;
+  }
 
   @override
   void initState() {
@@ -53,6 +64,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   }
 
   Future<void> _loadInitial({bool synchronizeSource = false}) async {
+    final int serial = ++_requestSerial;
     setState(() {
       _loading = true;
       _error = null;
@@ -69,8 +81,8 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
       final List<PurchaseRequisition> items = !_hasSearchCriteria
           ? const <PurchaseRequisition>[]
           : await _find(service);
-      if (!mounted) return;
-      setState(() => _items = items);
+      if (!mounted || serial != _requestSerial) return;
+      setState(() => _applyResults(items));
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
@@ -84,8 +96,10 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   Future<void> _search() async {
     final PurchaseRequisitionService? service = _service;
     if (service == null) return;
+    final int serial = ++_requestSerial;
     if (!_hasSearchCriteria) {
       setState(() {
+        _hasMore = false;
         _items = const <PurchaseRequisition>[];
         _loading = false;
         _error = null;
@@ -95,11 +109,17 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
     setState(() => _loading = true);
     try {
       final List<PurchaseRequisition> items = await _find(service);
-      if (mounted) setState(() => _items = items);
+      if (mounted && serial == _requestSerial) {
+        setState(() => _applyResults(items));
+      }
     } on Object catch (error) {
-      if (mounted) setState(() => _error = _message(error));
+      if (mounted && serial == _requestSerial) {
+        setState(() => _error = _message(error));
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && serial == _requestSerial) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -225,6 +245,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
                 const SizedBox(height: 12),
                 _ResultHeading(
                   count: _items.length,
+                  hasMore: _hasMore,
                   hasCriteria: _hasSearchCriteria,
                   sort: _sort,
                   onSortChanged: _setSort,
@@ -280,13 +301,14 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
       onRefresh: () => _loadInitial(synchronizeSource: true),
       child: ListView.separated(
         padding: const EdgeInsets.only(bottom: 120),
-        itemCount: _items.length,
+        itemCount: _items.length + (_hasMore ? 1 : 0),
         separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (BuildContext context, int index) =>
-            _PurchaseRequisitionCard(
-              item: _items[index],
-              onTap: () => _showDetail(_items[index]),
-            ),
+        itemBuilder: (BuildContext context, int index) => index == _items.length
+            ? const _MoreResultsNotice()
+            : _PurchaseRequisitionCard(
+                item: _items[index],
+                onTap: () => _showDetail(_items[index]),
+              ),
       ),
     );
   }
@@ -331,12 +353,14 @@ class _DesktopHeader extends StatelessWidget {
 class _ResultHeading extends StatelessWidget {
   const _ResultHeading({
     required this.count,
+    this.hasMore = false,
     required this.hasCriteria,
     required this.sort,
     required this.onSortChanged,
   });
 
   final int count;
+  final bool hasMore;
   final bool hasCriteria;
   final PurchaseRequisitionSort sort;
   final ValueChanged<PurchaseRequisitionSort> onSortChanged;
@@ -400,7 +424,7 @@ class _ResultHeading extends StatelessWidget {
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  count >= 60 ? '60+ hasil' : '$count hasil',
+                  hasMore ? '$count+ hasil' : '$count hasil',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -917,3 +941,25 @@ String _monthName(int month) => const <String>[
 
 String _date(DateTime value) =>
     DateFormat('dd/MM/yyyy').format(value.toLocal());
+
+class _MoreResultsNotice extends StatelessWidget {
+  const _MoreResultsNotice();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 12),
+    child: Row(
+      children: <Widget>[
+        Icon(Icons.info_outline_rounded, color: AppColors.muted),
+        SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Menampilkan ${PurchaseRequisitionService.pageSize} hasil pertama. '
+            'Masih ada hasil lain; perjelas kata kunci atau pilih periode rilis.',
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+        ),
+      ],
+    ),
+  );
+}

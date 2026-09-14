@@ -8,6 +8,10 @@ class PurchaseRequisitionService {
 
   final SupabaseClient _client;
 
+  /// Rows shown per search. [search] returns one extra row when more match,
+  /// so the screen can say the list is not complete.
+  static const int pageSize = 60;
+
   static const String _fields =
       'id,no_pr,no_po,description,equip_ref,closed_date,release_date,status';
 
@@ -71,7 +75,7 @@ class PurchaseRequisitionService {
       }
       response = await request
           .order('no_pr', ascending: sort.ascending, nullsFirst: false)
-          .limit(60);
+          .limit(pageSize + 1);
     } else {
       var request = _client
           .from('purchase_requisition')
@@ -87,7 +91,7 @@ class PurchaseRequisitionService {
       }
       response = await request
           .order('no_pr', ascending: sort.ascending, nullsFirst: false)
-          .limit(60);
+          .limit(pageSize + 1);
     }
     if (response is! List) {
       throw const FormatException('Data PR mengembalikan format tidak valid.');
