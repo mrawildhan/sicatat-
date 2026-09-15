@@ -247,17 +247,19 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
             );
     }
     final value = double.tryParse(raw.replaceAll(',', '.'));
-    return value == null
-        ? null
-        : ReadingCommand(
-            roundId: roundId,
-            unitStatusId: unitStatusId,
-            measurementPointId: point.id,
-            recordedBy: userId,
-            valueNumeric: value,
-            isAnomaly: _config!.assessTemperature(point, value).isAnomaly,
-            anomalyNote: anomalyNote,
-          );
+    if (value == null) return null;
+    final bool isAnomaly = _config!.assessTemperature(point, value).isAnomaly;
+    return ReadingCommand(
+      roundId: roundId,
+      unitStatusId: unitStatusId,
+      measurementPointId: point.id,
+      recordedBy: userId,
+      valueNumeric: value,
+      isAnomaly: isAnomaly,
+      // The confirmation note explains the anomalous values only; normal
+      // readings saved in the same round must not inherit it.
+      anomalyNote: isAnomaly ? anomalyNote : null,
+    );
   }
 
   List<_FlaggedTemperature> _flaggedTemperatures(

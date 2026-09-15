@@ -85,7 +85,9 @@ class ReportExportService {
           .select(fields)
           .inFilter(column, values)
           .range(offset, offset + pageSize - 1);
-      if (response is! List) throw FormatException('Respons $table tidak valid.');
+      if (response is! List) {
+        throw FormatException('Respons $table tidak valid.');
+      }
       final List<JsonMap> page = response
           .map((Object? row) => requireJsonMap(row, source: table))
           .toList(growable: false);
@@ -300,7 +302,7 @@ class ReportExportService {
         'Side',
         'Unit Status',
         'Equipment',
-        'Titik Ukur',
+        'Measurement Point',
         'Value',
         'Unit',
         'Recorded By',
@@ -327,7 +329,8 @@ class ReportExportService {
           row.sheetStatus,
           row.alertLabel,
           row.isAnomaly ? 'Yes' : '',
-          row.anomalyNote ?? '',
+          // Older rounds copied the note onto normal readings too.
+          row.isAnomaly ? row.anomalyNote ?? '' : '',
         ],
       ),
     ];
