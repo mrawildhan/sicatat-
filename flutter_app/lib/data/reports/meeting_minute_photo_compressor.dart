@@ -18,11 +18,16 @@ class MeetingMinutePhotoCompressor {
     required Uint8List bytes,
     required String fileName,
   }) {
-    final image.Image? decoded = image.decodeImage(bytes);
+    image.Image? decoded;
+    try {
+      decoded = image.decodeImage(bytes);
+    } on Object {
+      // Corrupt files make some decoders throw RangeError instead of
+      // returning null; report them the same way.
+      decoded = null;
+    }
     if (decoded == null) {
-      throw const FormatException(
-        'Unable to read the JPG, JPEG or PNG photo.',
-      );
+      throw const FormatException('Unable to read the JPG, JPEG or PNG photo.');
     }
     image.Image normalized = image.bakeOrientation(decoded);
     if (normalized.width > maxDimension || normalized.height > maxDimension) {

@@ -28,7 +28,7 @@
 - MOM contoh: export Excel berisi seluruh detail dan action plan; setelah unggah gambar uji lewat "Add photo" (storage 200, baris foto 201, JPEG 14 KB) Excel memuat `xl/media/image1.jpg`.
 - Pengingat contoh "Contoh Pengingat Uji Website" diselesaikan dengan bukti gambar uji: storage 200, RPC `complete_operational_reminder` 200, status `completed`, bukti `completion_proof` tercatat. Menyelesaikan pengingat tidak mengirim email (trigger hanya mencatat aktivitas).
 - Laporan periode 15–24 Agustus 2026 (semua regu): CSV 163 baris = 142 pembacaan + 21 status unit, 30 HIGH dan 5 CRITICAL sesuai DB, tanpa alert salah. PDF 7 halaman: sel nilai <60 putih (94), 60–69 `#ffb74d` (30), ≥70 `#e53935` (5). Di web mobile, `Printing.layoutPdf` membuka PDF lewat anchor `target=_blank` (bukan dialog cetak), jadi hook harus menangkap anchor tanpa atribut `download`. Header dulu menulis "8 sheet(s), 163 reading(s)"; jumlah 8 sudah benar (dua sheet tanpa pembacaan tetap punya baris status unit), tetapi 163 termasuk status unit. Kini "8 sheet(s) with data, 163 row(s)", dihitung dari kombinasi tanggal+regu+shift di baris laporan — regu wajib ikut karena data lama punya dua regu pada tanggal dan shift yang sama (19/08/2026 Night Crew A dan Crew C).
-- Temuan data (tidak diubah): 5 nilai >250°C pada 19/08/2026 Night Crew A tidak ditandai anomali di DB, padahal aturan meminta konfirmasi untuk nilai di luar -50..250°C — kemungkinan data lama sebelum validasi.
+- Nilai 5757/6060/6161/6262/6363 pada 19/08/2026 Night Crew A adalah data dummy (dikonfirmasi pemilik 2026-09-15), bukan salah ketik crew.
 
 ## Email pengingat & perbaikan hasil uji live — 2026-09-14
 
@@ -263,3 +263,10 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - iOS distribution needs macOS, Xcode, an Apple Developer account, signing, and TestFlight; it cannot be built/released from Windows alone.
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
+
+## Kompresi unggahan (Supabase free plan) — 2026-09-15
+
+- Pemilik memakai Supabase free plan: setiap unggahan ke Storage wajib dikompres. Foto Notulen sudah lewat `MeetingMinutePhotoCompressor` (JPEG, sisi terpanjang 1280 px, target 600 KB). Pengingat (bukti selesai dan dokumen pendukung) dulu mengunggah file asli hingga 10 MB; kini lewat `ReminderEvidencePreparer`: JPG/PNG dikompres dengan kompresor yang sama dan versi yang lebih kecil yang disimpan (gambar yang sudah ringkas tidak dibesarkan), PDF maksimal 2 MB karena tidak bisa dikompres di aplikasi. Teks petunjuk di dialog sudah diperbarui.
+- File gambar rusak dulu memunculkan `RangeError` mentah dari `package:image`; kompresor kini mengubahnya menjadi pesan yang bisa dibaca (berlaku untuk Notulen dan Pengingat). Diuji di `test/reminder_evidence_preparer_test.dart`.
+- Fitur unggah baru apa pun harus memakai pola ini dan diverifikasi langsung dengan membandingkan `storage.objects.metadata->>'size'` terhadap file asli.
+

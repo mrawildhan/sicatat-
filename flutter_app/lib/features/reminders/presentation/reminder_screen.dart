@@ -12,6 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/sicatat_types.dart';
+import '../../../data/reports/reminder_evidence_preparer.dart';
 
 const List<String> _categories = <String>[
   'General',
@@ -671,7 +672,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Lampirkan PDF, JPG, JPEG, atau PNG bila tersedia.',
+                          'Lampirkan PDF, JPG, JPEG, atau PNG bila tersedia. Foto dikompres otomatis; PDF maksimal 2 MB.',
                           style: TextStyle(color: AppColors.muted),
                         ),
                         const SizedBox(height: 8),
@@ -1067,7 +1068,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Unggah minimal satu PDF, JPG, JPEG, atau PNG (maksimal 10 MB per file).',
+                    'Unggah minimal satu PDF, JPG, JPEG, atau PNG. Foto dikompres otomatis; PDF maksimal 2 MB.',
                     style: TextStyle(color: AppColors.muted),
                   ),
                   const SizedBox(height: 8),
@@ -1222,15 +1223,20 @@ class _ReminderScreenState extends State<ReminderScreen> {
     for (final PlatformFile file in result.files) {
       final Uint8List? bytes = file.bytes;
       if (bytes == null || bytes.isEmpty) continue;
-      if (bytes.length > 10 * 1024 * 1024) {
-        _message('${file.name} lebih besar dari 10 MB.');
-        continue;
+      try {
+        // Storage is limited: photos are compressed, PDFs are size-capped.
+        final PreparedReminderEvidence prepared =
+            ReminderEvidencePreparer.prepare(fileName: file.name, bytes: bytes);
+        evidence.add(
+          _PendingEvidence(
+            name: prepared.name,
+            bytes: prepared.bytes,
+            mimeType: prepared.mimeType,
+          ),
+        );
+      } on FormatException catch (error) {
+        _message(error.message);
       }
-      final String? mimeType = _evidenceMimeType(file.name);
-      if (mimeType == null) continue;
-      evidence.add(
-        _PendingEvidence(name: file.name, bytes: bytes, mimeType: mimeType),
-      );
     }
     return evidence;
   }
@@ -2539,14 +2545,6 @@ String _dueLabel(ReminderItem item, int days) {
   if (days == 1) return 'Jatuh tempo besok';
   return 'Jatuh tempo dalam $days hari';
 }
-
-String? _evidenceMimeType(String fileName) =>
-    switch (fileName.split('.').last.toLowerCase()) {
-      'pdf' => 'application/pdf',
-      'jpg' || 'jpeg' => 'image/jpeg',
-      'png' => 'image/png',
-      _ => null,
-    };
 
 IconData _evidenceIcon(String mimeType) => mimeType == 'application/pdf'
     ? Icons.picture_as_pdf_rounded
