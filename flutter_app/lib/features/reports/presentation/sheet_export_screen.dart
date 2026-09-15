@@ -56,7 +56,6 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
         .toSet()
         .join(', ');
     final temperatures = _temperatures(result.rows);
-    final attention = temperatures.where((item) => item.value >= 60).toList();
     final warning = temperatures
         .where((item) => item.value >= 60 && item.value < 70)
         .length;
@@ -146,8 +145,6 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
               ),
             ],
           ),
-          pw.SizedBox(height: 10),
-          _attentionPanel(attention),
         ],
       ),
     );
@@ -456,8 +453,6 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
   // The summary cards, distribution bar, and colored table cells retain every
   // alert on the same page. A separate chip panel could flow onto an otherwise
   // blank second page when a sheet contains many readings.
-  pw.Widget _attentionPanel(List<_TemperatureValue> attention) => pw.SizedBox();
-
   List<List<String>> _equipmentBody(List<ReportRow> rows) {
     final values = <String, List<String>>{};
     final order = <String>[];
@@ -594,7 +589,10 @@ class _SheetPdfPreview extends StatelessWidget {
         title: const Text('PDF preview'),
       ),
       body: PdfPreview(
-        build: (PdfPageFormat _) async => bytes,
+        // pdf.js takes ownership of the buffer it rasterizes, which left the
+        // Share button with an empty (0-byte) file on the web. Hand every
+        // caller its own copy.
+        build: (PdfPageFormat _) async => Uint8List.fromList(bytes),
         initialPageFormat: PdfPageFormat.a4.landscape,
         canChangePageFormat: false,
         canChangeOrientation: false,
