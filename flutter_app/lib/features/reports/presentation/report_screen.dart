@@ -132,7 +132,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                 ),
               ),
               pw.Text(
-                'Period: ${_date(_from)} to ${_date(_to)} - Team: $teamName - ${result.sheetCount} sheet(s), ${result.rows.length} reading(s)',
+                // A sheet is unique per date and shift; counting those in the rows
+                // skips empty sheets, and the rows include unit status lines.
+                'Period: ${_date(_from)} to ${_date(_to)} - Team: $teamName - ${result.rows.map((row) => '${row.date}|${row.shift}').toSet().length} sheet(s) with data, ${result.rows.length} row(s)',
                 style: const pw.TextStyle(fontSize: 8),
               ),
               pw.SizedBox(height: 8),
