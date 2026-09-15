@@ -132,9 +132,10 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                 ),
               ),
               pw.Text(
-                // A sheet is unique per date and shift; counting those in the rows
-                // skips empty sheets, and the rows include unit status lines.
-                'Period: ${_date(_from)} to ${_date(_to)} - Team: $teamName - ${result.rows.map((row) => '${row.date}|${row.shift}').toSet().length} sheet(s) with data, ${result.rows.length} row(s)',
+                // Count sheets that appear in the rows (empty sheets are skipped).
+                // Team is part of the key because older data has two teams on the
+                // same date and shift. Rows include unit status lines.
+                'Period: ${_date(_from)} to ${_date(_to)} - Team: $teamName - ${result.rows.map((row) => '${row.date}|${row.team}|${row.shift}').toSet().length} sheet(s) with data, ${result.rows.length} row(s)',
                 style: const pw.TextStyle(fontSize: 8),
               ),
               pw.SizedBox(height: 8),
