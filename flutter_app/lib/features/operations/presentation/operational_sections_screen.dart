@@ -843,7 +843,7 @@ class _BudgetSiteCard extends StatelessWidget {
                   : 'Sisa ${_usd(remaining)}',
               style: TextStyle(
                 color: overBudget ? AppColors.danger : AppColors.green,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -984,12 +984,12 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
         const SizedBox(height: 16),
         const Text(
           'Ringkasan status',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 3),
         const Text(
           'Tekan status untuk melihat pengajuan yang sesuai.',
-          style: TextStyle(color: AppColors.muted, fontSize: 13),
+          style: TextStyle(color: AppColors.muted, fontSize: 12),
         ),
         const SizedBox(height: 8),
         Card(
@@ -1044,7 +1044,7 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
                     ? (isPlanner ? 'Semua pengajuan' : 'Pengajuan saya')
                     : 'Pengajuan: ${selectedStatus.label}',
                 style: const TextStyle(
-                  fontSize: 17,
+                  fontSize: 18,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -1060,7 +1060,7 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
                     ? 'Pilih pengajuan untuk memperbarui prosesnya.'
                     : 'Pantau perkembangan kebutuhan yang sudah Anda kirim.')
               : 'Hanya pengajuan berstatus ${selectedStatus.label.toLowerCase()} yang ditampilkan.',
-          style: const TextStyle(color: AppColors.muted, fontSize: 13),
+          style: const TextStyle(color: AppColors.muted, fontSize: 12),
         ),
         const SizedBox(height: 10),
         if (loading)
@@ -2681,7 +2681,7 @@ class _PreventiveMaintenanceTile extends StatelessWidget {
               item.description,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 7),
             Row(
@@ -2798,7 +2798,7 @@ class _CorrectiveMaintenanceTile extends StatelessWidget {
               item.description,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, height: 1.3),
+              style: const TextStyle(fontSize: 12, height: 1.3),
             ),
             const SizedBox(height: 10),
             Row(
@@ -2845,7 +2845,7 @@ class _CorrectiveMaintenanceTile extends StatelessWidget {
                           'PROGRES TERAKHIR',
                           style: TextStyle(
                             color: AppColors.green,
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.4,
                           ),
@@ -3923,7 +3923,7 @@ class _SectionCard extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w900,
                 ),
               ),

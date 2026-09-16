@@ -187,7 +187,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
           ),
         ),
         IconButton(
@@ -335,12 +335,12 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
         const SizedBox(height: 20),
         const Text(
           'Aktivitas suhu',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 4),
         const Text(
           'Pencatatan, sinkronisasi, monitoring, dan laporan suhu.',
-          style: TextStyle(color: AppColors.muted, fontSize: 13),
+          style: TextStyle(color: AppColors.muted, fontSize: 12),
         ),
         const SizedBox(height: 10),
         LayoutBuilder(
@@ -533,7 +533,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                 '$count',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 23,
+                  fontSize: 22,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -786,7 +786,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                         Text(
                           detail,
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             color: AppColors.muted,
                           ),
                         ),

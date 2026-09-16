@@ -76,7 +76,9 @@ class SupabaseSicatatRepository implements SicatatRepository {
         .eq('is_active', true)
         .order('code', ascending: true);
     if (response is! List) {
-      throw const FormatException('Server mengembalikan daftar shift yang tidak valid.');
+      throw const FormatException(
+        'Server mengembalikan daftar shift yang tidak valid.',
+      );
     }
     final shifts = response
         .map(
@@ -165,9 +167,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
     for (final code in expectedCodes) {
       final point = byCode[code];
       if (point == null) {
-        throw FormatException(
-        'Titik ukur $code tidak tersedia di server.',
-        );
+        throw FormatException('Titik ukur $code tidak tersedia di server.');
       }
       points.add(point);
     }
@@ -264,7 +264,9 @@ class SupabaseSicatatRepository implements SicatatRepository {
           .order('tanggal', ascending: false);
     }
     if (response is! List) {
-      throw const FormatException('Server mengembalikan daftar sheet yang tidak valid.');
+      throw const FormatException(
+        'Server mengembalikan daftar sheet yang tidak valid.',
+      );
     }
     return response
         .map(

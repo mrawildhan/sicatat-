@@ -198,7 +198,7 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
         const Expanded(
           child: Text(
             'Lembar belum selesai',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
         ),
         IconButton(

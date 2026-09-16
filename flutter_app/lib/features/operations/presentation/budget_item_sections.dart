@@ -44,7 +44,7 @@ class BudgetItemInsights extends StatelessWidget {
         const SizedBox(height: 18),
         const Text(
           'Pemakaian terbesar',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 8),
         ...spending.map(
@@ -57,7 +57,7 @@ class BudgetItemInsights extends StatelessWidget {
           const SizedBox(height: 10),
           const Text(
             'Perlu perhatian: overbudget',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
           ...overBudget
@@ -333,7 +333,7 @@ class _BudgetItemDetailSheet extends StatelessWidget {
           const SizedBox(height: 18),
           const Text(
             'Realisasi per bulan',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
           Card(
@@ -358,7 +358,7 @@ class _BudgetItemDetailSheet extends StatelessWidget {
             const SizedBox(height: 16),
             const Text(
               'Transaksi terbesar',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             Card(
@@ -423,7 +423,7 @@ class _DetailHeader extends StatelessWidget {
                   item.description,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                   ),
                 ),

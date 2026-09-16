@@ -1667,8 +1667,7 @@ class LocalDatabase {
     };
     var pending = false;
     for (final (table, payloadParentId) in parents) {
-      final rawParentId =
-          payloadParentId ?? ownRow?[parentColumns[table]];
+      final rawParentId = payloadParentId ?? ownRow?[parentColumns[table]];
       if (rawParentId is! String || rawParentId.isEmpty) {
         return SyncParentStatus.missing;
       }

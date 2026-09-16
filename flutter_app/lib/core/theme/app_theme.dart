@@ -17,13 +17,15 @@ class AppColors {
   static const danger = Color(0xFFD85B52);
 }
 
-/// Skala teks tunggal untuk seluruh layar aplikasi.
+/// One type ladder for the whole app: 22 / 20 / 18 / 15 / 14 / 12 / 11.
 ///
-/// Beranda menjadi acuan: judul bagian tetap tegas, judul kartu mudah dipindai,
-/// dan teks pendukung tidak bersaing dengan informasi utama.
+/// Screens used to pick their own sizes, so the same kind of heading appeared
+/// at 22 on one page and 26 on another, and supporting text drifted between 9
+/// and 13. Every new text style must reuse one of these rather than introduce
+/// a size in between.
 class AppTextStyles {
   static const pageTitle = TextStyle(
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: FontWeight.w900,
     height: 1.15,
   );
@@ -48,6 +50,10 @@ class AppTextStyles {
     fontWeight: FontWeight.w900,
     height: 1.15,
   );
+
+  /// Chips, status badges, and micro-labels under a metric. The smallest size
+  /// the app is allowed to use.
+  static const badge = TextStyle(fontSize: 11, height: 1.2);
 }
 
 class AppTheme {

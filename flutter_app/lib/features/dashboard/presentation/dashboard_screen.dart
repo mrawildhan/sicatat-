@@ -231,7 +231,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         child: Text(
                           '© 2026 • Versi ${AppConfig.appVersion}',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 9, color: AppColors.muted),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.muted,
+                          ),
                         ),
                       ),
                     ],
@@ -688,7 +691,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           'Pilih menu untuk melanjutkan pekerjaan',
                           style: TextStyle(
                             color: AppColors.muted,
-                            fontSize: 13,
+                            fontSize: 12,
                           ),
                         ),
                       ],

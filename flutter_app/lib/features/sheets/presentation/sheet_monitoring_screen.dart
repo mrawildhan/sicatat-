@@ -135,7 +135,7 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
         ),
         IconButton(

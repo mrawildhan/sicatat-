@@ -264,7 +264,10 @@ class MainNavigationScaffold extends ConsumerWidget {
                         child: Text(
                           '© 2026 • Versi ${AppConfig.appVersion}',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 9, color: AppColors.muted),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.muted,
+                          ),
                         ),
                       ),
                     ],

@@ -264,6 +264,14 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Skala teks dibakukan — 2026-09-16
+
+- Temuan pemilik: teks di layar Pengingat terasa besar. Penelusuran menunjukkan masalahnya bukan Pengingat, melainkan **19 ukuran berbeda** di 117 tempat: judul halaman 22 di Pengingat tetapi **26** di Sheet saya, Pemantauan, dan Belum lengkap; teks pendukung berkeliaran antara 9 dan 13; judul kartu 13/15/16.
+- Skala tunggal kini didokumentasikan di `AppTextStyles`: **22 / 20 / 18 / 15 / 14 / 12 / 11**. `pageTitle` turun 24 → 22, dan token baru `badge` (11) untuk chip, label mikro di bawah angka, serta footer versi.
+- 39 ukuran di 16 berkas dinormalkan ke tangga itu. Yang sengaja dikecualikan: wordmark "sicatat" (40 di layar masuk, 27 di sidebar) karena itu logo, judul kartu grid menu mode compact (`compact ? 13 : 15`) yang harus muat 3 kolom, dan seluruh `pw.TextStyle` milik ekspor PDF.
+- Efek yang terlihat: angka ringkasan Pengingat 23 → 20 dan label di bawahnya 9 → 11 (lebih terbaca), judul tiga layar Suhu 26 → 22. Diperiksa langsung di lebar 375 px pada Beranda, Pengingat, Suhu, dan Pemantauan — tidak ada teks terpotong.
+- Aturan ke depan tetap seperti di `docs/PROJECT_MEMORY.md`: pakai token, jangan menulis `fontSize` baru di luar tangga ini.
+
 ## Foto barang, link tanpa skema, rilis 2.8.38, dan pembersihan data uji — 2026-09-16
 
 - Link produk kini boleh ditulis tanpa skema. `MaterialRequestProductLink.normalize()` menambahkan `https://` bila belum ada, menolak kata polos tanpa titik (mis. "kacamata") dan skema selain http/https. Kolom database tetap hanya menerima alamat http(s) penuh, jadi normalisasi terjadi di aplikasi. Diuji: `www.tokopedia.com/search?q=...` tersimpan sebagai `https://www.tokopedia.com/search?q=...`.

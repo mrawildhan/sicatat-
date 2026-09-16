@@ -272,7 +272,7 @@ class GroupedBottomNavigation extends StatelessWidget {
             padding: EdgeInsets.only(top: 6, bottom: 2),
             child: Text(
               '© 2026 • Versi ${AppConfig.appVersion}',
-              style: TextStyle(fontSize: 10, color: AppColors.muted),
+              style: TextStyle(fontSize: 11, color: AppColors.muted),
             ),
           ),
           NavigationBar(

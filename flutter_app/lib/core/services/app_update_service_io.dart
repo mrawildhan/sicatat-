@@ -107,7 +107,9 @@ class AppUpdateService {
     if (response.bodyBytes.length < 1024 ||
         response.bodyBytes[0] != 0x50 ||
         response.bodyBytes[1] != 0x4b) {
-      throw const FormatException('Berkas pembaruan yang diunduh bukan APK yang valid.');
+      throw const FormatException(
+        'Berkas pembaruan yang diunduh bukan APK yang valid.',
+      );
     }
     final Directory cache = await getTemporaryDirectory();
     final File apk = File(

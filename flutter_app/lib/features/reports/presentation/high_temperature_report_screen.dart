@@ -130,7 +130,9 @@ class _HighTemperatureReportScreenState
                 .select(fields)
                 .inFilter(key, values)
                 .range(offset, offset + pageSize - 1);
-      if (response is! List) throw FormatException('Respons $table tidak valid.');
+      if (response is! List) {
+        throw FormatException('Respons $table tidak valid.');
+      }
       final List<JsonMap> page = response
           .map((Object? row) => requireJsonMap(row, source: table))
           .toList(growable: false);

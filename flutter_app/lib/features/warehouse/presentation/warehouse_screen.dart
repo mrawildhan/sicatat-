@@ -498,7 +498,7 @@ class _WarehouseSearchPrompt extends StatelessWidget {
       Text(
         showTools ? 'Cari alat terlebih dahulu' : 'Cari item terlebih dahulu',
         textAlign: TextAlign.center,
-        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 19),
+        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
       ),
       const SizedBox(height: 8),
       Text(
@@ -694,7 +694,7 @@ class _WarehouseToolCard extends StatelessWidget {
         children: <Widget>[
           Text(
             item.toolName,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           Wrap(

@@ -534,7 +534,7 @@ class _ReleasePeriodPickerState extends State<_ReleasePeriodPicker> {
           const SizedBox(height: 5),
           const Text(
             'Pilih tahun untuk melihat seluruh PR dalam setahun. Tambahkan bulan bila diperlukan.',
-            style: TextStyle(fontSize: 13, color: AppColors.muted),
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
           ),
           const SizedBox(height: 18),
           DropdownButtonFormField<int>(

@@ -385,7 +385,7 @@ class _CostCodeCard extends StatelessWidget {
                   entry.code,
                   style: const TextStyle(
                     color: AppColors.green,
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
                   ),
                 ),

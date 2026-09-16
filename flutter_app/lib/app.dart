@@ -706,7 +706,7 @@ class _VersionBlock extends StatelessWidget {
               const SizedBox(height: 18),
               const Text(
                 'Pembaruan diperlukan',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 10),
               Text(

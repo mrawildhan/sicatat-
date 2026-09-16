@@ -584,7 +584,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                     const Text(
                       'Pembacaan peralatan',
                       style: TextStyle(
-                        fontSize: 21,
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -666,7 +666,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
               Text(
                 '${_steps[index].section == InspectionSection.gearboxBreaker ? 'B' : 'S'} R${_steps[index].roundNumber}',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 11,
                   color: index <= _stepIndex
                       ? AppColors.greenDark
                       : AppColors.muted,

@@ -140,7 +140,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const Text(
                         'Field data recording application',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           height: 1.45,
                           color: AppColors.muted,
                         ),

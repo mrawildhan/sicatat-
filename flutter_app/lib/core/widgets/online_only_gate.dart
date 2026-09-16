@@ -180,7 +180,7 @@ class _OfflineOverlay extends StatelessWidget {
                     : 'Internet connection required',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.w900,
                 ),
               ),

@@ -2068,7 +2068,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 9, color: AppColors.muted),
+                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
                 ),
               ],
             ),
@@ -2119,7 +2119,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -2130,7 +2130,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.muted,
-                        fontSize: 13,
+                        fontSize: 12,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -2199,7 +2199,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     child: Text(
                       item.title,
                       style: const TextStyle(
-                        fontSize: 23,
+                        fontSize: 22,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -2651,7 +2651,7 @@ class _EmailHealthBanner extends StatelessWidget {
                 Text(
                   detail,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     height: 1.35,
                     color: AppColors.muted,
                   ),

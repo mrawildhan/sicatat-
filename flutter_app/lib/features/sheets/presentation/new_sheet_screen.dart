@@ -134,7 +134,9 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         },
       );
       if (response is! List) {
-        throw const FormatException('Respons shift yang sudah digunakan tidak valid.');
+        throw const FormatException(
+          'Respons shift yang sudah digunakan tidak valid.',
+        );
       }
       final occupied = response
           .map(
@@ -247,7 +249,9 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         },
       );
       if (response is! List) {
-        throw const FormatException('Respons shift yang sudah digunakan tidak valid.');
+        throw const FormatException(
+          'Respons shift yang sudah digunakan tidak valid.',
+        );
       }
       final duplicate = response.any(
         (Object? row) =>
@@ -329,7 +333,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                'Pilih tanggal dan shift sesuai jadwal kerja. Tanggal lampau dapat dipilih untuk inspeksi yang terlewat. Satu regu menggunakan satu sheet untuk setiap tanggal dan shift.',
+                      'Pilih tanggal dan shift sesuai jadwal kerja. Tanggal lampau dapat dipilih untuk inspeksi yang terlewat. Satu regu menggunakan satu sheet untuk setiap tanggal dan shift.',
                       style: TextStyle(
                         height: 1.45,
                         color: AppColors.greenDark,
