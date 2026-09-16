@@ -17,8 +17,18 @@ type DriveEntry = { id: string; name: string; path: string; isFolder: boolean };
 type LoadedDocument = DriveEntry & { mimeType: string; data: string };
 type DocumentCitation = { name: string; url: string; excerpt?: string };
 
+type AdminClient = ReturnType<typeof createClient>;
+
+const indexTable = "technical_document_index";
+// Crawling the public Drive folder takes several seconds. The listing is kept
+// in Postgres so only a background refresh ever pays for it, and in memory so
+// repeated questions on the same isolate skip the database too.
+const isolateCacheMs = 10 * 60 * 1000;
+const storedIndexMaxAgeMs = 24 * 60 * 60 * 1000;
+
 let documentIndexCache: { expiresAt: number; documents: DriveEntry[] } | undefined;
 let documentIndexRequest: Promise<DriveEntry[]> | undefined;
+let modelListCache: { expiresAt: number; models: string[] } | undefined;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -68,26 +78,90 @@ function parseFolder(html: string, parentPath: string): DriveEntry[] {
   return [...entries.values()];
 }
 
-async function listDocuments(): Promise<DriveEntry[]> {
+async function readStoredIndex(admin: AdminClient | null) {
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from(indexTable)
+    .select("drive_id,name,folder_path,synced_at")
+    .range(0, 4999);
+  if (error || !Array.isArray(data) || data.length === 0) return null;
+  const syncedAt = data.reduce((latest: number, row: Record<string, unknown>) => {
+    const value = Date.parse(String(row.synced_at));
+    return Number.isFinite(value) && value > latest ? value : latest;
+  }, 0);
+  return {
+    syncedAt,
+    documents: data.map((row: Record<string, unknown>) => ({
+      id: String(row.drive_id),
+      name: String(row.name),
+      path: String(row.folder_path),
+      isFolder: false,
+    })) as DriveEntry[],
+  };
+}
+
+async function writeStoredIndex(admin: AdminClient | null, documents: DriveEntry[]) {
+  // Only names, Drive ids, and folder paths are stored; file contents stay in
+  // Google Drive. An empty crawl is never published over a good listing.
+  if (!admin || documents.length === 0) return;
+  const stamp = new Date().toISOString();
+  for (let index = 0; index < documents.length; index += 500) {
+    const chunk = documents.slice(index, index + 500).map((document) => ({
+      drive_id: document.id,
+      name: document.name,
+      folder_path: document.path,
+      synced_at: stamp,
+    }));
+    const { error } = await admin.from(indexTable).upsert(chunk, { onConflict: "drive_id" });
+    if (error) throw new Error(error.message);
+  }
+  // Rows that keep an older stamp no longer exist in the folder.
+  await admin.from(indexTable).delete().lt("synced_at", stamp);
+}
+
+async function refreshDocumentIndex(admin: AdminClient | null): Promise<DriveEntry[]> {
+  const documents = await buildDocumentIndex();
+  // Google Drive can occasionally return a transient, incomplete public
+  // listing. Never cache an empty result: the next question must retry the
+  // listing rather than telling every user that no source file exists.
+  if (documents.length > 0) {
+    documentIndexCache = { documents, expiresAt: Date.now() + isolateCacheMs };
+    await writeStoredIndex(admin, documents);
+  }
+  return documents;
+}
+
+async function listDocuments(admin: AdminClient | null): Promise<DriveEntry[]> {
   if (documentIndexCache && documentIndexCache.expiresAt > Date.now()) {
     return documentIndexCache.documents;
   }
   if (documentIndexRequest) return documentIndexRequest;
 
-  documentIndexRequest = buildDocumentIndex();
-  try {
-    const documents = await documentIndexRequest;
-    // Google Drive can occasionally return a transient, incomplete public
-    // listing. Never cache an empty result: the next question must retry the
-    // listing rather than telling every user that no source file exists.
-    if (documents.length > 0) {
-      documentIndexCache = {
-        documents,
-        // Public folder contents do not need to be rediscovered for every user.
-        expiresAt: Date.now() + 10 * 60 * 1000,
-      };
+  documentIndexRequest = (async () => {
+    const stored = await readStoredIndex(admin).catch(() => null);
+    if (!stored) return refreshDocumentIndex(admin);
+    documentIndexCache = {
+      documents: stored.documents,
+      expiresAt: Date.now() + isolateCacheMs,
+    };
+    if (Date.now() - stored.syncedAt > storedIndexMaxAgeMs) {
+      // Yesterday's listing answers this question. The crawl runs after the
+      // response is sent, so no user waits for Google Drive.
+      const refresh = refreshDocumentIndex(admin).catch((error: unknown) => {
+        console.error(
+          "document index refresh failed:",
+          error instanceof Error ? error.message : error,
+        );
+      });
+      const runtime = (globalThis as {
+        EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void };
+      }).EdgeRuntime;
+      if (runtime?.waitUntil) runtime.waitUntil(refresh);
     }
-    return documents;
+    return stored.documents;
+  })();
+  try {
+    return await documentIndexRequest;
   } finally {
     documentIndexRequest = undefined;
   }
@@ -125,6 +199,11 @@ async function buildDocumentIndex(): Promise<DriveEntry[]> {
 }
 
 async function modelsAvailableToKey(apiKey: string): Promise<string[]> {
+  // The model list is the same for every question; asking Google for it on
+  // each request only adds a round trip.
+  if (modelListCache && modelListCache.expiresAt > Date.now()) {
+    return modelListCache.models;
+  }
   const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
     headers: { "x-goog-api-key": apiKey },
     signal: AbortSignal.timeout(15000),
@@ -134,11 +213,15 @@ async function modelsAvailableToKey(apiKey: string): Promise<string[]> {
     throw new Error(`Pemeriksaan daftar model gagal. ${failure.message}`);
   }
   const data = await response.json() as { models?: Array<{ name?: string; supportedGenerationMethods?: string[] }> };
-  return (data.models ?? [])
+  const models = (data.models ?? [])
     .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
     .map((model) => model.name?.replace(/^models\//, "") ?? "")
     .filter((model) => /^gemini-/i.test(model))
     .filter((model) => !/(?:image|live|tts|embedding|audio)/i.test(model));
+  if (models.length > 0) {
+    modelListCache = { models, expiresAt: Date.now() + 60 * 60 * 1000 };
+  }
+  return models;
 }
 
 function selectModelCandidates(preferredModel: string, availableModels: string[]) {
@@ -322,6 +405,10 @@ Deno.serve(async (req) => {
   if (profileError || !sicatatUserId) {
     return json({ ok: false, error: "Akun SICATAT tidak aktif atau tidak ditemukan." }, 403);
   }
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  // Only the stored document listing uses the service role, and it never
+  // leaves the server.
+  const admin = serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   const cloudflareUrl = Deno.env.get("CLOUDFLARE_DOCUMENTS_URL");
   const cloudflareToken = Deno.env.get("CLOUDFLARE_DOCUMENTS_TOKEN");
@@ -334,7 +421,7 @@ Deno.serve(async (req) => {
     if (question.length < 4 || question.length > 600) {
       return json({ ok: false, error: "Pertanyaan harus terdiri dari 4 sampai 600 karakter." }, 400);
     }
-    const documents = await listDocuments();
+    const documents = await listDocuments(admin);
     const selected = selectDocuments(question, documents);
     if (selected.length === 0) {
       return json({ ok: true, answer: "Saya tidak menemukan nama file yang relevan di folder dokumen. Coba gunakan istilah SOP, nomor dokumen, atau nama pekerjaan yang lebih spesifik.", sources_scanned: 0, citations: [] });
