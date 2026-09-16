@@ -1,60 +1,76 @@
-# Panduan Crew Lapangan — SICATAT
+# Panduan pengguna SICATAT
 
-## Sebelum mulai
+Panduan yang selalu terbaru ada di dalam aplikasi: **Beranda → Panduan pengguna**. Dari layar itu juga tersedia tombol **Unduh PDF Bahasa Indonesia**. Isi berkas ini mengikuti kelompok yang sama; bila berbeda, yang di aplikasi yang benar.
 
-1. Pastikan baterai cukup dan internet tersedia setidaknya sekali di awal shift.
-2. Masuk menggunakan NIK dan password masing-masing. Jangan berbagi password.
-3. Dari Beranda, pilih **Lembar saya** lalu **Lembar baru**.
-4. Periksa tanggal dan shift sebelum membuat lembar. Satu regu hanya memakai satu lembar untuk kombinasi tanggal dan shift yang sama.
+> Catatan untuk pengembang: isi panduan disimpan sekali saja di `lib/features/guide/presentation/crew_guide_screen.dart` (`_guideGroups`), dipakai bersama oleh layar dan PDF. Perbarui daftar itu, lalu samakan berkas ini. `Panduan-Crew-SICATAT.pdf` di folder ini adalah cetakan lama; pakai unduhan dari aplikasi.
 
-## Mengisi pemeriksaan suhu
+## Dasar penggunaan
 
-1. Isi sesuai urutan aplikasi: Gearbox Breaker Ronde 1, Gearbox Sizer Ronde 1, Gearbox Breaker Ronde 2, lalu Gearbox Sizer Ronde 2.
-2. Pada setiap ronde, isi sisi **Barat** dan **Timur**.
-3. Pilih status unit:
-   - **Beroperasi**: isi seluruh empat titik suhu (Low speed, Intermediate, High speed, Input shaft).
-   - **Tidak operasi** atau **Tidak akses**: isi alasan; titik suhu tidak perlu diisi.
-4. Periksa waktu pemeriksaan. Ubah bila waktu inspeksi aktual berbeda dari waktu input.
-5. Tekan **Simpan** setelah setiap sisi. Saat internet tersedia, aplikasi langsung mencoba mengirim draft dan progres terbaru agar dapat dilihat foreman/admin. Data tetap tersimpan di perangkat meskipun jaringan putus.
+- **Masuk aplikasi.** Masuk dengan NIK dan PIN masing-masing. Jangan berbagi PIN. Akun dibuat oleh admin; tidak ada pendaftaran sendiri.
+- **Menemukan menu.** Ada empat tab di bawah layar: Beranda, Operasional, Referensi, dan Profil. Menu yang muncul mengikuti peran dan site akun.
+- **Harus online.** SICATAT hanya bekerja saat ada internet. Bila data gagal dimuat, periksa koneksi lalu ketuk Muat ulang. Jangan menghapus aplikasi.
 
-## Batas perhatian suhu
+## Suhu
 
-- Hijau: di bawah 60 °C.
-- Kuning: 60 sampai 69,9 °C.
-- Merah: 70 °C atau lebih. Laporkan sesuai prosedur operasi setempat.
+- **Membuat sheet.** Operasional → Suhu → Buat sheet. Pilih tanggal inspeksi dan shift yang benar. Satu sheet hanya untuk satu kombinasi tanggal, shift, modul, dan site; kombinasi yang sama akan ditolak.
+- **Ronde 1 dan Ronde 2.** Pilih unit serta sisi Barat atau Timur, lalu simpan setiap sisi. Waktu ronde tercatat otomatis saat data pertama disimpan. Sheet boleh tetap draf dan dilanjutkan sebelum shift berakhir.
+- **Kondisi unit.** Pilih Beroperasi untuk mengisi seluruh titik suhu. Bila Tidak beroperasi atau Tidak dapat diakses, isi alasannya dan titik suhu dikosongkan.
+- **Warna suhu.** Hijau di bawah 60 °C. Kuning 60 sampai 69 °C dan perlu perhatian. Merah 70 °C atau lebih, laporkan segera sesuai prosedur.
+- **Nilai tidak wajar.** Nilai di luar −50 sampai 250 °C harus dikonfirmasi dan diberi catatan. Catatan hanya menempel pada angka yang tidak wajar, bukan pada seluruh ronde.
+- **Ringkasan dan kirim.** Ringkasan sheet menandai bagian yang belum lengkap; ketuk kartu merah untuk membukanya. Sheet yang sudah dikirim bersifat final, pembuatnya masih dapat membuka kembali untuk revisi, sedangkan sheet lama yang terverifikasi terkunci.
 
-## Mengirim lembar
+## Laporan dan ekspor
 
-1. Buka Ringkasan setelah ronde terakhir.
-2. Pastikan semua delapan sisi berstatus terisi dan nama crew pengisi tercatat.
-3. Tekan **Kirim lembar**.
-4. Bila ada internet, aplikasi langsung mencoba sinkronisasi. Bila tidak, status **Not synced** berarti data aman di perangkat dan akan dicoba kembali saat menu **Sinkronisasi** dijalankan.
+- **Ekspor satu sheet.** Dari ringkasan sheet, ikon ekspor membuka pratinjau PDF atau mengunduh CSV. PDF memakai warna suhu; CSV memakai kolom `Temperature Alert`.
+- **Laporan periode.** Menu Laporan menggabungkan beberapa tanggal. Pilih rentang tanggal dan regu, lalu ekspor PDF atau CSV.
+- **Suhu tinggi.** Menampilkan pembacaan 60 °C ke atas dari seluruh sheet.
+- **Sheet belum lengkap.** Daftar sheet yang masih punya isian kosong.
 
-## Warehouse
+## Pengingat
 
-1. Buka tab **Warehouse**.
-2. Ketik minimal dua karakter pada kolom pencarian untuk mencari **nama item**, **kode SC**, atau **lokasi bin**. Data stok baru muncul setelah pencarian agar daftar awal tidak penuh.
-3. Gunakan filter warehouse bila diperlukan. Pilih **Stock & Price** untuk stok atau **Tools** untuk alat.
-4. Ketuk nama atau kartu item untuk melihat seluruh informasi yang tersedia dari data Google Sheet: kode SC, site, lokasi bin, satuan, stok, harga unit, tanggal pembaruan sheet, dan waktu sinkronisasi.
-5. Ketuk **Refresh** bila sumber data baru saja diperbarui dan hasil belum sesuai.
+- **Membuat pengingat.** Isi judul, kategori, aset, nomor dokumen, instansi, tindakan, penanggung jawab, lokasi, prioritas, dan tanggal berakhir. Pengingat adalah menu admin.
+- **Jadwal email.** Mingguan, bulanan, atau jumlah hari sendiri sebelum jatuh tempo. Email dikirim tepat pada hari itu saja, dan hanya untuk pengingat yang belum lewat jatuh tempo.
+- **Lampiran dokumen.** PDF, JPG, JPEG, atau PNG. Foto dikompres otomatis; PDF maksimal 2 MB.
+- **Menyelesaikan pengingat.** Tandai selesai, isi catatan bila perlu, unggah minimal satu bukti. Gunakan Buka kembali bila pekerjaan belum tuntas.
+- **Pengingat berulang.** Siklus berikutnya dibuat otomatis setelah yang sekarang ditandai selesai.
+- **Peringatan email.** Server memeriksa izin pengiriman email setiap hari. Kotak merah di layar Pengingat berarti email tidak akan terkirim sampai izin Gmail diperbarui admin.
 
-## Memperbarui aplikasi Android
+## Notulen rapat
 
-1. Buka **Profile**.
-2. Pilih **App updates**, lalu ketuk **Check update**.
-3. Jika tersedia versi baru, ketuk **Download & install** dan izinkan pemasangan saat diminta Android.
-4. Gunakan koneksi internet stabil. Tidak perlu menghapus aplikasi lama sebelum memasang pembaruan.
+- **Membuat notulen.** Isi judul, tanggal, jam, lokasi, peserta, dan pembahasan. Bisa disimpan sebagai draf dulu.
+- **Rencana tindakan.** Tambahkan penanggung jawab dan tenggat. Maksimal dua foto per rencana, dikompres otomatis sebelum diunggah.
+- **Tindak lanjut.** Membuat notulen lanjutan yang membawa rencana tindakan yang belum selesai.
+- **Ekspor Excel.** Ikon di kanan atas mengunduh notulen beserta foto rencana tindakan.
 
-## Ganti password
+## Anggaran dan pekerjaan
 
-1. Buka **Profile**, lalu pilih **Ganti password**.
-2. Masukkan password lama, lalu buat password baru minimal delapan karakter dengan gabungan huruf dan angka.
-3. Ulangi password baru dan pilih **Simpan password baru**.
-4. Setelah berhasil, semua perangkat yang masih login akan dikeluarkan. Masuk kembali menggunakan password baru.
+- **Anggaran Operasional.** Anggaran dan realisasi per elemen biaya beserta sisanya, mengikuti spreadsheet sumber, hanya dapat dibaca.
+- **Outstanding PM & CM.** Pekerjaan preventif dan korektif yang belum selesai, dipisah per unit dan site.
+- **Data PR.** Cari Purchase Requisition dan PO. Urutan No. PR terbaru memakai angka, bukan abjad. Hasil di atas 60 baris diakhiri catatan agar kata kunci dipersempit.
+- **Permintaan Barang.** Pengajuan kebutuhan barang LV dan Drilling. Permintaan yang sudah dibuat tidak dapat dihapus.
 
-## Jika ada masalah
+## Gudang
 
-- Jangan menghapus aplikasi sebelum data berstatus **Synced**.
-- Gunakan menu **Sinkronisasi** saat koneksi kembali tersedia.
-- Jika status **Conflict**, hubungi foreman atau admin; jangan membuat lembar duplikat untuk shift yang sama.
-- Jika perangkat berganti, pastikan draft lama sudah tersinkron sebelum melanjutkan pada perangkat lain.
+- **Mencari stok.** Ketik minimal dua karakter: nama item, kode SC, atau lokasi bin. Daftar memang kosong sebelum ada pencarian.
+- **Melihat detail.** Ketuk kartu item untuk kode SC, site, lokasi bin, satuan, stok, harga unit, dan tanggal pembaruan spreadsheet.
+- **Stok dan alat.** Tab Stok & harga untuk barang, tab Alat untuk peralatan. Filter site mempersempit hasil.
+- **Hasil terlalu banyak.** Hanya 100 item pertama ditampilkan; persempit kata kunci atau pilih gudang tertentu.
+
+## Pusat Dokumen dan referensi
+
+- **Bertanya ke Pusat Dokumen.** Gunakan kata yang dipakai di dokumen: nama pekerjaan, nomor SOP, atau nama unit. Jawaban hanya diambil dari berkas di folder dokumen, bukan dari internet.
+- **Membaca jawaban.** Selalu ada daftar sumber di bawah jawaban; buka berkas aslinya sebelum dipakai sebagai dasar pekerjaan. Jawaban biasanya butuh 10 sampai 25 detik.
+- **Cost Code.** Struktur dan elemen biaya beserta referensinya.
+- **Equipment Reference.** Data unit Asamasam dan Kintap.
+
+## Profil dan aplikasi
+
+- **Ganti password.** Profil → Ganti password. Minimal delapan karakter, gabungan huruf dan angka. Setelah berhasil, semua perangkat lain ikut keluar.
+- **Memperbarui Android.** Profil → Pembaruan aplikasi → Periksa pembaruan → Unduh dan pasang. Izinkan pemasangan saat Android meminta. Tidak perlu menghapus aplikasi lama.
+- **Versi web.** Tidak perlu diperbarui manual; muat ulang halaman bila tampilan terasa tertinggal.
+
+## Untuk admin
+
+- **Data master.** Site, shift, regu, rotasi regu, peralatan, titik ukur, dan template formulir. Data master tidak dapat dihapus, hanya dinonaktifkan.
+- **Batas suhu.** Batas peringatan dan alarm per titik ukur. Angka wajib valid, peringatan harus lebih kecil dari alarm, sumber acuan wajib diisi.
+- **Pengguna.** Tambah pengguna lewat Data master & pengguna. Pembuatan akun membutuhkan PIN awal dan hanya dapat dilakukan admin aktif.

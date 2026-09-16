@@ -264,6 +264,15 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Pemeriksaan email harian & panduan pengguna baru — 2026-09-16
+
+- `dispatch-reminder-emails` kini memanggil `checkEmailProviders()` (baru di `_shared/reminder_email.ts`) di akhir setiap jalannya dan menyimpan hasilnya ke `public.email_provider_health` (migrasi `20260916100000`). Pemeriksaan hanya menukar refresh token Gmail dan memanggil `GET /domains` milik Resend — tidak ada email yang dikirim. Kegagalan pemeriksaan tidak pernah menggagalkan dispatch.
+- Alasannya: cron menjawab `succeeded` walau tidak mengirim apa pun, dan kiriman terjadwal berikutnya baru 24 Desember 2026, sehingga izin Gmail yang mati akan tersembunyi berbulan-bulan.
+- `reminder_screen.dart` membaca baris `gmail` dan menampilkan kotak merah bila `ok=false` atau pemeriksaan lebih tua dari 2 hari. RLS: hanya `is_active_sicatat_admin()` yang boleh membacanya; penulisan lewat service role. Kegagalan baca tidak mengganggu layar.
+- Hasil pemeriksaan pertama (2026-09-16): `gmail ok=true`, `resend ok=false` ("Resend menolak kunci API (HTTP 400)") — cocok dengan riwayat pengiriman. Banner diuji dengan membalik baris `gmail` ke `ok=false` sebentar (kotak merah muncul), lalu dikembalikan dengan menjalankan pemeriksaan sungguhan, bukan menyunting balik.
+- Panduan pengguna ditulis ulang. Isinya sekarang satu sumber (`_guideGroups` di `crew_guide_screen.dart`) yang dipakai layar sekaligus PDF unduhan, karena keduanya sebelumnya punya salinan sendiri yang sudah berbeda (PDF masih menyebut menu "Temperature"). Sepuluh kelompok mengikuti menu aplikasi: Dasar penggunaan, Suhu, Laporan dan ekspor, Pengingat, Notulen rapat, Anggaran dan pekerjaan, Gudang, Pusat Dokumen dan referensi, Profil dan aplikasi, Untuk admin. Diuji live: PDF terbentuk 15.640 byte / 3 halaman dan memuat kesepuluh judul kelompok.
+- Teks panduan sengaja memakai "derajat C", bukan simbol derajat, supaya aman di font bawaan PDF. `flutter_app/docs/PANDUAN-CREW-SICATAT.md` disamakan (versi lama masih menjelaskan alur offline/sinkronisasi yang sudah tidak ada dan login "password", bukan PIN). `flutter_app/docs/Panduan-Crew-SICATAT.pdf` adalah cetakan lama yang belum diperbarui.
+
 ## Pusat Dokumen: daftar berkas pindah ke Postgres — 2026-09-16
 
 - Masalah: `ask-technical-documents` hanya menyimpan hasil telusur folder Google Drive di memori isolate selama 10 menit, jadi pengguna pertama setelah jeda membayar telusur ulang. Folder ternyata berisi **1.964 berkas**, dan telusurnya mahal.

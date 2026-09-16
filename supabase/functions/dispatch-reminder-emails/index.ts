@@ -5,6 +5,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import {
+  checkEmailProviders,
+  type EmailProviderHealth,
   sendReminderEmail,
   type ReminderEmailRecord,
 } from "../_shared/reminder_email.ts";
@@ -106,6 +108,32 @@ function scheduledToday(
   return offsets.includes(offset)
     ? [{ reminder, offsetDays: offset, scheduleType: "legacy" }]
     : [];
+}
+
+async function recordProviderHealth(
+  admin: ReturnType<typeof createClient>,
+): Promise<EmailProviderHealth[]> {
+  try {
+    const health = await checkEmailProviders();
+    const { error } = await admin.from("email_provider_health").upsert(
+      health.map((provider) => ({
+        provider: provider.provider,
+        ok: provider.ok,
+        message: provider.message,
+        checked_at: new Date().toISOString(),
+      })),
+      { onConflict: "provider" },
+    );
+    if (error) throw new Error(error.message);
+    return health;
+  } catch (error) {
+    // A failed health check must never fail the dispatch run itself.
+    console.error(
+      "Email provider health check failed:",
+      error instanceof Error ? error.message : error,
+    );
+    return [];
+  }
 }
 
 Deno.serve(async (req) => {
@@ -221,6 +249,9 @@ Deno.serve(async (req) => {
         failed += 1;
       }
     }
+    // Most days there is nothing to send, so a successful run proves nothing
+    // about the credentials. Check them explicitly and record the answer.
+    const health = await recordProviderHealth(admin);
     return json({
       ok: true,
       date: today,
@@ -228,6 +259,7 @@ Deno.serve(async (req) => {
       sent,
       skipped,
       failed,
+      providers: health,
     });
   } catch (error) {
     console.error(error);

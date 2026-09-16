@@ -214,6 +214,72 @@ async function getGmailAccessToken(
   return tokenData.access_token as string;
 }
 
+export type EmailProviderHealth = {
+  provider: string;
+  ok: boolean;
+  message: string | null;
+};
+
+/// Verifies the delivery credentials without sending an email.
+///
+/// The dispatcher only writes a delivery row on a reminder's notification
+/// date, which can be months away, so this is the only thing that notices an
+/// expired Gmail authorization while there is still time to renew it.
+export async function checkEmailProviders(): Promise<EmailProviderHealth[]> {
+  const results: EmailProviderHealth[] = [];
+
+  const clientId = Deno.env.get("GMAIL_CLIENT_ID")?.trim();
+  const clientSecret = Deno.env.get("GMAIL_CLIENT_SECRET")?.trim();
+  const refreshToken = Deno.env.get("GMAIL_REFRESH_TOKEN")?.trim();
+  const senderEmail = Deno.env.get("GMAIL_SENDER_EMAIL")?.trim();
+  if (clientId && clientSecret && refreshToken && senderEmail) {
+    try {
+      // Exchanging the refresh token is exactly what a real send does first,
+      // so it fails for the same reasons and costs nothing.
+      await getGmailAccessToken(clientId, clientSecret, refreshToken);
+      results.push({ provider: "gmail", ok: true, message: null });
+    } catch (error) {
+      results.push({
+        provider: "gmail",
+        ok: false,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  } else {
+    results.push({ provider: "gmail", ok: false, message: "Belum dikonfigurasi." });
+  }
+
+  const resendApiKey = Deno.env.get("RESEND_API_KEY")?.trim();
+  const resendSenderEmail = Deno.env.get("RESEND_FROM_EMAIL")?.trim();
+  if (resendApiKey && resendSenderEmail) {
+    try {
+      const response = await fetch("https://api.resend.com/domains", {
+        headers: { Authorization: "Bearer " + resendApiKey },
+        signal: AbortSignal.timeout(8000),
+      });
+      results.push(
+        response.ok
+          ? { provider: "resend", ok: true, message: null }
+          : {
+            provider: "resend",
+            ok: false,
+            message: "Resend menolak kunci API (HTTP " + response.status + ").",
+          },
+      );
+    } catch (error) {
+      results.push({
+        provider: "resend",
+        ok: false,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  } else {
+    results.push({ provider: "resend", ok: false, message: "Belum dikonfigurasi." });
+  }
+
+  return results;
+}
+
 async function sendWithResend({
   apiKey,
   senderEmail,

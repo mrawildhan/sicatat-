@@ -262,6 +262,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
   _DueDateFilter _dueDateFilter = _DueDateFilter.all;
   DateTimeRange? _customDueRange;
   bool _loading = true;
+  _EmailHealth? _emailHealth;
 
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -282,6 +283,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadEmailHealth();
     _subscribeToReminderChanges();
   }
 
@@ -296,6 +298,25 @@ class _ReminderScreenState extends State<ReminderScreen> {
 
   void _message(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+
+  /// Reads the daily credential check written by `dispatch-reminder-emails`.
+  ///
+  /// The dispatcher only sends on a reminder's notification date, so a broken
+  /// Gmail authorization would otherwise stay hidden until that date. A
+  /// failure here never blocks the screen: non-admins cannot read the row.
+  Future<void> _loadEmailHealth() async {
+    try {
+      final Object? response = await _client
+          .from('email_provider_health')
+          .select('provider,ok,message,checked_at')
+          .eq('provider', 'gmail')
+          .maybeSingle();
+      if (!mounted || response is! Map<String, Object?>) return;
+      setState(() => _emailHealth = _EmailHealth.fromJson(response));
+    } on Object {
+      // The warning is a convenience; the screen works without it.
+    }
+  }
 
   Future<void> _load({bool showLoading = true, bool showErrors = true}) async {
     if (showLoading && mounted) setState(() => _loading = true);
@@ -1806,6 +1827,10 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
+                      if (_emailHealth?.needsAttention ?? false) ...<Widget>[
+                        _EmailHealthBanner(health: _emailHealth!),
+                        const SizedBox(height: 10),
+                      ],
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
@@ -2559,4 +2584,83 @@ String _prettyBytes(int bytes) {
   if (bytes < 1024) return '$bytes B';
   if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
   return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+/// Result of the daily delivery-credential check.
+class _EmailHealth {
+  const _EmailHealth({
+    required this.ok,
+    required this.message,
+    required this.checkedAt,
+  });
+
+  factory _EmailHealth.fromJson(Map<String, Object?> json) => _EmailHealth(
+    ok: json['ok'] == true,
+    message: json['message'] is String ? json['message'] as String : null,
+    checkedAt: DateTime.tryParse('${json['checked_at']}')?.toLocal(),
+  );
+
+  final bool ok;
+  final String? message;
+  final DateTime? checkedAt;
+
+  /// A check that stopped running is as worrying as one that failed.
+  bool get isStale =>
+      checkedAt == null ||
+      DateTime.now().difference(checkedAt!) > const Duration(days: 2);
+
+  bool get needsAttention => !ok || isStale;
+}
+
+class _EmailHealthBanner extends StatelessWidget {
+  const _EmailHealthBanner({required this.health});
+
+  final _EmailHealth health;
+
+  @override
+  Widget build(BuildContext context) {
+    final String detail = health.ok
+        ? 'Pemeriksaan harian terakhir ${health.checkedAt == null ? 'tidak diketahui' : DateFormat('d MMM yyyy HH:mm', 'id').format(health.checkedAt!)}. Server belum memeriksa lagi.'
+        : 'Email pengingat tidak akan terkirim sampai izin Gmail diperbarui.${health.message == null ? '' : ' ${health.message}'}';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Icon(Icons.mark_email_unread_outlined, color: AppColors.danger),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  health.ok
+                      ? 'Pemeriksaan email belum diperbarui'
+                      : 'Pengiriman email pengingat bermasalah',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.danger,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  detail,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.35,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
