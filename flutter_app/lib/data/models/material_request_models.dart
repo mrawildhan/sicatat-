@@ -66,6 +66,45 @@ extension MaterialRequestStatusX on MaterialRequestStatus {
   };
 }
 
+/// Product links as people actually paste them.
+///
+/// Crew copy addresses that start with `www.` or nothing at all, so the app
+/// completes the scheme instead of refusing the link. Storage always holds a
+/// full http(s) address, which is what the check constraint and the launcher
+/// expect.
+class MaterialRequestProductLink {
+  const MaterialRequestProductLink._();
+
+  static const String invalidMessage =
+      'Link tidak dikenali. Salin alamat lengkap, misalnya www.tokopedia.com/...';
+
+  /// Returns the address to store, or null when nothing usable was typed.
+  static String? normalize(String? raw) {
+    final String trimmed = (raw ?? '').trim();
+    if (trimmed.isEmpty) return null;
+    final String withScheme =
+        RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*://').hasMatch(trimmed)
+        ? trimmed
+        : 'https://$trimmed';
+    final Uri? parsed = Uri.tryParse(withScheme);
+    if (parsed == null ||
+        !parsed.hasAuthority ||
+        (parsed.scheme != 'http' && parsed.scheme != 'https') ||
+        RegExp(r'\s').hasMatch(withScheme) ||
+        // A bare word is a typo, not an address.
+        !parsed.host.contains('.')) {
+      return null;
+    }
+    return withScheme;
+  }
+
+  /// Validation message for a form field, or null when the value is fine.
+  static String? validate(String? raw) {
+    if ((raw ?? '').trim().isEmpty) return null;
+    return normalize(raw) == null ? invalidMessage : null;
+  }
+}
+
 class MaterialRequest {
   const MaterialRequest({
     required this.id,
@@ -77,6 +116,8 @@ class MaterialRequest {
     required this.reason,
     required this.status,
     this.productUrl,
+    this.photoPath,
+    this.photoMime,
     required this.plannerNote,
     required this.requestedBy,
     required this.createdAt,
@@ -96,6 +137,10 @@ class MaterialRequest {
   /// Optional link to the exact product the requester means, so the planner
   /// does not have to guess from the item name.
   final String? productUrl;
+
+  /// Optional picture of the item, stored in `material-request-photos`.
+  final String? photoPath;
+  final String? photoMime;
   final MaterialRequestStatus status;
   final String plannerNote;
   final String requestedBy;
@@ -124,6 +169,8 @@ class MaterialRequest {
       needType: MaterialNeedTypeX.fromStorage(json.requiredString('need_type')),
       reason: json.requiredString('reason'),
       productUrl: _trimmedOrNull(json.optionalString('product_url')),
+      photoPath: _trimmedOrNull(json.optionalString('photo_path')),
+      photoMime: _trimmedOrNull(json.optionalString('photo_mime')),
       status: MaterialRequestStatusX.fromStorage(json.requiredString('status')),
       plannerNote: json.optionalString('planner_note') ?? '',
       requestedBy: json.requiredString('requested_by'),

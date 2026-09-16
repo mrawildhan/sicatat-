@@ -264,6 +264,16 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Foto barang, link tanpa skema, rilis 2.8.38, dan pembersihan data uji — 2026-09-16
+
+- Link produk kini boleh ditulis tanpa skema. `MaterialRequestProductLink.normalize()` menambahkan `https://` bila belum ada, menolak kata polos tanpa titik (mis. "kacamata") dan skema selain http/https. Kolom database tetap hanya menerima alamat http(s) penuh, jadi normalisasi terjadi di aplikasi. Diuji: `www.tokopedia.com/search?q=...` tersimpan sebagai `https://www.tokopedia.com/search?q=...`.
+- Foto barang opsional: bucket privat `material-request-photos` (migrasi `20260916130000`, maks 2 MB, hanya jpeg/png) plus kolom `photo_path`/`photo_mime`. Baris pengajuan belum ada saat form dikirim, jadi objek disimpan di bawah id `app_user` pengunggah — itu pula yang diperiksa policy insert. Policy read: pemilik atau `can_manage_material_request()`.
+- Foto dikompres lewat `MeetingMinutePhotoCompressor` (aturan kompresi unggahan). Uji live: PNG 4.380.523 byte → tersimpan 363.274 byte JPEG, dan panel planner menampilkannya lewat signed URL.
+- Foto yang diunggah lalu formnya ditinggalkan akan dihapus di `dispose()`, dan mengganti foto menghapus yang lama — supaya tidak ada berkas yatim di storage.
+- **Rilis 2.8.38** (versionCode 14318, migrasi `20260916140000`). APK 2.8.36 dihapus sesuai pola dua versi; storage app-releases kembali 2 berkas / 53 MB.
+- **Pembersihan data uji atas permintaan pemilik (2026-09-16)**, memakai SQL karena `material_request` tidak punya policy DELETE: 4 permintaan barang uji, 1 notulen "Contoh MOM Uji Website", 12 pengingat `[DEMO]`, 1 batas suhu contoh, 1 regu "Contoh Regu Uji Web" (nonaktif, tanpa referensi), dan 1 sheet bertanggal 2034-12-31. **Pasangan "Contoh MOM - Ban Bocor Kendaraan Ringan" sengaja dipertahankan** sebagai contoh pengisian.
+- Menghapus baris induk lewat SQL **tidak** ikut menghapus berkas di Storage (aplikasi yang biasanya melakukannya). Satu foto notulen menjadi yatim dan dihapus manual; setelah itu 0 berkas yatim di `meeting-minute-photos` dan `reminder-evidence`. Periksa hal ini setiap kali menghapus baris yang punya lampiran.
+
 ## Permintaan Barang: area COP & link produk — 2026-09-16
 
 - Migrasi `20260916120000_material_request_cop_and_product_url.sql`: check `request_area` kini menerima `lv`, `cop`, `drilling`; kolom baru `product_url text` dengan check `null atau ^https?://[^[:space:]]+$` supaya string kosong tidak lolos dan kolomnya benar-benar berisi alamat.

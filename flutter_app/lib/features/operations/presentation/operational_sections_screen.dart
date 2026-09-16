@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -1480,6 +1482,15 @@ class _MaterialRequestDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(item.reason, style: const TextStyle(height: 1.4)),
+          if (item.photoPath != null) ...<Widget>[
+            const SizedBox(height: 14),
+            const Text(
+              'Foto barang',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 5),
+            _MaterialRequestPhotoPreview(storagePath: item.photoPath!),
+          ],
           if (item.productUrl != null) ...<Widget>[
             const SizedBox(height: 14),
             const Text(
@@ -1538,6 +1549,129 @@ class _MaterialRequestDetailSheet extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// Loads the stored item photo through a signed URL.
+class _MaterialRequestPhotoPreview extends StatefulWidget {
+  const _MaterialRequestPhotoPreview({required this.storagePath});
+
+  final String storagePath;
+
+  @override
+  State<_MaterialRequestPhotoPreview> createState() =>
+      _MaterialRequestPhotoPreviewState();
+}
+
+class _MaterialRequestPhotoPreviewState
+    extends State<_MaterialRequestPhotoPreview> {
+  late final Future<String> _url = MaterialRequestService(
+    Supabase.instance.client,
+  ).photoUrl(widget.storagePath);
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<String>(
+    future: _url,
+    builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+      if (snapshot.hasError) {
+        return const Text(
+          'Foto tidak dapat dimuat.',
+          style: TextStyle(color: AppColors.muted),
+        );
+      }
+      final String? url = snapshot.data;
+      if (url == null) {
+        return const SizedBox(
+          height: 150,
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          url,
+          height: 180,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Text(
+            'Foto tidak dapat dimuat.',
+            style: TextStyle(color: AppColors.muted),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// Optional picture of the item, shown to the requester while filling the form.
+class _MaterialRequestPhotoField extends StatelessWidget {
+  const _MaterialRequestPhotoField({
+    required this.preview,
+    required this.busy,
+    required this.enabled,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  final Uint8List? preview;
+  final bool busy;
+  final bool enabled;
+  final Future<void> Function() onPick;
+  final Future<void> Function() onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final Uint8List? picture = preview;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text(
+          'Foto barang (opsional)',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Foto kondisi barang yang rusak atau contoh barang yang diminta. '
+          'Dikompres otomatis sebelum diunggah.',
+          style: TextStyle(color: AppColors.muted, fontSize: 12, height: 1.35),
+        ),
+        const SizedBox(height: 8),
+        if (picture != null) ...<Widget>[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.memory(
+              picture,
+              height: 150,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        Row(
+          children: <Widget>[
+            OutlinedButton.icon(
+              onPressed: enabled && !busy ? () => onPick() : null,
+              icon: busy
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add_a_photo_outlined, size: 18),
+              label: Text(picture == null ? 'Tambah foto' : 'Ganti foto'),
+            ),
+            if (picture != null) ...<Widget>[
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Hapus foto',
+                onPressed: enabled && !busy ? () => onRemove() : null,
+                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 /// Opens the product link the requester attached.
@@ -1746,6 +1880,10 @@ class _MaterialRequestFormScreenState
   final _productUrl = TextEditingController();
   MaterialRequestArea _area = MaterialRequestArea.lv;
   MaterialNeedType _needType = MaterialNeedType.replacement;
+  MaterialRequestPhoto? _photo;
+  Uint8List? _photoPreview;
+  bool _photoBusy = false;
+  bool _submitted = false;
   bool _saving = false;
 
   @override
@@ -1755,6 +1893,16 @@ class _MaterialRequestFormScreenState
     _unit.dispose();
     _reason.dispose();
     _productUrl.dispose();
+    // A photo uploaded for a request that was never sent would sit in storage
+    // forever; drop it on the way out.
+    final MaterialRequestPhoto? orphan = _submitted ? null : _photo;
+    if (orphan != null) {
+      unawaited(
+        (widget.service ?? _createService())
+            ?.removePhoto(orphan.storagePath)
+            .catchError((Object _) {}),
+      );
+    }
     super.dispose();
   }
 
@@ -1766,19 +1914,78 @@ class _MaterialRequestFormScreenState
     }
   }
 
-  /// The column only stores a real http(s) address, so a typo has to be
-  /// caught here rather than failing the insert.
-  static String? _validateProductUrl(String? value) {
-    final String trimmed = (value ?? '').trim();
-    if (trimmed.isEmpty) return null;
-    final Uri? parsed = Uri.tryParse(trimmed);
-    if (parsed == null ||
-        !parsed.hasAuthority ||
-        (parsed.scheme != 'http' && parsed.scheme != 'https') ||
-        trimmed.contains(RegExp(r'\s'))) {
-      return 'Link harus diawali http:// atau https://.';
+  Future<void> _pickPhoto() async {
+    if (_photoBusy || _saving) return;
+    final AppUser? user = ref.read(currentUserProvider);
+    if (user == null) return;
+    final FilePickerResult? selected = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const <String>['jpg', 'jpeg', 'png'],
+      withData: true,
+    );
+    final Uint8List? bytes = selected?.files.single.bytes;
+    if (selected == null || bytes == null) return;
+    setState(() => _photoBusy = true);
+    try {
+      final MaterialRequestService? service =
+          widget.service ?? _createService();
+      if (service == null) {
+        throw const FormatException('Layanan pengajuan belum tersedia.');
+      }
+      final MaterialRequestPhoto uploaded = await service.uploadPhoto(
+        actorId: user.id,
+        bytes: bytes,
+        fileName: selected.files.single.name,
+      );
+      // Replacing a photo must not leave the previous one behind.
+      final MaterialRequestPhoto? previous = _photo;
+      if (previous != null) {
+        unawaited(
+          service.removePhoto(previous.storagePath).catchError((Object _) {}),
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _photo = uploaded;
+        _photoPreview = bytes;
+      });
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is FormatException
+                  ? 'Foto tidak dapat dipakai: ${error.message}'
+                  : 'Foto gagal diunggah: $error',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _photoBusy = false);
     }
-    return null;
+  }
+
+  Future<void> _removePhoto() async {
+    final MaterialRequestPhoto? current = _photo;
+    if (current == null || _photoBusy || _saving) return;
+    setState(() => _photoBusy = true);
+    try {
+      await (widget.service ?? _createService())?.removePhoto(
+        current.storagePath,
+      );
+    } on Object {
+      // The row will never reference it, so a failed cleanup is not worth
+      // blocking the form.
+    } finally {
+      if (mounted) {
+        setState(() {
+          _photo = null;
+          _photoPreview = null;
+          _photoBusy = false;
+        });
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -1805,7 +2012,9 @@ class _MaterialRequestFormScreenState
         needType: _needType,
         reason: _reason.text,
         productUrl: _productUrl.text,
+        photo: _photo,
       );
+      _submitted = true;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pengajuan barang berhasil dikirim.')),
@@ -1959,12 +2168,19 @@ class _MaterialRequestFormScreenState
               keyboardType: TextInputType.url,
               decoration: const InputDecoration(
                 labelText: 'Link produk (opsional)',
-                hintText: 'https://... salin dari toko atau katalog',
-                helperText:
-                    'Bantu planner menemukan barang yang persis Anda maksud.',
+                hintText: 'www.tokopedia.com/... atau alamat lain',
+                helperText: 'Bantu planner menemukan barang yang persis Anda maksud. Boleh diawali www.',
                 helperMaxLines: 2,
               ),
-              validator: _validateProductUrl,
+              validator: MaterialRequestProductLink.validate,
+            ),
+            const SizedBox(height: 14),
+            _MaterialRequestPhotoField(
+              preview: _photoPreview,
+              busy: _photoBusy,
+              enabled: !_saving,
+              onPick: _pickPhoto,
+              onRemove: _removePhoto,
             ),
             const SizedBox(height: 22),
             FilledButton.icon(
