@@ -264,6 +264,15 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Penolakan pertanyaan di luar topik & rilis 2.8.37 — 2026-09-16
+
+- Pemilihan dokumen di `ask-technical-documents` dulu memakai `haystack.includes(term)`, sehingga potongan kata ikut cocok: "nasi" ada di dalam "kombinasi". Pertanyaan seperti "apa resep membuat nasi goreng" bisa menarik SOP sungguhan lalu model dimintai jawaban sambil memegang dokumen kerja. Kini `mentionsTerm()` mencocokkan kata utuh.
+- Catatan implementasi: pola regex-nya dibangun dengan `String.raw`. Di template literal biasa `\p` menciut menjadi `p`, sehingga `[^\p{L}\p{N}]` berubah jadi kelas karakter huruf p/{/L/} dan batas kata tidak berfungsi — persis bug yang sempat lolos saat pengujian pertama. Escaping istilah tidak diperlukan karena `queryTerms` sudah memotong pada semua karakter selain huruf dan angka.
+- Bila tidak ada dokumen yang cocok, jawabannya kini menolak secara eksplisit ("Pusat Dokumen hanya menjawab dari SOP, manual, izin kerja, dan drawing milik perusahaan; pertanyaan di luar itu ditolak") dan Gemini tidak dipanggil sama sekali, jadi kuota tidak terpakai. Prompt juga menyuruh model menolak pertanyaan di luar dokumen walau ia tahu jawabannya. Diuji live: "Apa resep membuat nasi goreng?" ditolak dalam 4,5 detik; "Berapa minimal orang untuk pekerjaan sandblasting?" tetap dijawab benar (ASM-COP-160) dalam 8,6 detik.
+- Isi panduan dipindahkan ke `lib/features/guide/guide_content.dart` yang **bebas impor Flutter** (ikon per kelompok tinggal di layar). Dengan begitu `dart run tool/generate_guide_pdf.dart` dari `flutter_app/` dapat mencetak ulang `docs/Panduan-Pengguna-SICATAT.pdf` dari isi yang sama persis dengan aplikasi. `docs/Panduan-Crew-SICATAT.pdf` yang lama dihapus atas permintaan pemilik.
+- **Rilis 2.8.37** (versionCode 14317, arm64-v8a, migrasi `20260916110000`): membawa seluruh perbaikan sejak 2.8.36 — panduan baru, penolakan pertanyaan di luar topik, kompresi unggahan, perbaikan Share PDF, catatan anomali di CSV, header laporan periode, pencarian dan urutan Data PR, serta peringatan email di layar Pengingat. APK diperiksa dengan `aapt2 dump badging`, unduhan lewat signed URL menghasilkan `PK` dengan content-type APK. APK 2.8.35 dihapus sesuai pola dua versi; storage kembali 2 berkas / 52 MB.
+- Catatan CLI: `npx supabase storage rm` **diam-diam tidak menghapus apa pun** tanpa `--yes` — hasilnya `{"deleted":[]}` tanpa pesan galat. Selalu periksa isi `deleted` setelah menjalankannya.
+
 ## Pemeriksaan email harian & panduan pengguna baru — 2026-09-16
 
 - `dispatch-reminder-emails` kini memanggil `checkEmailProviders()` (baru di `_shared/reminder_email.ts`) di akhir setiap jalannya dan menyimpan hasilnya ke `public.email_provider_health` (migrasi `20260916100000`). Pemeriksaan hanya menukar refresh token Gmail dan memanggil `GET /domains` milik Resend — tidak ada email yang dikirim. Kegagalan pemeriksaan tidak pernah menggagalkan dispatch.

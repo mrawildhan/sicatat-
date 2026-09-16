@@ -276,8 +276,25 @@ async function geminiFailure(response: Response): Promise<Error> {
 }
 
 function queryTerms(question: string) {
-  const stopWords = new Set(['berapa', 'untuk', 'yang', 'dengan', 'pada', 'dari', 'pekerjaan', 'melakukan', 'orang', 'minimal', 'adalah', 'bagaimana', 'apakah']);
+  const stopWords = new Set(['berapa', 'untuk', 'yang', 'dengan', 'pada', 'dari', 'pekerjaan', 'melakukan', 'orang', 'minimal', 'adalah', 'bagaimana', 'apakah', 'saja', 'apa', 'cara', 'membuat', 'itu']);
   return [...new Set(question.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length >= 3 && !stopWords.has(term)))];
+}
+
+/// Matches a whole word, not any substring.
+///
+/// Terms come from a split on everything except letters and digits, so a term
+/// can never carry a regular-expression metacharacter and needs no escaping.
+///
+/// A plain `includes` made unrelated questions look relevant: "nasi" is inside
+/// "kombinasi", so a recipe question could pull a real SOP into the answer and
+/// the model would then be asked about food while holding a work document.
+function mentionsTerm(haystack: string, term: string) {
+  // String.raw keeps the backslashes: in a plain template literal `\p` would
+  // collapse to `p` and the class would stop meaning "letter or digit".
+  return new RegExp(
+    String.raw`(^|[^\p{L}\p{N}])${term}([^\p{L}\p{N}]|$)`,
+    'u',
+  ).test(haystack);
 }
 
 // A model can quote several passages from one file. They support one answer,
@@ -311,7 +328,7 @@ function selectDocuments(question: string, documents: DriveEntry[]) {
   const ranked = documents
     .map((document) => {
       const haystack = `${document.name} ${document.path}`.toLowerCase();
-      let score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
+      let score = terms.reduce((total, term) => total + (mentionsTerm(haystack, term) ? 1 : 0), 0);
       // "Mode Auto", "start", and similar questions are operational intent.
       // Prefer an operational SOP over a repair/replacement SOP with the same
       // equipment acronym, e.g. Operasional VSD over Penggantian Power Block VSD.
@@ -424,7 +441,10 @@ Deno.serve(async (req) => {
     const documents = await listDocuments(admin);
     const selected = selectDocuments(question, documents);
     if (selected.length === 0) {
-      return json({ ok: true, answer: "Saya tidak menemukan nama file yang relevan di folder dokumen. Coba gunakan istilah SOP, nomor dokumen, atau nama pekerjaan yang lebih spesifik.", sources_scanned: 0, citations: [] });
+      // Nothing in the folder matches, so the question is either off topic or
+      // worded with words the documents never use. Say so plainly instead of
+      // letting a model answer from general knowledge.
+      return json({ ok: true, answer: "Pertanyaan ini tidak dapat dijawab karena tidak ada dokumen kerja yang cocok. Pusat Dokumen hanya menjawab dari SOP, manual, izin kerja, dan drawing milik perusahaan; pertanyaan di luar itu ditolak. Bila pertanyaan Anda memang soal pekerjaan, ulangi memakai istilah yang tertulis di dokumen, misalnya nama pekerjaan, nomor SOP, atau nama unit.", sources_scanned: 0, citations: [] });
     }
     const loaded: LoadedDocument[] = [];
     let totalBytes = 0;
@@ -462,6 +482,7 @@ Deno.serve(async (req) => {
       "Jawab dalam Bahasa Indonesia hanya berdasarkan isi file yang dilampirkan pada permintaan ini.",
       "Jangan gunakan pengetahuan umum, internet, dugaan, atau sumber lain.",
       "Jika jawaban tidak tercantum jelas, katakan bahwa dokumen yang diperiksa belum cukup.",
+      "Jika pertanyaan tidak berkaitan dengan isi dokumen kerja, misalnya resep masakan, hiburan, atau urusan pribadi, tolak dengan sopan dan jelaskan bahwa Pusat Dokumen hanya menjawab dari dokumen perusahaan. Jangan menjawabnya walau Anda tahu jawabannya.",
       "Kembalikan JSON valid tanpa markdown dengan bentuk: {\\\"answer\\\": string, \\\"citations\\\": [{\\\"id\\\": number, \\\"excerpt\\\": string}] }.",
       "citation.id harus nomor dokumen pada daftar, dan excerpt harus kutipan pendek yang mendukung jawaban.",
       `Pertanyaan pengguna: ${question}`,
