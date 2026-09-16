@@ -264,6 +264,14 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Notulen: kartu ringkasan yang bisa disaring — 2026-09-16
+
+- Chip statis "Draft 1 / Completed 1" diganti kartu ringkasan tiga kolom seperti di Permintaan Barang (`_RequestStatusCard` + `_StatusDivider` dipakai ulang), dan ditambah kategori **Tindak lanjut** (`followUpOf != null`).
+- Penting: ketiganya adalah **penyaring, bukan pembagian**. Sebuah notulen tindak lanjut tetap berstatus draft atau selesai, jadi jumlahnya sengaja tumpang tindih dan tidak dijumlahkan menjadi total. Ini ditulis sebagai komentar di kode supaya tidak "diperbaiki" jadi saling eksklusif.
+- Menekan kartu yang sedang aktif akan melepas penyaringnya (`_toggleFilter`), sama seperti Permintaan Barang; ada tombol "Semua" di samping judul daftar dan keadaan kosong menawarkan "Tampilkan semua".
+- Label layar daftar Notulen ikut diterjemahkan supaya tidak campur setelah kartu baru berbahasa Indonesia: FAB "Buat notulen", "Notulen belum dapat dimuat", "Coba lagi", "Notulen tanpa judul", "N rencana tindakan", "Tindak lanjut dari ...". **Layar editornya masih berbahasa Inggris** — belum dikerjakan.
+- `_MeetingStatusChip` dihapus karena tidak terpakai lagi. Tes widget MOM diperbarui: label kartu, dan "Buat notulen" kini muncul dua kali (FAB dan tombol keadaan kosong).
+
 ## Aksi utama jadi tombol mengambang — 2026-09-16
 
 - Permintaan pemilik: bagian atas layar terasa penuh. Tombol utama dipindahkan ke `FloatingActionButton.extended` mengikuti pola "Sheet baru" yang sudah ada di layar Suhu, dan penjelasan yang hanya mengulang judul halaman dihapus.

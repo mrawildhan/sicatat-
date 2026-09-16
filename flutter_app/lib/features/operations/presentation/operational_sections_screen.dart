@@ -422,9 +422,24 @@ class MeetingMinutesScreen extends ConsumerStatefulWidget {
       _MeetingMinutesScreenState();
 }
 
+/// Filters for the meeting minute list.
+///
+/// A follow-up is also a draft or a completed minute, so these overlap on
+/// purpose: each card narrows the list, it does not split it.
+enum _MeetingFilter { draft, followUp, completed }
+
+extension _MeetingFilterX on _MeetingFilter {
+  String get label => switch (this) {
+    _MeetingFilter.draft => 'Draft',
+    _MeetingFilter.followUp => 'Tindak lanjut',
+    _MeetingFilter.completed => 'Selesai',
+  };
+}
+
 class _MeetingMinutesScreenState extends ConsumerState<MeetingMinutesScreen> {
   MeetingMinuteService? _service;
   List<MeetingMinute> _items = const <MeetingMinute>[];
+  _MeetingFilter? _filter;
   bool _loading = true;
   String? _error;
 
@@ -452,7 +467,7 @@ class _MeetingMinutesScreenState extends ConsumerState<MeetingMinutesScreen> {
       if (mounted) {
         setState(
           () => _error =
-              'Unable to load meeting minutes. Check your connection and try again.\n$error',
+              'Notulen belum dapat dimuat. Periksa koneksi lalu coba lagi.\n$error',
         );
       }
     } finally {
@@ -468,12 +483,31 @@ class _MeetingMinutesScreenState extends ConsumerState<MeetingMinutesScreen> {
     }
   }
 
+  /// Tapping the selected card again clears the filter.
+  void _toggleFilter(_MeetingFilter filter) =>
+      setState(() => _filter = _filter == filter ? null : filter);
+
+  bool _matchesFilter(MeetingMinute item) => switch (_filter) {
+    _MeetingFilter.draft => item.status == MeetingMinuteStatus.draft,
+    _MeetingFilter.followUp => item.followUpOf != null,
+    _MeetingFilter.completed => item.status != MeetingMinuteStatus.draft,
+    null => true,
+  };
+
   @override
   Widget build(BuildContext context) {
     final int draftCount = _items
         .where((MeetingMinute item) => item.status == MeetingMinuteStatus.draft)
         .length;
     final int completedCount = _items.length - draftCount;
+    // A follow-up is also a draft or completed, so this count deliberately
+    // overlaps the other two: the three cards are filters, not a split.
+    final int followUpCount = _items
+        .where((MeetingMinute item) => item.followUpOf != null)
+        .length;
+    final List<MeetingMinute> visibleItems = _filter == null
+        ? _items
+        : _items.where(_matchesFilter).toList(growable: false);
     final bool desktop = kIsWeb && MediaQuery.sizeOf(context).width >= 920;
     return AppBackScope(
       fallbackRoute: '/dashboard',
@@ -489,7 +523,7 @@ class _MeetingMinutesScreenState extends ConsumerState<MeetingMinutesScreen> {
             : FloatingActionButton.extended(
                 onPressed: () => context.go('/meeting-minutes/new'),
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Create minutes'),
+                label: const Text('Buat notulen'),
               ),
         body: RefreshIndicator(
           onRefresh: _load,
@@ -515,23 +549,79 @@ class _MeetingMinutesScreenState extends ConsumerState<MeetingMinutesScreen> {
                 ),
                 const SizedBox(height: 20),
               ],
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
+              const Text(
+                'Ringkasan notulen',
+                style: AppTextStyles.sectionTitle,
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                'Tekan kartu untuk melihat notulen yang sesuai.',
+                style: AppTextStyles.supporting,
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 8,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _RequestStatusCard(
+                          label: 'Draft',
+                          count: draftCount,
+                          icon: Icons.edit_note_rounded,
+                          color: AppColors.orange,
+                          selected: _filter == _MeetingFilter.draft,
+                          onTap: () => _toggleFilter(_MeetingFilter.draft),
+                        ),
+                      ),
+                      _StatusDivider(),
+                      Expanded(
+                        child: _RequestStatusCard(
+                          label: 'Tindak lanjut',
+                          count: followUpCount,
+                          icon: Icons.move_down_rounded,
+                          color: AppColors.greenDark,
+                          selected: _filter == _MeetingFilter.followUp,
+                          onTap: () => _toggleFilter(_MeetingFilter.followUp),
+                        ),
+                      ),
+                      _StatusDivider(),
+                      Expanded(
+                        child: _RequestStatusCard(
+                          label: 'Selesai',
+                          count: completedCount,
+                          icon: Icons.task_alt_rounded,
+                          color: AppColors.green,
+                          selected: _filter == _MeetingFilter.completed,
+                          onTap: () => _toggleFilter(_MeetingFilter.completed),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
                 children: <Widget>[
-                  _MeetingStatusChip(
-                    label: 'Draft',
-                    count: '$draftCount',
-                    color: AppColors.orange,
+                  Expanded(
+                    child: Text(
+                      _filter == null
+                          ? 'Semua notulen'
+                          : 'Notulen: ${_filter!.label}',
+                      style: AppTextStyles.sectionTitle,
+                    ),
                   ),
-                  _MeetingStatusChip(
-                    label: 'Completed',
-                    count: '$completedCount',
-                    color: AppColors.green,
-                  ),
+                  if (_filter != null)
+                    TextButton(
+                      onPressed: () => setState(() => _filter = null),
+                      child: const Text('Semua'),
+                    ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 10),
               if (_loading)
                 const Padding(
                   padding: EdgeInsets.all(30),
@@ -540,21 +630,29 @@ class _MeetingMinutesScreenState extends ConsumerState<MeetingMinutesScreen> {
               else if (_error != null)
                 _MeetingNotice(
                   icon: Icons.cloud_off_rounded,
-                  title: 'Unable to load minutes',
+                  title: 'Notulen belum dapat dimuat',
                   message: _error!,
-                  actionLabel: 'Try again',
+                  actionLabel: 'Coba lagi',
                   onAction: _load,
                 )
-              else if (_items.isEmpty)
+              else if (visibleItems.isEmpty)
                 _MeetingNotice(
                   icon: Icons.edit_note_rounded,
-                  title: 'No meeting minutes yet',
-                  message: 'Record meeting details, attendees, issues and action plans.',
-                  actionLabel: 'Start minutes',
-                  onAction: () => context.go('/meeting-minutes/new'),
+                  title: _filter == null
+                      ? 'Belum ada notulen'
+                      : 'Belum ada notulen ${_filter!.label.toLowerCase()}',
+                  message: _filter == null
+                      ? 'Catat jalannya rapat, peserta, pembahasan, dan rencana tindakan.'
+                      : 'Pilih kategori lain atau tampilkan semua notulen.',
+                  actionLabel: _filter == null
+                      ? 'Buat notulen'
+                      : 'Tampilkan semua',
+                  onAction: _filter == null
+                      ? () => context.go('/meeting-minutes/new')
+                      : () => setState(() => _filter = null),
                 )
               else
-                ..._items.map(
+                ...visibleItems.map(
                   (MeetingMinute item) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _MeetingMinuteTile(
@@ -2968,31 +3066,6 @@ class _BudgetMetricCard extends StatelessWidget {
   );
 }
 
-class _MeetingStatusChip extends StatelessWidget {
-  const _MeetingStatusChip({
-    required this.label,
-    required this.count,
-    required this.color,
-  });
-
-  final String label;
-  final String count;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Text(
-      '$label  $count',
-      style: TextStyle(color: color, fontWeight: FontWeight.w800),
-    ),
-  );
-}
-
 class _MeetingNotice extends StatelessWidget {
   const _MeetingNotice({
     required this.icon,
@@ -3067,15 +3140,15 @@ class _MeetingMinuteTile extends StatelessWidget {
           ),
         ),
         title: Text(
-          item.title.trim().isEmpty ? 'Untitled minutes' : item.title,
+          item.title.trim().isEmpty ? 'Notulen tanpa judul' : item.title,
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 5),
           child: Text(
             item.followUpSource == null
-                ? '$date • ${item.actions.length} action ${item.actions.length == 1 ? 'plan' : 'plans'}'
-                : '$date • Follow-up of ${item.followUpSource!.title.trim().isEmpty ? 'previous minutes' : item.followUpSource!.title}',
+                ? '$date • ${item.actions.length} rencana tindakan'
+                : '$date • Tindak lanjut dari ${item.followUpSource!.title.trim().isEmpty ? 'notulen sebelumnya' : item.followUpSource!.title}',
           ),
         ),
         trailing: Column(
