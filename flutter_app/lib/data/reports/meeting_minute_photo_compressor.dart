@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as image;
 
-/// Produces a compact JPEG suitable for the private Notulen Rapat bucket.
+/// Produces a compact photo suitable for the private Notulen Rapat bucket.
 ///
 /// The storage plan is limited, so every evidence photo is normalized before
 /// upload: EXIF orientation is applied, the longest side is capped, and JPEG
@@ -11,6 +11,8 @@ class MeetingMinutePhotoCompressor {
   static const int maxDimension = 1280;
   static const int targetBytes = 600 * 1024;
   static const int minimumQuality = 48;
+  static const String jpegMimeType = 'image/jpeg';
+  static const String pngMimeType = 'image/png';
 
   const MeetingMinutePhotoCompressor._();
 
@@ -29,6 +31,9 @@ class MeetingMinutePhotoCompressor {
     if (decoded == null) {
       throw const FormatException('Unable to read the JPG, JPEG or PNG photo.');
     }
+    final bool isRotated =
+        decoded.exif.imageIfd.hasOrientation &&
+        decoded.exif.imageIfd.orientation != 1;
     image.Image normalized = image.bakeOrientation(decoded);
     if (normalized.width > maxDimension || normalized.height > maxDimension) {
       if (normalized.width >= normalized.height) {
@@ -59,11 +64,27 @@ class MeetingMinutePhotoCompressor {
         image.encodeJpg(normalized, quality: minimumQuality),
       );
     }
+    // A picture that is already compact grows when it is re-encoded, so the
+    // original costs less storage. A rotated original must still be re-encoded
+    // because exports draw the pixels without reading EXIF.
+    if (!isRotated && output.lengthInBytes >= bytes.lengthInBytes) {
+      return CompressedMeetingMinutePhoto(
+        bytes: bytes,
+        fileName: fileName,
+        mimeType: _originalMimeType(fileName),
+      );
+    }
     return CompressedMeetingMinutePhoto(
       bytes: output,
       fileName: _jpegFileName(fileName),
+      mimeType: jpegMimeType,
     );
   }
+
+  static String _originalMimeType(String fileName) =>
+      fileName.trim().toLowerCase().endsWith('.png')
+      ? pngMimeType
+      : jpegMimeType;
 
   static String _jpegFileName(String fileName) {
     final String trimmed = fileName.trim();
@@ -79,9 +100,10 @@ class CompressedMeetingMinutePhoto {
   const CompressedMeetingMinutePhoto({
     required this.bytes,
     required this.fileName,
+    required this.mimeType,
   });
 
   final Uint8List bytes;
   final String fileName;
-  static const String mimeType = 'image/jpeg';
+  final String mimeType;
 }

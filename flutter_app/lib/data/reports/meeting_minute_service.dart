@@ -195,8 +195,8 @@ class MeetingMinuteService {
         .uploadBinary(
           storagePath,
           compressed.bytes,
-          fileOptions: const FileOptions(
-            contentType: CompressedMeetingMinutePhoto.mimeType,
+          fileOptions: FileOptions(
+            contentType: compressed.mimeType,
             upsert: false,
           ),
         );
@@ -207,7 +207,7 @@ class MeetingMinuteService {
             'meeting_minute_action_id': actionId,
             'storage_path': storagePath,
             'file_name': safeName,
-            'mime_type': CompressedMeetingMinutePhoto.mimeType,
+            'mime_type': compressed.mimeType,
             'size_bytes': compressed.bytes.lengthInBytes,
           })
           .select(

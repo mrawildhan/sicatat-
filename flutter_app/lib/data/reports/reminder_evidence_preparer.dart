@@ -18,7 +18,8 @@ class PreparedReminderEvidence {
 /// Shrinks reminder attachments before they reach the private
 /// `reminder-evidence` bucket, because the Supabase plan has little storage.
 ///
-/// Photos reuse the meeting minute compressor (JPEG, longest side 1280 px).
+/// Photos reuse the meeting minute compressor (JPEG, longest side 1280 px),
+/// which keeps the original file whenever re-encoding would make it bigger.
 /// PDFs cannot be recompressed in the app, so they get a tight size cap.
 class ReminderEvidencePreparer {
   static const int maxPickedBytes = 10 * 1024 * 1024;
@@ -56,21 +57,10 @@ class ReminderEvidencePreparer {
         } on FormatException {
           throw FormatException('$fileName tidak dapat dibaca sebagai gambar.');
         }
-        // An already compact picture can grow when re-encoded; keep whichever
-        // version uses less storage.
-        if (compressed.bytes.length >= bytes.length) {
-          return PreparedReminderEvidence(
-            name: fileName,
-            bytes: bytes,
-            mimeType: fileName.toLowerCase().endsWith('.png')
-                ? 'image/png'
-                : 'image/jpeg',
-          );
-        }
         return PreparedReminderEvidence(
           name: compressed.fileName,
           bytes: compressed.bytes,
-          mimeType: CompressedMeetingMinutePhoto.mimeType,
+          mimeType: compressed.mimeType,
         );
       default:
         throw FormatException('$fileName bukan PDF, JPG, JPEG, atau PNG.');
