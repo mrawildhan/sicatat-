@@ -9,7 +9,7 @@ class MaterialRequestService {
   final SupabaseClient _client;
 
   static const String _select =
-      'id,request_area,item_name,quantity,unit,need_type,reason,status,planner_note,requested_by,processed_by,processed_at,created_at,requester:requested_by(name)';
+      'id,request_area,item_name,quantity,unit,need_type,reason,product_url,status,planner_note,requested_by,processed_by,processed_at,created_at,requester:requested_by(name)';
 
   Future<List<MaterialRequest>> loadAll() async {
     final Object response = await _client
@@ -36,7 +36,9 @@ class MaterialRequestService {
     required String unit,
     required MaterialNeedType needType,
     required String reason,
+    String? productUrl,
   }) async {
+    final String trimmedUrl = (productUrl ?? '').trim();
     final Object response = await _client
         .from('material_request')
         .insert(<String, Object?>{
@@ -47,6 +49,8 @@ class MaterialRequestService {
           'unit': unit.trim(),
           'need_type': needType.storageValue,
           'reason': reason.trim(),
+          // The column only accepts a real http(s) address or nothing at all.
+          'product_url': trimmedUrl.isEmpty ? null : trimmedUrl,
         })
         .select(_select)
         .single();

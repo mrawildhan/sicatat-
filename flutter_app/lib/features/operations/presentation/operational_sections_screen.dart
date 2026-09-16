@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/platform/file_download.dart';
@@ -1479,6 +1480,15 @@ class _MaterialRequestDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(item.reason, style: const TextStyle(height: 1.4)),
+          if (item.productUrl != null) ...<Widget>[
+            const SizedBox(height: 14),
+            const Text(
+              'Link produk',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 5),
+            _MaterialRequestProductLink(url: item.productUrl!),
+          ],
           if (item.plannerNote.isNotEmpty) ...<Widget>[
             const SizedBox(height: 16),
             Container(
@@ -1526,6 +1536,53 @@ class _MaterialRequestDetailSheet extends StatelessWidget {
           ),
         ),
       ],
+    ),
+  );
+}
+
+/// Opens the product link the requester attached.
+///
+/// Shown to the planner as the tappable address itself, so an unexpected
+/// destination is visible before it is opened.
+class _MaterialRequestProductLink extends StatelessWidget {
+  const _MaterialRequestProductLink({required this.url});
+
+  final String url;
+
+  Future<void> _open(BuildContext context) async {
+    final Uri? target = Uri.tryParse(url);
+    final bool opened =
+        target != null &&
+        await launchUrl(target, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link produk tidak dapat dibuka.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: () => _open(context),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Icon(Icons.link_rounded, size: 18, color: AppColors.green),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              url,
+              style: const TextStyle(
+                color: AppColors.green,
+                decoration: TextDecoration.underline,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -1686,6 +1743,7 @@ class _MaterialRequestFormScreenState
   final _quantity = TextEditingController(text: '1');
   final _unit = TextEditingController(text: 'unit');
   final _reason = TextEditingController();
+  final _productUrl = TextEditingController();
   MaterialRequestArea _area = MaterialRequestArea.lv;
   MaterialNeedType _needType = MaterialNeedType.replacement;
   bool _saving = false;
@@ -1696,6 +1754,7 @@ class _MaterialRequestFormScreenState
     _quantity.dispose();
     _unit.dispose();
     _reason.dispose();
+    _productUrl.dispose();
     super.dispose();
   }
 
@@ -1705,6 +1764,21 @@ class _MaterialRequestFormScreenState
     } on AssertionError {
       return null;
     }
+  }
+
+  /// The column only stores a real http(s) address, so a typo has to be
+  /// caught here rather than failing the insert.
+  static String? _validateProductUrl(String? value) {
+    final String trimmed = (value ?? '').trim();
+    if (trimmed.isEmpty) return null;
+    final Uri? parsed = Uri.tryParse(trimmed);
+    if (parsed == null ||
+        !parsed.hasAuthority ||
+        (parsed.scheme != 'http' && parsed.scheme != 'https') ||
+        trimmed.contains(RegExp(r'\s'))) {
+      return 'Link harus diawali http:// atau https://.';
+    }
+    return null;
   }
 
   Future<void> _submit() async {
@@ -1730,6 +1804,7 @@ class _MaterialRequestFormScreenState
         unit: _unit.text,
         needType: _needType,
         reason: _reason.text,
+        productUrl: _productUrl.text,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1876,6 +1951,20 @@ class _MaterialRequestFormScreenState
               validator: (value) => value == null || value.trim().isEmpty
                   ? 'Alasan kebutuhan wajib diisi.'
                   : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _productUrl,
+              enabled: !_saving,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'Link produk (opsional)',
+                hintText: 'https://... salin dari toko atau katalog',
+                helperText:
+                    'Bantu planner menemukan barang yang persis Anda maksud.',
+                helperMaxLines: 2,
+              ),
+              validator: _validateProductUrl,
             ),
             const SizedBox(height: 22),
             FilledButton.icon(

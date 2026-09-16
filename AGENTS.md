@@ -264,6 +264,13 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Permintaan Barang: area COP & link produk — 2026-09-16
+
+- Migrasi `20260916120000_material_request_cop_and_product_url.sql`: check `request_area` kini menerima `lv`, `cop`, `drilling`; kolom baru `product_url text` dengan check `null atau ^https?://[^[:space:]]+$` supaya string kosong tidak lolos dan kolomnya benar-benar berisi alamat.
+- `MaterialRequestArea` bertambah `cop` (label "COP", urutan dropdown LV → COP → Drilling). `MaterialRequest.productUrl` bernilai null bila kolomnya kosong atau hanya spasi.
+- Form pengajuan punya kolom "Link produk (opsional)" dengan validasi di aplikasi (harus http/https, tanpa spasi) supaya salah ketik tertangkap sebelum insert ditolak Postgres. Di panel planner, link tampil sebagai alamat penuh yang bisa diketuk (`_MaterialRequestProductLink`, `launchUrl` mode eksternal) — sengaja menampilkan URL aslinya agar tujuan yang tidak diharapkan terlihat sebelum dibuka.
+- Diuji live: dropdown menampilkan LV/COP/Drilling; link "toko.example/kacamata" ditolak dengan pesan "Link harus diawali http:// atau https://." dan form tidak terkirim; setelah diperbaiki, pengajuan tersimpan `request_area='cop'` dengan `product_url` utuh dan panel planner menampilkan baris "Link produk". Tes unit di `test/material_request_product_url_test.dart`.
+
 ## Uji live Permintaan Barang — 2026-09-16
 
 - Fitur terakhir yang belum pernah diuji langsung (selain buat pengguna) kini sudah: pengajuan dibuat lewat form website (`UJI WEBSITE 16/09 - Filter oli hidrolik`, 2 pcs, LV, penggantian barang rusak) → tersimpan `status='submitted'`, lalu diproses menjadi `status='rejected'` dengan `planner_note` terisi. Validasi "penolakan wajib beralasan" terbukti: begitu Status dipilih Ditolak, kolom berubah menjadi "Alasan penolakan *" bergaris merah dan tombol Simpan status **mati** sampai alasannya diisi.

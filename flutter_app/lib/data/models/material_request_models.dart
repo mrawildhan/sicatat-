@@ -1,19 +1,22 @@
 import 'sicatat_types.dart';
 
-enum MaterialRequestArea { lv, drilling }
+enum MaterialRequestArea { lv, cop, drilling }
 
 extension MaterialRequestAreaX on MaterialRequestArea {
   String get storageValue => switch (this) {
     MaterialRequestArea.lv => 'lv',
+    MaterialRequestArea.cop => 'cop',
     MaterialRequestArea.drilling => 'drilling',
   };
 
   String get label => switch (this) {
     MaterialRequestArea.lv => 'LV',
+    MaterialRequestArea.cop => 'COP',
     MaterialRequestArea.drilling => 'Drilling',
   };
 
   static MaterialRequestArea fromStorage(String value) => switch (value) {
+    'cop' => MaterialRequestArea.cop,
     'drilling' => MaterialRequestArea.drilling,
     _ => MaterialRequestArea.lv,
   };
@@ -73,6 +76,7 @@ class MaterialRequest {
     required this.needType,
     required this.reason,
     required this.status,
+    this.productUrl,
     required this.plannerNote,
     required this.requestedBy,
     required this.createdAt,
@@ -88,6 +92,10 @@ class MaterialRequest {
   final String unit;
   final MaterialNeedType needType;
   final String reason;
+
+  /// Optional link to the exact product the requester means, so the planner
+  /// does not have to guess from the item name.
+  final String? productUrl;
   final MaterialRequestStatus status;
   final String plannerNote;
   final String requestedBy;
@@ -115,6 +123,7 @@ class MaterialRequest {
       unit: json.requiredString('unit'),
       needType: MaterialNeedTypeX.fromStorage(json.requiredString('need_type')),
       reason: json.requiredString('reason'),
+      productUrl: _trimmedOrNull(json.optionalString('product_url')),
       status: MaterialRequestStatusX.fromStorage(json.requiredString('status')),
       plannerNote: json.optionalString('planner_note') ?? '',
       requestedBy: json.requiredString('requested_by'),
@@ -123,6 +132,11 @@ class MaterialRequest {
       processedAt: _dateTime(json.optionalString('processed_at')),
       createdAt: _dateTime(json.requiredString('created_at')) ?? DateTime.now(),
     );
+  }
+
+  static String? _trimmedOrNull(String? value) {
+    final String trimmed = (value ?? '').trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   static DateTime? _dateTime(String? value) =>
