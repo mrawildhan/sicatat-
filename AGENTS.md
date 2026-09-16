@@ -264,6 +264,15 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Kartu ringkasan seragam, Notulen berbahasa Indonesia, rilis 2.8.39 — 2026-09-16
+
+- Temuan pemilik: kotak ringkasan Notulen terlihat lebih besar dari layar lain. Benar — ada **tiga implementasi berbeda** untuk hal yang sama: Suhu (tinggi 108, angka 22), Pengingat (tinggi 60, angka 18), Notulen/Permintaan Barang (tanpa tinggi tetap, angka 22, dibungkus Card lagi).
+- Semuanya kini memakai satu widget `core/widgets/summary_filter_card.dart` (`SummaryFilterCard` + `SummaryFilterGap`): tinggi 76, ikon 18, angka `AppTextStyles.metric`, label `badge` berwarna muted, dengan keadaan terpilih (latar dan garis berwarna). `_RequestStatusCard`, `_StatusDivider`, `_summaryTile`, dan `_temperatureSummaryTile` dihapus.
+- Catatan tinggi: isi kartu berukuran ±69 px, jadi tinggi 76 dengan padding vertikal 6. Percobaan pertama memakai 68 dan widget test langsung menangkap `RenderFlex overflowed by 7.0 pixels` — jangan turunkan tanpa mengecilkan isinya.
+- Efek sampingan yang bagus: kartu Suhu dan Pengingat sekarang menunjukkan penyaring yang sedang aktif, yang sebelumnya tidak terlihat.
+- **Notulen Rapat diterjemahkan penuh** (daftar dan editor): judul menu, "Buat notulen", "Detail rapat", "Peserta dan distribusi", "Temuan dan rencana tindakan", "Simpan sebagai draf", "Selesaikan notulen", "Terakhir disimpan ...", badge "Draf"/"Selesai", sampai kolom Excel "Tindak lanjut dari". `MeetingMinuteStatus.storageValue` tidak diubah, jadi data lama tetap terbaca. Tiga tes ikut diperbarui.
+- **Rilis 2.8.39** (versionCode 14319, migrasi `20260916150000`) membawa terjemahan, kartu seragam, skala teks, dan tombol mengambang ke Android. APK 2.8.37 dihapus sesuai pola dua versi.
+
 ## Notulen: kartu ringkasan yang bisa disaring — 2026-09-16
 
 - Chip statis "Draft 1 / Completed 1" diganti kartu ringkasan tiga kolom seperti di Permintaan Barang (`_RequestStatusCard` + `_StatusDivider` dipakai ulang), dan ditambah kategori **Tindak lanjut** (`followUpOf != null`).

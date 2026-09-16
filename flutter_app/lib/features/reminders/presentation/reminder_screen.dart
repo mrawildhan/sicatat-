@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../core/widgets/summary_filter_card.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/sicatat_types.dart';
 import '../../../data/reports/reminder_evidence_preparer.dart';
@@ -1979,88 +1980,42 @@ class _ReminderScreenState extends State<ReminderScreen> {
 
   Widget _summaryGrid(BuildContext context) => Row(
     children: <Widget>[
-      _summaryTile(
-        'Terlambat',
-        _overdueCount,
-        AppColors.danger,
-        Icons.warning_amber_rounded,
-        () => _selectReminderFilter(_ReminderFilter.overdue),
+      SummaryFilterCard(
+        label: 'Terlambat',
+        count: _overdueCount,
+        color: AppColors.danger,
+        icon: Icons.warning_amber_rounded,
+        selected: _filter == _ReminderFilter.overdue,
+        onTap: () => _selectReminderFilter(_ReminderFilter.overdue),
       ),
-      const SizedBox(width: 8),
-      _summaryTile(
-        'Segera',
-        _dueSoonCount,
-        AppColors.orange,
-        Icons.schedule_rounded,
-        () => _selectReminderFilter(_ReminderFilter.dueSoon),
+      const SummaryFilterGap(),
+      SummaryFilterCard(
+        label: 'Segera',
+        count: _dueSoonCount,
+        color: AppColors.orange,
+        icon: Icons.schedule_rounded,
+        selected: _filter == _ReminderFilter.dueSoon,
+        onTap: () => _selectReminderFilter(_ReminderFilter.dueSoon),
       ),
-      const SizedBox(width: 8),
-      _summaryTile(
-        'Terbuka',
-        _openCount,
-        AppColors.green,
-        Icons.pending_actions_rounded,
-        () => _selectReminderFilter(_ReminderFilter.open),
+      const SummaryFilterGap(),
+      SummaryFilterCard(
+        label: 'Terbuka',
+        count: _openCount,
+        color: AppColors.green,
+        icon: Icons.pending_actions_rounded,
+        selected: _filter == _ReminderFilter.open,
+        onTap: () => _selectReminderFilter(_ReminderFilter.open),
       ),
-      const SizedBox(width: 8),
-      _summaryTile(
-        'Selesai',
-        _completedCount,
-        AppColors.muted,
-        Icons.task_alt_rounded,
-        () => _selectReminderFilter(_ReminderFilter.completed),
+      const SummaryFilterGap(),
+      SummaryFilterCard(
+        label: 'Selesai',
+        count: _completedCount,
+        color: AppColors.muted,
+        icon: Icons.task_alt_rounded,
+        selected: _filter == _ReminderFilter.completed,
+        onTap: () => _selectReminderFilter(_ReminderFilter.completed),
       ),
     ],
-  );
-
-  Widget _summaryTile(
-    String label,
-    int count,
-    Color color,
-    IconData icon,
-    VoidCallback onTap,
-  ) => Expanded(
-    child: Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.line),
-          ),
-          child: SizedBox(
-            height: 60,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Icon(icon, color: color, size: 17),
-                const SizedBox(height: 3),
-                Text(
-                  '$count',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ),
   );
 
   Widget _filterChip(String label, _ReminderFilter value) => FilterChip(

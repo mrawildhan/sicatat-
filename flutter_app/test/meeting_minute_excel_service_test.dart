@@ -129,7 +129,7 @@ void main() {
       expect(sheetXml, contains('Action Plan'));
       expect(sheetXml, contains('Photos'));
       expect(sheetXml, contains('Progress /\nRemark'));
-      expect(sheetXml, contains('Follow-up of'));
+      expect(sheetXml, contains('Tindak lanjut dari'));
       expect(
         sheetXml,
         contains('MOM Ban Bocor Kendaraan Ringan (23 January 2026)'),

@@ -95,10 +95,10 @@ void main() {
   testWidgets('tampilan awal MOM menjelaskan alur draf', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: MeetingMinutesScreen()));
 
-    expect(find.text('Meeting Minutes'), findsOneWidget);
+    expect(find.text('Notulen Rapat'), findsOneWidget);
     expect(find.text('Belum ada notulen'), findsOneWidget);
     // The three summary cards double as filters.
-    expect(find.text('Draft'), findsOneWidget);
+    expect(find.text('Draf'), findsOneWidget);
     expect(find.text('Tindak lanjut'), findsOneWidget);
     expect(find.text('Selesai'), findsOneWidget);
     // Once on the floating button, once as the empty state's action.

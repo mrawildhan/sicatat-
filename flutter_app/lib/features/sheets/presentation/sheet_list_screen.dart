@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../core/widgets/summary_filter_card.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../../data/local/local_database.dart';
 import '../../../data/models/sheet_model.dart';
@@ -294,25 +295,27 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
   Widget _temperatureSummaryRow(DashboardActivity? activity) {
     return Row(
       children: <Widget>[
-        _temperatureSummaryTile(
+        SummaryFilterCard(
           label: 'Draf',
           count: activity?.draftCount ?? 0,
           color: AppColors.orange,
           icon: Icons.edit_note_rounded,
+          selected: _statusFilter == _SheetListStatusFilter.draft,
           onTap: () =>
               setState(() => _statusFilter = _SheetListStatusFilter.draft),
         ),
-        const SizedBox(width: 10),
-        _temperatureSummaryTile(
+        const SummaryFilterGap(),
+        SummaryFilterCard(
           label: 'Terkirim',
           count: activity?.syncedCount ?? 0,
           color: AppColors.green,
           icon: Icons.cloud_done_rounded,
+          selected: _statusFilter == _SheetListStatusFilter.submitted,
           onTap: () =>
               setState(() => _statusFilter = _SheetListStatusFilter.submitted),
         ),
-        const SizedBox(width: 10),
-        _temperatureSummaryTile(
+        const SummaryFilterGap(),
+        SummaryFilterCard(
           label: 'Suhu tinggi',
           count: activity?.highTemperatureCount ?? 0,
           color: AppColors.danger,
@@ -500,54 +503,6 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                 ],
               ),
             ),
-    ),
-  );
-
-  Widget _temperatureSummaryTile({
-    required String label,
-    required int count,
-    required Color color,
-    required IconData icon,
-    required VoidCallback? onTap,
-  }) => Expanded(
-    child: Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Container(
-          height: 108,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.line),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Icon(icon, color: color, size: 21),
-              const SizedBox(height: 5),
-              Text(
-                '$count',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: AppColors.muted),
-              ),
-            ],
-          ),
-        ),
-      ),
     ),
   );
 

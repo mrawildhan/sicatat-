@@ -333,7 +333,7 @@ class MeetingMinuteExcelService {
     sheet.metadata(8, 'Distribution', minute.distributionList);
     sheet.metadata(9, 'New business', minute.newBusinessAgenda);
     sheet.metadata(10, 'Proposed by', minute.proposedBy);
-    sheet.metadata(11, 'Follow-up of', _followUpText(minute));
+    sheet.metadata(11, 'Tindak lanjut dari', _followUpText(minute));
     sheet.merge('A13:H13', 'ACTION PLAN', 4, 22);
     const List<String> headers = <String>[
       'No.',

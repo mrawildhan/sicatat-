@@ -8,9 +8,11 @@ extension MeetingMinuteStatusX on MeetingMinuteStatus {
     MeetingMinuteStatus.completed => 'completed',
   };
 
+  /// Shown on the badge in the list. `storageValue` is what the database
+  /// holds, so translating this does not touch stored data.
   String get label => switch (this) {
-    MeetingMinuteStatus.draft => 'Draft',
-    MeetingMinuteStatus.completed => 'Completed',
+    MeetingMinuteStatus.draft => 'Draf',
+    MeetingMinuteStatus.completed => 'Selesai',
   };
 
   static MeetingMinuteStatus fromStorage(String value) => switch (value) {

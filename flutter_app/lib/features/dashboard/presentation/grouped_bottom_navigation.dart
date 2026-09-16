@@ -60,8 +60,8 @@ Future<void> openNavigationGroup(
     if (operational)
       const _NavigationGroupOption(
         icon: Icons.assignment_outlined,
-        title: 'Meeting Minutes',
-        subtitle: 'Buat dan lanjutkan draf MOM',
+        title: 'Notulen Rapat',
+        subtitle: 'Buat dan lanjutkan draf notulen',
         route: '/meeting-minutes',
       ),
     if (!operational && canWarehouse)
