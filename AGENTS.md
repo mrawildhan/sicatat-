@@ -264,6 +264,14 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Pusat Dokumen: daftar berkas pindah ke Postgres — 2026-09-16
+
+- Masalah: `ask-technical-documents` hanya menyimpan hasil telusur folder Google Drive di memori isolate selama 10 menit, jadi pengguna pertama setelah jeda membayar telusur ulang. Folder ternyata berisi **1.964 berkas**, dan telusurnya mahal.
+- Perbaikan: migrasi `20260916090000_technical_document_index.sql` menambah tabel `public.technical_document_index` (`drive_id`, `name`, `folder_path`, `synced_at`) — hanya nama, id Drive, dan jalur folder; isi berkas tetap di Drive. RLS aktif tanpa policy dan hak `anon`/`authenticated` dicabut: hanya edge function dengan service role yang membacanya. Ukuran tabel 520 kB.
+- Fungsi membaca tabel; bila umurnya lebih dari 24 jam, jawaban tetap dikirim dari daftar lama dan telusur ulang dijalankan lewat `EdgeRuntime.waitUntil` sesudah respons, jadi tidak ada pengguna yang menunggu Drive. Daftar kosong berarti telusur langsung (sekali saja, saat pertama kali). Hasil telusur kosong tidak pernah menimpa daftar yang baik. Daftar model Gemini juga di-cache satu jam supaya tidak ada bolak-balik tambahan ke Google per pertanyaan.
+- Pengukuran live: sebelum 28,0 detik (isolate dingin) dan 22,3 detik (hangat). Sesudah: 50,9 detik sekali saat membangun indeks pertama kali, lalu **9,2 detik** pada isolate dingin (dipaksa dingin dengan deploy ulang) dan 15,8 detik untuk pertanyaan yang sebelumnya 28,0 detik. Jawaban tetap benar dengan sumber yang sama (ASM-COP-160 sandblasting, ASM-OHS-297 kerja ketinggian, ASM-COP-113 pengelasan).
+- Catatan kuota: database free plan 500 MB, terpakai 25 MB; tabel indeks ini 520 kB. Storage berkas tidak bertambah sama sekali.
+
 ## Uji live menyeluruh website — 2026-09-16
 
 - Kompresi lampiran Pengingat terbukti di website: foto uji 7,94 MB (PNG bising 1800×1350) dipilih lewat dialog "Tambah pengingat" → daftar lampiran menampilkan `uji-kompresi.jpg` 522,4 KB. Dialog ditutup dengan Batal, tidak ada data tersimpan.
