@@ -264,6 +264,13 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Uji live Permintaan Barang — 2026-09-16
+
+- Fitur terakhir yang belum pernah diuji langsung (selain buat pengguna) kini sudah: pengajuan dibuat lewat form website (`UJI WEBSITE 16/09 - Filter oli hidrolik`, 2 pcs, LV, penggantian barang rusak) → tersimpan `status='submitted'`, lalu diproses menjadi `status='rejected'` dengan `planner_note` terisi. Validasi "penolakan wajib beralasan" terbukti: begitu Status dipilih Ditolak, kolom berubah menjadi "Alasan penolakan *" bergaris merah dan tombol Simpan status **mati** sampai alasannya diisi.
+- Sisa data uji di produksi: 2 baris `material_request` (`Contoh Barang Uji Website` 14/09 berstatus processed, dan baris 16/09 berstatus rejected). Tabel ini tidak punya policy DELETE, jadi hanya bisa dihapus lewat SQL/service role — tanyakan pemilik dulu.
+- Catatan uji Browser pane: jangan menghitung koordinat dari screenshot ber-skala kecil untuk elemen setinggi tombol. Beberapa klik meleset ke kolom teks di atasnya karena estimasi dari gambar 0,5x. Ambil satu screenshot `scale: 1` (frame = piksel perangkat) sebelum menekan tombol yang posisinya kritis.
+- Catatan uji kedua: `ctrl+a` **tidak** menyeleksi isi kolom teks Flutter web lewat tool ini, dan `Backspace` juga tidak sampai — akibatnya isian menumpuk ("unitpcspcs"). Cara yang berhasil: klik kolomnya, lalu lewat JS `document.activeElement.setSelectionRange(0, value.length)` pada input tersembunyi milik Flutter, baru ketik penggantinya.
+
 ## Penolakan pertanyaan di luar topik & rilis 2.8.37 — 2026-09-16
 
 - Pemilihan dokumen di `ask-technical-documents` dulu memakai `haystack.includes(term)`, sehingga potongan kata ikut cocok: "nasi" ada di dalam "kombinasi". Pertanyaan seperti "apa resep membuat nasi goreng" bisa menarik SOP sungguhan lalu model dimintai jawaban sambil memegang dokumen kerja. Kini `mentionsTerm()` mencocokkan kata utuh.
