@@ -264,6 +264,15 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Aksi utama jadi tombol mengambang — 2026-09-16
+
+- Permintaan pemilik: bagian atas layar terasa penuh. Tombol utama dipindahkan ke `FloatingActionButton.extended` mengikuti pola "Sheet baru" yang sudah ada di layar Suhu, dan penjelasan yang hanya mengulang judul halaman dihapus.
+- **Pengingat**: judul "Tindak lanjut operasional", kalimat penjelasannya, dan tombol selebar layar "Tambah pengingat" dihapus dari badan daftar; sekarang langsung kartu ringkasan. Tombol jadi FAB, dan padding bawah daftar dinaikkan ke 110 + safe area supaya kartu terakhir tidak tertutup.
+- **Permintaan Barang**: tombol "Ajukan kebutuhan barang" selebar layar dihapus; FAB "Ajukan barang" ditambahkan lewat parameter baru `floatingActionButton` pada `_OperationalSectionPage` (dipakai bersama Anggaran, PM & CM, dll). FAB sengaja tetap tampil walau belum ada pengguna masuk, hanya nonaktif, supaya aksinya tetap terlihat — ini juga yang diuji widget test.
+- **Meeting Minutes**: sudah punya FAB; yang dihapus hanya judul "Inspection and field meeting minutes" beserta kalimat penjelasannya yang mengulang judul app bar.
+- Yang **tidak** dihapus: kalimat yang mengajarkan interaksi, misalnya "Tekan status untuk melihat pengajuan yang sesuai" dan "Pilih pengajuan untuk memperbarui prosesnya". Hanya deskripsi yang mengulang judul yang dibuang.
+- Diperiksa live di 375 px: Pengingat dan Permintaan Barang. `test/operational_sections_screen_test.dart` diperbarui ke label baru dan memastikan FAB-nya ada.
+
 ## Skala teks dibakukan — 2026-09-16
 
 - Temuan pemilik: teks di layar Pengingat terasa besar. Penelusuran menunjukkan masalahnya bukan Pengingat, melainkan **19 ukuran berbeda** di 117 tempat: judul halaman 22 di Pengingat tetapi **26** di Sheet saya, Pemantauan, dan Belum lengkap; teks pendukung berkeliaran antara 9 dan 13; judul kartu 13/15/16.

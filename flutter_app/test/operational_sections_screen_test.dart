@@ -115,7 +115,10 @@ void main() {
     expect(find.text('Diajukan'), findsOneWidget);
     expect(find.text('Diproses'), findsOneWidget);
     expect(find.text('Ditolak'), findsOneWidget);
-    expect(find.text('Ajukan kebutuhan barang'), findsOneWidget);
+    // The primary action is the page's floating button now, not a bar at the
+    // top of the list.
+    expect(find.text('Ajukan barang'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.text('Pengajuan saya'), findsOneWidget);
 
     await tester.tap(find.text('Diproses'));

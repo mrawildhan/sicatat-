@@ -239,9 +239,19 @@ class _MaterialRequestOverviewScreenState
   @override
   Widget build(BuildContext context) {
     final AppUser? user = ref.watch(currentUserProvider);
+    final VoidCallback? create = user == null
+        ? null
+        : () => context.go('/material-requests/new');
     return _OperationalSectionPage(
       title: 'Permintaan Barang',
       icon: Icons.handyman_outlined,
+      // Kept visible without a signed-in user so the action is always
+      // discoverable; it is simply disabled.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: create,
+        icon: const Icon(Icons.add_shopping_cart_rounded),
+        label: const Text('Ajukan barang'),
+      ),
       child: _MaterialRequestOverviewBody(
         items: _items,
         loading: _loading,
@@ -255,9 +265,7 @@ class _MaterialRequestOverviewScreenState
           );
         },
         onClearStatus: () => setState(() => _selectedStatus = null),
-        onCreate: user == null
-            ? null
-            : () => context.go('/material-requests/new'),
+        onCreate: create,
         onProcess: user == null ? null : (item) => _process(item, user),
       ),
     );
@@ -507,16 +515,6 @@ class _MeetingMinutesScreenState extends ConsumerState<MeetingMinutesScreen> {
                 ),
                 const SizedBox(height: 20),
               ],
-              const Text(
-                'Inspection and field meeting minutes',
-                style: AppTextStyles.sectionTitle,
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Create minutes, save a draft, then complete and export to Excel. Due dates are optional.',
-                style: TextStyle(color: AppColors.muted, height: 1.45),
-              ),
-              const SizedBox(height: 18),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -578,11 +576,16 @@ class _OperationalSectionPage extends StatelessWidget {
     required this.title,
     required this.icon,
     required this.child,
+    this.floatingActionButton,
   });
 
   final String title;
   final IconData icon;
   final Widget child;
+
+  /// Primary action of the page. Shown as a floating button so the top of the
+  /// list stays free for the data itself.
+  final Widget? floatingActionButton;
 
   @override
   Widget build(BuildContext context) {
@@ -596,6 +599,7 @@ class _OperationalSectionPage extends StatelessWidget {
                 leading: const AppBackButton(fallbackRoute: '/dashboard'),
                 title: Text(title),
               ),
+        floatingActionButton: floatingActionButton,
         body: ListView(
           padding: EdgeInsets.fromLTRB(
             20,
@@ -970,18 +974,6 @@ class _MaterialRequestOverviewBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: onCreate,
-            icon: const Icon(Icons.add_shopping_cart_rounded),
-            label: const Text('Ajukan kebutuhan barang'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
         const Text(
           'Ringkasan status',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),

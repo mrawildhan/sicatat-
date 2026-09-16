@@ -1801,6 +1801,13 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   const SizedBox(width: 4),
                 ],
               ),
+        floatingActionButton: _loading
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: () => _edit(null),
+                icon: const Icon(Icons.add_alert_rounded),
+                label: const Text('Tambah pengingat'),
+              ),
         body: _withDesktopHeader(
           useDesktopHeader,
           _loading
@@ -1808,41 +1815,19 @@ class _ReminderScreenState extends State<ReminderScreen> {
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+                    // Room at the bottom so the floating button never covers
+                    // the last reminder.
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      16,
+                      20,
+                      110 + MediaQuery.paddingOf(context).bottom,
+                    ),
                     children: <Widget>[
-                      const Text(
-                        'Tindak lanjut operasional',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        'Pantau tindakan, penanggung jawab, riwayat pengiriman, dan risiko tenggat waktu.',
-                        style: TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 14,
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
                       if (_emailHealth?.needsAttention ?? false) ...<Widget>[
                         _EmailHealthBanner(health: _emailHealth!),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                       ],
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: () => _edit(null),
-                          icon: const Icon(Icons.add_alert_rounded),
-                          label: const Text('Tambah pengingat'),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(42),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
                       _summaryGrid(context),
                       const SizedBox(height: 12),
                       TextField(
