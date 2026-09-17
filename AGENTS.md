@@ -362,7 +362,8 @@ Isi panduan (`guide_content.dart`) ikut diselaraskan; `docs/PANDUAN-CREW-SICATAT
 2. **Database.** Tabel `daily_check_sheet` + RPC `daily_check_save_slot` + `daily_check_occupied_shifts` (migrasi `20260917090000`, `20260917091000`). Lembar submitted dikunci trigger; diuji langsung (update ditolak dengan pesan "Reopen it before editing"). Data uji dibuat dan dihapus lagi lewat UI; tabel kosong.
 3. **PDF.** Ikon PDF di ringkasan lembar mencetak tata letak formulir kertas satu halaman (Hydraulic A4 lanskap, Coal Valve A4 potret) dengan oranye 60–69 °C dan merah ≥70 °C. `test/daily_check_pdf_test.dart` menulis contoh PDF bila `DAILY_CHECK_PDF_DIR` diisi.
 4. **"sif" → "shift".** Pemilik merasa "sif" aneh; seluruh teks UI, panduan, dan tes memakai "shift" (misalnya "Shift Pagi"). Istilah KBBI lain tetap.
-5. **Belum di Android.** Perubahan ini baru di website; APK 2.8.39 belum memuatnya.
+5. **Revisi pemilik (hari yang sama).** Hanya tiga nama menu Suhu yang berbahasa Inggris; isi lembar kini berbahasa Indonesia. PDF memakai formulir kosong hasil ekspor Excel (`assets/forms/`) sebagai latar agar sama persis, dan Coal Valve menjadi 4 blok waktu seperti formulirnya. Pesan galat database juga diterjemahkan (migrasi `20260917100000`).
+6. **Belum di Android.** Perubahan ini baru di website; APK 2.8.39 belum memuatnya.
 
 ## Penolakan pertanyaan di luar topik & rilis 2.8.37 — 2026-09-16
 
