@@ -16,7 +16,7 @@ class TemperatureFormsScreen extends StatelessWidget {
       const _FormChoice(
         icon: Icons.thermostat_rounded,
         title: 'Daily Temperature Feeder Sizer',
-        subtitle: 'Gearbox breaker & sizer, 2 rounds per shift',
+        subtitle: 'Gearbox breaker & sizer, 2 ronde per shift',
         route: '/sheets',
       ),
       for (final type in DailyCheckFormType.values)
@@ -41,12 +41,12 @@ class TemperatureFormsScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
           children: <Widget>[
             const Text(
-              'Choose a check sheet',
+              'Pilih lembar pemeriksaan',
               style: AppTextStyles.sectionTitle,
             ),
             const SizedBox(height: 4),
             const Text(
-              'Each sheet is filled once per date and shift.',
+              'Setiap lembar diisi satu kali per tanggal dan shift.',
               style: AppTextStyles.supporting,
             ),
             const SizedBox(height: 14),

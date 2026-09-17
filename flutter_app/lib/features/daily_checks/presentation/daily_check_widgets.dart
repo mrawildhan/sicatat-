@@ -24,12 +24,12 @@ class DailyCheckStatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, color, icon) = switch (status) {
       DailyCheckStatus.draft => (
-        'Draft',
+        'Draf',
         AppColors.orange,
         Icons.edit_note_rounded,
       ),
       DailyCheckStatus.submitted => (
-        'Submitted',
+        'Terkirim',
         AppColors.green,
         Icons.cloud_done_rounded,
       ),

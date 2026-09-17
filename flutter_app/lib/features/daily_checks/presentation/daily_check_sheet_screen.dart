@@ -60,11 +60,11 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
         _sheet = sheet;
         _notes.text = sheet?.notes ?? '';
         _error = sheet == null
-            ? 'Sheet not found or not available to you.'
+            ? 'Lembar tidak ditemukan atau tidak dapat Anda buka.'
             : null;
       });
     } on Object catch (error) {
-      if (mounted) setState(() => _error = 'Sheet could not be loaded: $error');
+      if (mounted) setState(() => _error = 'Lembar tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -111,25 +111,25 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
     final sheet = _sheet!;
     final incomplete = sheet.slots.length - sheet.completeSlots;
     final unit = widget.type == DailyCheckFormType.hydraulicFeeder
-        ? 'check'
-        : 'reading';
+        ? 'pengecekan'
+        : 'pembacaan';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Submit this sheet?'),
+        title: const Text('Kirim lembar ini?'),
         content: Text(
           incomplete == 0
-              ? 'All ${sheet.slots.length} ${unit}s are complete. The sheet becomes final; you can reopen it later if a correction is needed.'
-              : '$incomplete $unit${incomplete == 1 ? ' is' : 's are'} not complete yet. Submit anyway? The sheet becomes final; you can reopen it later.',
+              ? 'Semua ${sheet.slots.length} $unit sudah lengkap. Lembar menjadi final; Anda masih dapat membukanya kembali bila perlu koreksi.'
+              : '$incomplete $unit belum lengkap. Tetap kirim? Lembar menjadi final; Anda masih dapat membukanya kembali nanti.',
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: const Text('Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Submit'),
+            child: const Text('Kirim'),
           ),
         ],
       ),
@@ -138,31 +138,31 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
     await _run(() async {
       await _saveNotesIfChanged();
       await _repository.submit(sheet.id);
-    }, 'Sheet submitted.');
+    }, 'Lembar terkirim.');
   }
 
   Future<void> _reopen() => _run(
     () => _repository.reopen(_sheet!.id),
-    'Sheet reopened for revision.',
+    'Lembar dibuka kembali untuk revisi.',
   );
 
   Future<void> _delete() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete this draft?'),
+        title: const Text('Hapus draf ini?'),
         content: const Text(
-          'All values in this sheet will be removed. This cannot be undone.',
+          'Semua nilai di lembar ini akan dihapus dan tidak dapat dikembalikan.',
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: const Text('Batal'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
+            child: const Text('Hapus'),
           ),
         ],
       ),
@@ -191,7 +191,7 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
     } on Object catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF could not be made: $error')),
+          SnackBar(content: Text('PDF tidak dapat dibuat: $error')),
         );
       }
     } finally {
@@ -219,13 +219,13 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
           actions: <Widget>[
             if (sheet != null)
               IconButton(
-                tooltip: 'Print / export PDF',
+                tooltip: 'Cetak / ekspor PDF',
                 onPressed: _busy ? null : _export,
                 icon: const Icon(Icons.picture_as_pdf_outlined),
               ),
             if (sheet != null && sheet.isDraft && _canWrite)
               PopupMenuButton<String>(
-                tooltip: 'More options',
+                tooltip: 'Opsi lainnya',
                 onSelected: (value) {
                   if (value == 'delete') _delete();
                 },
@@ -237,7 +237,7 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
                         Icons.delete_outline_rounded,
                         color: AppColors.danger,
                       ),
-                      title: Text('Delete draft'),
+                      title: Text('Hapus draf'),
                     ),
                   ),
                 ],
@@ -251,7 +251,7 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    _error ?? 'Sheet not found.',
+                    _error ?? 'Lembar tidak ditemukan.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: AppColors.danger),
                   ),
@@ -265,12 +265,12 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
                     ? ElevatedButton.icon(
                         onPressed: _busy ? null : _submit,
                         icon: busyIcon(_busy, Icons.send_rounded),
-                        label: const Text('Submit sheet'),
+                        label: const Text('Kirim lembar'),
                       )
                     : OutlinedButton.icon(
                         onPressed: _busy ? null : _reopen,
                         icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Reopen for revision'),
+                        label: const Text('Buka kembali untuk revisi'),
                       ),
               ),
       ),
@@ -281,8 +281,8 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
     final slots = sheet.slots;
     final highest = sheet.highestTemperature;
     final unitName = widget.type == DailyCheckFormType.hydraulicFeeder
-        ? 'Checks'
-        : 'Readings';
+        ? 'Pengecekan'
+        : 'Pembacaan';
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: <Widget>[
@@ -297,7 +297,7 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        '${DateFormat('EEE, dd MMM yyyy').format(sheet.date)} · ${sheet.shiftLabel}',
+                        '${DateFormat('dd/MM/yyyy').format(sheet.date)} · ${sheet.shiftLabel}',
                         style: AppTextStyles.cardTitle.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
@@ -308,24 +308,24 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Crew: ${sheet.teamName ?? '—'} · Created by ${sheet.creatorName ?? '—'}',
+                  'Regu: ${sheet.teamName ?? '—'} · Dibuat oleh ${sheet.creatorName ?? '—'}',
                   style: AppTextStyles.supporting,
                 ),
                 if (sheet.submittedAt case final submittedAt?)
                   Text(
-                    'Submitted ${DateFormat('dd MMM yyyy, HH:mm').format(submittedAt)} by ${sheet.submitterName ?? '—'}',
+                    'Dikirim ${DateFormat('dd/MM/yyyy, HH:mm').format(submittedAt)} oleh ${sheet.submitterName ?? '—'}',
                     style: AppTextStyles.supporting,
                   ),
                 const SizedBox(height: 12),
                 Row(
                   children: <Widget>[
                     Text(
-                      '${sheet.completeSlots}/${slots.length} complete',
+                      '${sheet.completeSlots}/${slots.length} lengkap',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const Spacer(),
                     if (highest != null)
-                      TemperatureBadge(highest, prefix: 'Max '),
+                      TemperatureBadge(highest, prefix: 'Maks '),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -343,8 +343,8 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
         const SizedBox(height: 4),
         Text(
           sheet.isDraft
-              ? 'Red cards still have missing values. Tap a card to fill it.'
-              : 'Tap a card to see its values.',
+              ? 'Kartu merah masih memiliki nilai kosong. Ketuk kartu untuk mengisinya.'
+              : 'Ketuk kartu untuk melihat nilainya.',
           style: AppTextStyles.supporting,
         ),
         const SizedBox(height: 10),
@@ -367,7 +367,7 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
           },
         ),
         const SizedBox(height: 20),
-        const Text('Notes', style: AppTextStyles.sectionTitle),
+        const Text('Catatan', style: AppTextStyles.sectionTitle),
         const SizedBox(height: 8),
         TextField(
           controller: _notes,
@@ -375,7 +375,7 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
           maxLines: 3,
           maxLength: 2000,
           decoration: const InputDecoration(
-            hintText: 'General notes for this sheet (optional)',
+            hintText: 'Catatan umum untuk lembar ini (opsional)',
           ),
           onEditingComplete: _saveNotesIfChanged,
         ),
@@ -393,11 +393,11 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
         : null;
     final missing = sheet.form.missingCount(values);
     final (icon, status) = switch (state) {
-      DailyCheckSlotState.complete => (Icons.check_circle_rounded, 'Complete'),
-      DailyCheckSlotState.partial => (Icons.error_rounded, '$missing missing'),
+      DailyCheckSlotState.complete => (Icons.check_circle_rounded, 'Lengkap'),
+      DailyCheckSlotState.partial => (Icons.error_rounded, '$missing kosong'),
       DailyCheckSlotState.empty => (
         Icons.radio_button_unchecked,
-        'Not started',
+        'Belum diisi',
       ),
     };
     final timeText = recordedAt != null
@@ -441,7 +441,7 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
               ),
               if (timeText != null)
                 Text(
-                  recordedAt != null ? 'at $timeText' : timeText,
+                  recordedAt != null ? 'pukul $timeText' : timeText,
                   style: AppTextStyles.badge.copyWith(color: AppColors.muted),
                 ),
               Text(

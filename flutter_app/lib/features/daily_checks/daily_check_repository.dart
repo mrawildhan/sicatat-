@@ -75,8 +75,8 @@ class DailyCheckSheet {
   double? get highestTemperature => form.highestTemperature(readings);
 
   String get shiftLabel => switch (shiftCode) {
-    'PAGI' => 'Day shift',
-    'MALAM' => 'Night shift',
+    'PAGI' => 'Shift Pagi',
+    'MALAM' => 'Shift Malam',
     _ => shiftName ?? 'Shift',
   };
 
@@ -196,7 +196,7 @@ class DailyCheckRepository {
     } on PostgrestException catch (error) {
       if (error.code == '23505') {
         throw const DailyCheckException(
-          'A sheet already exists for this date and shift.',
+          'Lembar untuk tanggal dan shift ini sudah ada.',
         );
       }
       rethrow;
@@ -239,7 +239,7 @@ class DailyCheckRepository {
         .select('id');
     if (rows is! List || rows.isEmpty) {
       throw const DailyCheckException(
-        'Only draft sheets can be deleted by their team.',
+        'Hanya lembar draf yang dapat dihapus oleh regunya.',
       );
     }
   }
@@ -291,7 +291,7 @@ class DailyCheckRepository {
           .select('id');
       if (rows is! List || rows.isEmpty) {
         throw const DailyCheckException(
-          'You do not have permission to change this sheet.',
+          'Anda tidak memiliki izin untuk mengubah lembar ini.',
         );
       }
     } on PostgrestException catch (error) {

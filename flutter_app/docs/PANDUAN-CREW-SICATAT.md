@@ -21,10 +21,10 @@ Panduan yang selalu terbaru ada di dalam aplikasi: **Beranda → Panduan penggun
 
 ## Hydraulic Feeder dan Coal Valve
 
-- **Tiga pilihan Suhu.** Menu Suhu kini berisi tiga lembar: Daily Temperature Feeder Sizer, Daily Check Sheet Hydraulic Feeder, dan Temperature Coal Valve. Kedua lembar baru memakai bahasa Inggris sesuai formulir cetaknya, dan masing-masing hanya satu per tanggal dan shift.
-- **Daily Check Sheet Hydraulic Feeder.** Ada tiga check per shift: shift pagi pukul 10.00, 14.00, dan 18.00; shift malam pukul 22.00, 02.00, dan 06.00. Isi Feeder 1 lalu Feeder 2: suhu (ambient, main pump, hydraulic motor, flushing valve P1/P2/T, heat exchanger A/B/C), tekanan (forward, charge, case, vacuum), dan speed bila ada. Bila feeder Not running atau Not accessible, cukup isi alasannya.
-- **Temperature Coal Valve.** Ada sepuluh reading per shift. Setiap reading berisi suhu RV01 sampai RV04 di sisi West, East, North, dan South. Jam reading tercatat otomatis saat pertama kali disimpan.
-- **Menyimpan, mengirim, dan mencetak.** Anggota regu yang sama dapat mengisi lembar yang sama. Kartu merah berarti masih ada nilai kosong. Submit sheet membuat lembar final; lembar masih dapat dibuka kembali lewat Reopen for revision. Ikon PDF mencetak lembar dengan tata letak formulir kertas, warna oranye untuk 60 sampai 69 derajat C dan merah untuk 70 derajat C ke atas.
+- **Tiga pilihan Suhu.** Menu Suhu kini berisi tiga lembar: Daily Temperature Feeder Sizer, Daily Check Sheet Hydraulic Feeder, dan Temperature Coal Valve. Nama menunya berbahasa Inggris sesuai formulir kertas, sedangkan isinya berbahasa Indonesia. Setiap lembar hanya satu per tanggal dan shift.
+- **Daily Check Sheet Hydraulic Feeder.** Ada tiga pengecekan per shift: shift pagi pukul 10.00, 14.00, dan 18.00; shift malam pukul 22.00, 02.00, dan 06.00. Isi Feeder 1 lalu Feeder 2: suhu (ambien, pompa utama, motor hidrolik, katup flushing P1/P2/T, penukar panas A/B/C), tekanan (forward, charge, case, vakum), dan kecepatan feeder bila ada. Bila feeder Tidak beroperasi atau Tidak dapat diakses, cukup isi alasannya.
+- **Temperature Coal Valve.** Ada empat pembacaan per shift, sama dengan formulir kertas. Setiap pembacaan berisi suhu RV01 sampai RV04 di Sisi Barat, Timur, Utara, dan Selatan. Jam pembacaan tercatat otomatis saat pertama kali disimpan.
+- **Menyimpan, mengirim, dan mencetak.** Anggota regu yang sama dapat mengisi lembar yang sama. Kartu merah berarti masih ada nilai kosong. Kirim lembar membuat lembar final; lembar masih dapat dibuka lewat Buka kembali untuk revisi. Ikon PDF mencetak nilai langsung di atas formulir kertas aslinya (termasuk logo), dengan warna oranye untuk 60 sampai 69 derajat C dan merah untuk 70 derajat C ke atas.
 
 ## Laporan dan ekspor
 

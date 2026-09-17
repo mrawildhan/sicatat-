@@ -27,9 +27,9 @@ enum DailyCheckFormType {
 
 /// What a unit (feeder) was doing at check time. Values are stored as-is.
 enum DailyCheckUnitStatus {
-  running('running', 'Running', Icons.check_circle_outline),
-  notRunning('not_running', 'Not running', Icons.pause_circle_outline),
-  notAccessible('not_accessible', 'Not accessible', Icons.block_outlined);
+  running('running', 'Beroperasi', Icons.check_circle_outline),
+  notRunning('not_running', 'Tidak beroperasi', Icons.pause_circle_outline),
+  notAccessible('not_accessible', 'Tidak dapat diakses', Icons.block_outlined);
 
   const DailyCheckUnitStatus(this.storageValue, this.label, this.icon);
 
@@ -82,7 +82,7 @@ class DailyCheckUnit {
   final String label;
 }
 
-/// One time on the paper form: Check I/II/III, or one coal valve reading.
+/// One time on the paper form: Check I/II/III, or one coal valve time block.
 class DailyCheckSlot {
   const DailyCheckSlot({
     required this.key,
@@ -105,20 +105,22 @@ class DailyCheckForm {
   const DailyCheckForm({
     required this.type,
     required this.title,
-    required this.printTitle,
+    required this.printBackground,
     required this.description,
     required this.icon,
     required this.units,
     required this.sections,
     required this.hasUnitStatus,
-    required this.unitsAreColumns,
     required this.slotsForShift,
     required this.entryHint,
   });
 
   final DailyCheckFormType type;
   final String title;
-  final String printTitle;
+
+  /// Blank paper form exported from the Excel sheet; the PDF writes the
+  /// values on top of it (see daily_check_pdf.dart).
+  final String printBackground;
   final String description;
   final IconData icon;
   final List<DailyCheckUnit> units;
@@ -127,9 +129,6 @@ class DailyCheckForm {
   /// Feeders can be stopped; each check records whether they were running.
   final bool hasUnitStatus;
 
-  /// Hydraulic: fields are rows and feeders are columns. Coal valve: sides
-  /// are rows and valves (fields) are columns.
-  final bool unitsAreColumns;
   final List<DailyCheckSlot> Function(String? shiftCode) slotsForShift;
   final String entryHint;
 
@@ -209,79 +208,92 @@ DailyCheckTemperatureLevel temperatureLevel(double value) => value >= 70
 const double minPlausibleTemperature = -50;
 const double maxPlausibleTemperature = 250;
 
+const int coalValveReadings = 4;
+
 const _feeder1 = DailyCheckUnit('f1', 'Feeder 1');
 const _feeder2 = DailyCheckUnit('f2', 'Feeder 2');
 
 final DailyCheckForm hydraulicFeederForm = DailyCheckForm(
   type: DailyCheckFormType.hydraulicFeeder,
   title: 'Daily Check Sheet Hydraulic Feeder',
-  printTitle: 'DAILY CHECK SHEET HYDRAULIC PUMP FEEDER CPP',
-  description: 'Hydraulic pump temperature & pressure, 3 checks per shift',
+  printBackground: 'assets/forms/hydraulic_feeder_form.png',
+  description: 'Suhu dan tekanan pompa hidrolik, 3 pengecekan per shift',
   icon: Icons.oil_barrel_outlined,
   units: const <DailyCheckUnit>[_feeder1, _feeder2],
   hasUnitStatus: true,
-  unitsAreColumns: true,
   entryHint:
-      'Monitor temperature and pressure every 4 hours. Write a remark if you '
-      'find any sign of damage on the unit.',
+      'Pantau suhu dan tekanan setiap 4 jam. Isi keterangan bila ditemukan '
+      'gejala kerusakan pada unit.',
   sections: const <DailyCheckSection>[
-    DailyCheckSection('Monitoring temperature', <DailyCheckField>[
+    DailyCheckSection('Pemantauan suhu', <DailyCheckField>[
       DailyCheckField(
         'ambient',
-        'Ambient temp',
+        'Suhu ambien',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'main_pump',
-        'Main pump',
+        'Pompa utama',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'hydraulic_motor',
-        'Hydraulic motor',
+        'Motor hidrolik',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'flushing_p1',
-        'Flushing valve P1',
+        'Katup flushing P1',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'flushing_p2',
-        'Flushing valve P2',
+        'Katup flushing P2',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'flushing_t',
-        'Flushing valve T',
+        'Katup flushing T',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'heat_exchanger_a',
-        'Heat exchanger A',
+        'Penukar panas A',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'heat_exchanger_b',
-        'Heat exchanger B',
+        'Penukar panas B',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'heat_exchanger_c',
-        'Heat exchanger C',
+        'Penukar panas C',
         kind: DailyCheckValueKind.temperature,
       ),
     ]),
-    DailyCheckSection('Monitoring pressure', <DailyCheckField>[
-      DailyCheckField('forward', 'Forward', kind: DailyCheckValueKind.pressure),
-      DailyCheckField('charge', 'Charge', kind: DailyCheckValueKind.pressure),
-      DailyCheckField('case', 'Case', kind: DailyCheckValueKind.pressure),
-      DailyCheckField('vacuum', 'Vacuum', kind: DailyCheckValueKind.pressure),
+    DailyCheckSection('Pemantauan tekanan', <DailyCheckField>[
+      DailyCheckField(
+        'forward',
+        'Tekanan forward',
+        kind: DailyCheckValueKind.pressure,
+      ),
+      DailyCheckField(
+        'charge',
+        'Tekanan charge',
+        kind: DailyCheckValueKind.pressure,
+      ),
+      DailyCheckField(
+        'case',
+        'Tekanan case',
+        kind: DailyCheckValueKind.pressure,
+      ),
+      DailyCheckField('vacuum', 'Vakum', kind: DailyCheckValueKind.pressure),
     ]),
-    DailyCheckSection('Speed', <DailyCheckField>[
+    DailyCheckSection('Kecepatan', <DailyCheckField>[
       DailyCheckField(
         'speed',
-        'Feeder speed',
+        'Kecepatan feeder',
         kind: DailyCheckValueKind.speed,
         required: false,
       ),
@@ -293,13 +305,13 @@ final DailyCheckForm hydraulicFeederForm = DailyCheckForm(
     final times = shiftCode == 'MALAM'
         ? const <String>['22:00', '02:00', '06:00']
         : const <String>['10:00', '14:00', '18:00'];
-    const names = <String>['Check I', 'Check II', 'Check III'];
+    const numerals = <String>['I', 'II', 'III'];
     return <DailyCheckSlot>[
       for (var i = 0; i < 3; i++)
         DailyCheckSlot(
           key: 'check_${i + 1}',
-          label: names[i],
-          shortLabel: 'C${i + 1}',
+          label: 'Pengecekan ${numerals[i]}',
+          shortLabel: numerals[i],
           plannedTime: times[i],
         ),
     ];
@@ -309,31 +321,35 @@ final DailyCheckForm hydraulicFeederForm = DailyCheckForm(
 final DailyCheckForm coalValveForm = DailyCheckForm(
   type: DailyCheckFormType.coalValve,
   title: 'Temperature Coal Valve',
-  printTitle: 'DATA TEMPERATURE COAL VALVE',
-  description: 'RV01–RV04 on the west, east, north & south sides',
+  printBackground: 'assets/forms/coal_valve_form.png',
+  description: 'Suhu RV01–RV04 di sisi Barat, Timur, Utara, dan Selatan',
   icon: Icons.local_fire_department_outlined,
   units: const <DailyCheckUnit>[
-    DailyCheckUnit('west', 'West side'),
-    DailyCheckUnit('east', 'East side'),
-    DailyCheckUnit('north', 'North side'),
-    DailyCheckUnit('south', 'South side'),
+    DailyCheckUnit('west', 'Sisi Barat'),
+    DailyCheckUnit('east', 'Sisi Timur'),
+    DailyCheckUnit('north', 'Sisi Utara'),
+    DailyCheckUnit('south', 'Sisi Selatan'),
   ],
   hasUnitStatus: false,
-  unitsAreColumns: false,
   entryHint:
-      'Shoot each side of every coal valve. The reading time is recorded '
-      'automatically when you first save it.',
+      'Tembak setiap sisi coal valve. Jam pembacaan tercatat otomatis saat '
+      'pertama kali disimpan.',
   sections: const <DailyCheckSection>[
-    DailyCheckSection('Coal valve temperature', <DailyCheckField>[
+    DailyCheckSection('Suhu coal valve', <DailyCheckField>[
       DailyCheckField('rv01', 'RV01', kind: DailyCheckValueKind.temperature),
       DailyCheckField('rv02', 'RV02', kind: DailyCheckValueKind.temperature),
       DailyCheckField('rv03', 'RV03', kind: DailyCheckValueKind.temperature),
       DailyCheckField('rv04', 'RV04', kind: DailyCheckValueKind.temperature),
     ]),
   ],
-  // The paper form has ten time rows without printed times.
+  // The printed form shows four time blocks (its other rows are hidden)
+  // without printed times.
   slotsForShift: (_) => <DailyCheckSlot>[
-    for (var i = 1; i <= 10; i++)
-      DailyCheckSlot(key: 'reading_$i', label: 'Reading $i', shortLabel: '$i'),
+    for (var i = 1; i <= coalValveReadings; i++)
+      DailyCheckSlot(
+        key: 'reading_$i',
+        label: 'Pembacaan $i',
+        shortLabel: '$i',
+      ),
   ],
 );

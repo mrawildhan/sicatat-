@@ -20,58 +20,55 @@ DailyCheckSheet _sheet(
   createdAt: DateTime(2026, 9, 17, 8),
   shiftCode: 'PAGI',
   teamName: 'Crew A',
-  submitterName: 'Tester',
-  notes: 'Sample notes',
+  submitterName: 'Penguji',
+  notes: 'Catatan contoh',
 );
 
-void main() {
+Future<void> _build(DailyCheckSheet sheet, String name) async {
+  final background = File(sheet.form.printBackground).readAsBytesSync();
+  final bytes = await buildDailyCheckPdf(sheet, background: background);
+  expect(bytes.length, greaterThan(background.length));
   // Set DAILY_CHECK_PDF_DIR to keep the files for a visual check.
   final outputDir = Platform.environment['DAILY_CHECK_PDF_DIR'];
+  if (outputDir != null) File('$outputDir/$name').writeAsBytesSync(bytes);
+}
 
-  test(
-    'hydraulic feeder PDF builds with values, a stopped feeder and remarks',
-    () async {
-      final form = DailyCheckFormType.hydraulicFeeder.form;
-      final bytes = await buildDailyCheckPdf(
-        _sheet(
-          DailyCheckFormType.hydraulicFeeder,
-          <String, Map<String, Object?>>{
-            'check_1': <String, Object?>{
-              for (final field in form.fields)
-                'f1.${field.key}':
-                    40 + form.fields.toList().indexOf(field) * 2.5,
-              'f2.status': 'not_running',
-              'f2.reason': 'Planned maintenance',
-              'remarks': 'Small oil seep on feeder 1',
-              'recorded_at': '2026-09-17T02:05:00Z',
-            },
-            'check_2': <String, Object?>{'f1.ambient': 33, 'f2.main_pump': 72},
-          },
-        ),
-      );
-      expect(bytes.length, greaterThan(1000));
-      if (outputDir != null) {
-        File('$outputDir/hydraulic.pdf').writeAsBytesSync(bytes);
-      }
-    },
-  );
+void main() {
+  test('hydraulic feeder PDF fills the paper form', () async {
+    final form = DailyCheckFormType.hydraulicFeeder.form;
+    final fields = form.fields.toList();
+    await _build(
+      _sheet(DailyCheckFormType.hydraulicFeeder, <String, Map<String, Object?>>{
+        'check_1': <String, Object?>{
+          for (final field in fields)
+            'f1.${field.key}': 40 + fields.indexOf(field) * 2.5,
+          'f2.status': 'not_running',
+          'f2.reason': 'Perawatan terjadwal',
+          'remarks': 'Rembesan oli kecil di feeder 1',
+          'recorded_at': '2026-09-17T02:05:00Z',
+        },
+        'check_2': <String, Object?>{'f1.ambient': 33, 'f2.main_pump': 72},
+      }),
+      'hydraulic.pdf',
+    );
+  });
 
-  test('coal valve PDF builds with ten readings', () async {
-    final bytes = await buildDailyCheckPdf(
+  test('coal valve PDF fills the paper form', () async {
+    await _build(
       _sheet(DailyCheckFormType.coalValve, <String, Map<String, Object?>>{
         'reading_1': <String, Object?>{
           for (final side in <String>['west', 'east', 'north', 'south'])
             for (final valve in <String>['rv01', 'rv02', 'rv03', 'rv04'])
               '$side.$valve': side == 'east' && valve == 'rv02' ? 65 : 42,
           'recorded_at': '2026-09-17T00:30:00Z',
-          'remarks': 'East RV02 warm',
+          'remarks': 'RV02 sisi timur hangat',
         },
-        'reading_2': <String, Object?>{'west.rv01': 71},
+        'reading_4': <String, Object?>{
+          'west.rv01': 71,
+          'recorded_at': '2026-09-17T09:00:00Z',
+        },
       }),
+      'coal_valve.pdf',
     );
-    expect(bytes.length, greaterThan(1000));
-    if (outputDir != null) {
-      File('$outputDir/coal_valve.pdf').writeAsBytesSync(bytes);
-    }
   });
 }

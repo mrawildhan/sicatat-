@@ -58,7 +58,7 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
       if (mounted) setState(() => _sheets = sheets);
     } on Object catch (error) {
       if (mounted) {
-        setState(() => _error = 'Sheets could not be loaded: $error');
+        setState(() => _error = 'Daftar lembar tidak dapat dimuat: $error');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -100,7 +100,7 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
           ),
           actions: <Widget>[
             IconButton(
-              tooltip: 'Refresh',
+              tooltip: 'Muat ulang',
               onPressed: _loading ? null : _load,
               icon: const Icon(Icons.refresh_rounded),
             ),
@@ -111,7 +111,7 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
                 onPressed: () =>
                     context.go('/daily-checks/${widget.type.storageValue}/new'),
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('New sheet'),
+                label: const Text('Lembar baru'),
               )
             : null,
         body: RefreshIndicator(onRefresh: _load, child: _body()),
@@ -130,7 +130,7 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
         Row(
           children: <Widget>[
             SummaryFilterCard(
-              label: 'Draft',
+              label: 'Draf',
               count: _sheets.where((sheet) => sheet.isDraft).length,
               color: AppColors.orange,
               icon: Icons.edit_note_rounded,
@@ -139,7 +139,7 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
             ),
             const SummaryFilterGap(),
             SummaryFilterCard(
-              label: 'Submitted',
+              label: 'Terkirim',
               count: _sheets.where((sheet) => !sheet.isDraft).length,
               color: AppColors.green,
               icon: Icons.cloud_done_rounded,
@@ -148,7 +148,7 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
             ),
             const SummaryFilterGap(),
             SummaryFilterCard(
-              label: 'High temp',
+              label: 'Suhu tinggi',
               count: _sheets.where(_isHigh).length,
               color: AppColors.danger,
               icon: Icons.thermostat_rounded,
@@ -162,16 +162,16 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
           children: <Widget>[
             Expanded(
               child: Text(switch (_filter) {
-                _HubFilter.all => 'All sheets',
-                _HubFilter.draft => 'Draft sheets',
-                _HubFilter.submitted => 'Submitted sheets',
-                _HubFilter.high => 'Sheets with high temperature (≥ 60 °C)',
+                _HubFilter.all => 'Semua lembar',
+                _HubFilter.draft => 'Lembar draf',
+                _HubFilter.submitted => 'Lembar terkirim',
+                _HubFilter.high => 'Lembar dengan suhu tinggi (≥ 60 °C)',
               }, style: AppTextStyles.sectionTitle),
             ),
             if (_filter != _HubFilter.all)
               TextButton(
                 onPressed: () => setState(() => _filter = _HubFilter.all),
-                child: const Text('Show all'),
+                child: const Text('Tampilkan semua'),
               ),
           ],
         ),
@@ -193,14 +193,16 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
         Icon(_form.icon, size: 52, color: AppColors.muted),
         const SizedBox(height: 12),
         Text(
-          _filter == _HubFilter.all ? 'No sheets yet' : 'No matching sheets',
+          _filter == _HubFilter.all
+              ? 'Belum ada lembar'
+              : 'Tidak ada lembar yang cocok',
           style: AppTextStyles.cardTitle.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 4),
         Text(
           _filter == _HubFilter.all
-              ? 'Tap New sheet to start recording.'
-              : 'Tap the card again to show all sheets.',
+              ? 'Ketuk Lembar baru untuk mulai mencatat.'
+              : 'Ketuk kartu itu lagi untuk menampilkan semua lembar.',
           textAlign: TextAlign.center,
           style: AppTextStyles.supporting,
         ),
@@ -244,7 +246,7 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '${sheet.teamName ?? 'Team'} · ${sheet.completeSlots}/${slots.length} ${widget.type == DailyCheckFormType.hydraulicFeeder ? 'checks' : 'readings'} complete',
+                  '${sheet.teamName ?? 'Regu'} · ${sheet.completeSlots}/${slots.length} ${widget.type == DailyCheckFormType.hydraulicFeeder ? 'pengecekan' : 'pembacaan'} lengkap',
                   style: AppTextStyles.supporting,
                 ),
                 const SizedBox(height: 8),
@@ -259,7 +261,7 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
                     ),
                     if (highest != null) ...<Widget>[
                       const SizedBox(width: 12),
-                      TemperatureBadge(highest, prefix: 'Max '),
+                      TemperatureBadge(highest, prefix: 'Maks '),
                     ],
                   ],
                 ),

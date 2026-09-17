@@ -66,8 +66,8 @@ void main() {
   group('coal valve form', () {
     final form = DailyCheckFormType.coalValve.form;
 
-    test('has ten readings of four valves on four sides', () {
-      expect(form.slotsForShift('PAGI'), hasLength(10));
+    test('has the four time blocks printed on the paper form', () {
+      expect(form.slotsForShift('PAGI'), hasLength(4));
       expect(form.units, hasLength(4));
       expect(form.fields, hasLength(4));
       expect(form.missingCount(<String, Object?>{}), 16);

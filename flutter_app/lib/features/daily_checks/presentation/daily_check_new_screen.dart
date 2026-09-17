@@ -64,7 +64,7 @@ class _DailyCheckNewScreenState extends ConsumerState<DailyCheckNewScreen> {
       await _refreshOccupied();
     } on Object catch (error) {
       if (mounted) {
-        setState(() => _error = 'Shifts could not be loaded: $error');
+        setState(() => _error = 'Data shift tidak dapat dimuat: $error');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -113,8 +113,8 @@ class _DailyCheckNewScreenState extends ConsumerState<DailyCheckNewScreen> {
     if (user == null || shiftId == null || teamId == null) {
       setState(
         () => _error = teamId == null
-            ? 'Your account has no team. Ask an admin to set your team.'
-            : 'Choose an available shift.',
+            ? 'Akun Anda belum memiliki regu. Minta admin mengatur regu Anda.'
+            : 'Pilih shift yang masih tersedia.',
       );
       return;
     }
@@ -151,7 +151,7 @@ class _DailyCheckNewScreenState extends ConsumerState<DailyCheckNewScreen> {
         appBar: AppBar(
           leading: AppBackButton(fallbackRoute: _hubRoute),
           title: const Text(
-            'New sheet',
+            'Lembar baru',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
@@ -161,12 +161,12 @@ class _DailyCheckNewScreenState extends ConsumerState<DailyCheckNewScreen> {
                 padding: const EdgeInsets.all(20),
                 children: <Widget>[
                   DailyCheckNotice(
-                    '${form.title}. Choose the date and shift you are '
-                    'recording. Each shift has one sheet; past dates can be '
-                    'chosen for a missed check.',
+                    '${form.title}. Pilih tanggal dan shift yang dicatat. '
+                    'Setiap shift hanya memiliki satu lembar; tanggal lampau '
+                    'dapat dipilih untuk pengecekan yang terlewat.',
                   ),
                   const SizedBox(height: 24),
-                  _label('Date'),
+                  _label('Tanggal'),
                   InkWell(
                     onTap: _saving ? null : _pickDate,
                     child: InputDecorator(
@@ -178,7 +178,7 @@ class _DailyCheckNewScreenState extends ConsumerState<DailyCheckNewScreen> {
                   ),
                   const SizedBox(height: 20),
                   if (_picksTeam) ...<Widget>[
-                    _label('Team'),
+                    _label('Regu'),
                     DropdownButtonFormField<String>(
                       initialValue: _teamId,
                       decoration: const InputDecoration(
@@ -204,7 +204,7 @@ class _DailyCheckNewScreenState extends ConsumerState<DailyCheckNewScreen> {
                   _label('Shift'),
                   if (_shifts.isEmpty)
                     const Text(
-                      'No active shifts.',
+                      'Belum ada shift aktif.',
                       style: TextStyle(color: AppColors.danger),
                     )
                   else
@@ -222,9 +222,9 @@ class _DailyCheckNewScreenState extends ConsumerState<DailyCheckNewScreen> {
                               ),
                               label: Text(
                                 shift.code == 'PAGI'
-                                    ? 'Day shift'
+                                    ? 'Shift Pagi'
                                     : shift.code == 'MALAM'
-                                    ? 'Night shift'
+                                    ? 'Shift Malam'
                                     : shift.name,
                               ),
                             ),
@@ -240,12 +240,12 @@ class _DailyCheckNewScreenState extends ConsumerState<DailyCheckNewScreen> {
                   if (_occupied.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 8),
                     const Text(
-                      'Shifts that already have a sheet on this date are locked.',
+                      'Shift yang sudah memiliki lembar pada tanggal ini dikunci.',
                       style: TextStyle(color: Color(0xFF9A6A00), fontSize: 12),
                     ),
                   ],
                   const SizedBox(height: 20),
-                  _label('Recorded by'),
+                  _label('Dicatat oleh'),
                   ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                     leading: const CircleAvatar(
@@ -258,8 +258,8 @@ class _DailyCheckNewScreenState extends ConsumerState<DailyCheckNewScreen> {
                     ),
                     subtitle: Text(
                       _picksTeam
-                          ? 'Recording for the team selected above'
-                          : 'Your team members can fill this sheet too',
+                          ? 'Mencatat untuk regu yang dipilih di atas'
+                          : 'Anggota regu Anda juga dapat mengisi lembar ini',
                     ),
                   ),
                   if (_error case final error?) ...<Widget>[
@@ -270,7 +270,7 @@ class _DailyCheckNewScreenState extends ConsumerState<DailyCheckNewScreen> {
                   ElevatedButton.icon(
                     onPressed: _saving || _shiftId == null ? null : _create,
                     icon: busyIcon(_saving, Icons.check_rounded),
-                    label: Text(_saving ? 'Creating…' : 'Create and start'),
+                    label: Text(_saving ? 'Membuat…' : 'Buat dan mulai isi'),
                   ),
                 ],
               ),

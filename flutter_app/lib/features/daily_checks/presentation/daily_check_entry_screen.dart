@@ -114,10 +114,12 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
         _sheet = sheet;
         _recordedAt = recorded is String ? recorded : null;
         _dirty = false;
-        if (sheet == null) _error = 'Sheet not found or not available to you.';
+        if (sheet == null) {
+          _error = 'Lembar tidak ditemukan atau tidak dapat Anda buka.';
+        }
       });
     } on Object catch (error) {
-      if (mounted) setState(() => _error = 'Sheet could not be loaded: $error');
+      if (mounted) setState(() => _error = 'Lembar tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -180,8 +182,8 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
             (value < minPlausibleTemperature ||
                 value > maxPlausibleTemperature)) {
           return '${unit.label} · ${field.label}: ${formatReading(value)} °C '
-              'is outside ${minPlausibleTemperature.toInt()}–'
-              '${maxPlausibleTemperature.toInt()} °C. Check the value.';
+              'berada di luar ${minPlausibleTemperature.toInt()}–'
+              '${maxPlausibleTemperature.toInt()} °C. Periksa kembali nilainya.';
         }
       }
     }
@@ -207,7 +209,7 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
       _dirty = false;
       return true;
     } on Object catch (error) {
-      if (mounted) setState(() => _error = 'Not saved: $error');
+      if (mounted) setState(() => _error = 'Belum tersimpan: $error');
       return false;
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -271,7 +273,7 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            tooltip: 'Back to sheet',
+            tooltip: 'Kembali ke lembar',
             onPressed: _saving ? null : _leave,
             icon: const Icon(Icons.arrow_back_rounded),
           ),
@@ -289,7 +291,7 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    _error ?? 'This check does not exist.',
+                    _error ?? 'Pengecekan ini tidak ditemukan.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: AppColors.danger),
                   ),
@@ -320,13 +322,13 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
                 borderRadius: BorderRadius.circular(20),
                 onTap: _saving ? null : () => _jumpTo(slot),
                 child: SizedBox(
-                  width: _slots.length > 5 ? 38 : 64,
+                  width: 84,
                   child: Column(
                     children: <Widget>[
                       _progressDot(sheet, slot),
                       const SizedBox(height: 4),
                       Text(
-                        _slots.length > 5 ? slot.shortLabel : slot.label,
+                        slot.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -359,7 +361,7 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
       child: state == DailyCheckSlotState.complete && !current
           ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
           : Text(
-              slot.shortLabel.replaceFirst('C', ''),
+              slot.shortLabel,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
@@ -388,21 +390,21 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
             leading: const Icon(Icons.schedule_rounded, color: AppColors.green),
             title: Text(
               slot.plannedTime == null
-                  ? '${slot.label} time'
-                  : '${slot.label} · planned ${slot.plannedTime}',
+                  ? 'Jam ${slot.label.toLowerCase()}'
+                  : '${slot.label} · jadwal pukul ${slot.plannedTime}',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             subtitle: Text(
               recordedAt == null
-                  ? 'Recorded automatically when this is first saved.'
-                  : 'Recorded at ${DateFormat('dd MMM yyyy, HH:mm').format(recordedAt)}',
+                  ? 'Tercatat otomatis saat pertama kali disimpan.'
+                  : 'Tercatat ${DateFormat('dd/MM/yyyy, HH:mm').format(recordedAt)}',
             ),
           ),
         ),
         const SizedBox(height: 12),
         if (!_editable) ...<Widget>[
           const DailyCheckNotice(
-            'This sheet is read-only here. Reopen the sheet to change values.',
+            'Lembar ini hanya dapat dilihat. Buka kembali lembar untuk mengubah nilai.',
           ),
           const SizedBox(height: 12),
         ] else ...<Widget>[
@@ -447,10 +449,10 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
           maxLength: 500,
           onChanged: (_) => _changed(),
           decoration: InputDecoration(
-            labelText: 'Remarks (optional)',
+            labelText: 'Keterangan (opsional)',
             hintText: _form.hasUnitStatus
-                ? 'Fill if you find any sign of damage on the unit'
-                : 'Anything unusual at this reading',
+                ? 'Isi bila ditemukan gejala kerusakan pada unit'
+                : 'Hal tidak biasa pada pembacaan ini',
             prefixIcon: const Icon(Icons.notes_rounded),
           ),
         ),
@@ -504,7 +506,7 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
             if (_form.hasUnitStatus) ...<Widget>[
               const SizedBox(height: 12),
               const Text(
-                'Unit status',
+                'Status unit',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
@@ -550,8 +552,8 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
                 maxLength: 300,
                 onChanged: (_) => _changed(),
                 decoration: const InputDecoration(
-                  labelText: 'Reason *',
-                  hintText: 'Why were no readings taken?',
+                  labelText: 'Alasan *',
+                  hintText: 'Mengapa tidak ada pembacaan?',
                 ),
               )
             else
@@ -623,7 +625,7 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
         onChanged: (_) => _changed(),
         decoration: InputDecoration(
           labelText: field.label,
-          hintText: field.required ? null : 'Optional',
+          hintText: field.required ? null : 'Opsional',
           suffixText: field.unit,
           isDense: true,
           prefixIcon: Icon(
@@ -655,13 +657,13 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
     final isLastSlot = _slotIndex == _slots.length - 1;
     final String label;
     if (!_editable) {
-      label = isLastUnit && isLastSlot ? 'Back to sheet' : 'Next';
+      label = isLastUnit && isLastSlot ? 'Kembali ke lembar' : 'Berikutnya';
     } else if (!isLastUnit) {
-      label = 'Save ${_form.units[_unitIndex].label} & continue';
+      label = 'Simpan ${_form.units[_unitIndex].label} & lanjutkan';
     } else if (isLastSlot) {
-      label = 'Save & view sheet';
+      label = 'Simpan & lihat lembar';
     } else {
-      label = 'Save & continue';
+      label = 'Simpan & lanjutkan';
     }
     return DailyCheckBottomBar(
       child: ElevatedButton.icon(
