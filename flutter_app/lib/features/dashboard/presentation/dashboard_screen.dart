@@ -104,7 +104,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         kIsWeb && MediaQuery.sizeOf(context).width >= 920;
     void selectDestination(int value) {
       if (hasTemperatureTab && value == 1) {
-        context.go('/sheets');
+        context.go('/temperature-forms');
         return;
       }
       if (value == reminderIndex) {

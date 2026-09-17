@@ -77,7 +77,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
         .order('code', ascending: true);
     if (response is! List) {
       throw const FormatException(
-        'Server mengembalikan daftar sif yang tidak valid.',
+        'Server mengembalikan daftar shift yang tidak valid.',
       );
     }
     final shifts = response

@@ -12,19 +12,26 @@ Panduan yang selalu terbaru ada di dalam aplikasi: **Beranda → Panduan penggun
 
 ## Suhu
 
-- **Membuat lembar.** Buka Operasional lalu Suhu, pilih Lembar baru, kemudian pilih tanggal inspeksi dan sif yang benar. Satu lembar hanya untuk satu kombinasi tanggal, sif, modul, dan lokasi. Kombinasi yang sama akan ditolak.
-- **Ronde 1 dan Ronde 2.** Pilih unit serta sisi Barat atau Timur, lalu simpan setiap sisi. Waktu ronde tercatat otomatis saat data pertama disimpan. Lembar boleh tetap draf dan dilanjutkan sebelum sif berakhir.
+- **Membuat lembar.** Buka Operasional lalu Suhu, pilih Daily Temperature Feeder Sizer, pilih Lembar baru, kemudian pilih tanggal inspeksi dan shift yang benar. Satu lembar hanya untuk satu kombinasi tanggal, shift, modul, dan lokasi. Kombinasi yang sama akan ditolak.
+- **Ronde 1 dan Ronde 2.** Pilih unit serta sisi Barat atau Timur, lalu simpan setiap sisi. Waktu ronde tercatat otomatis saat data pertama disimpan. Lembar boleh tetap draf dan dilanjutkan sebelum shift berakhir.
 - **Kondisi unit.** Pilih Beroperasi untuk mengisi seluruh titik suhu. Bila unit Tidak beroperasi atau Tidak dapat diakses, isi alasannya dan titik suhu dikosongkan.
 - **Warna suhu.** Hijau di bawah 60 derajat C. Kuning 60 sampai 69 derajat C dan perlu perhatian. Merah 70 derajat C atau lebih, laporkan segera sesuai prosedur.
 - **Nilai tidak wajar.** Nilai di luar -50 sampai 250 derajat C harus dikonfirmasi dan diberi catatan. Catatan itu hanya menempel pada angka yang tidak wajar, bukan pada seluruh ronde.
 - **Ringkasan dan kirim.** Buka Ringkasan lembar untuk melihat bagian yang belum lengkap, lalu ketuk kartu merah untuk langsung membuka data yang kurang. Lembar yang sudah dikirim bersifat final; pembuatnya masih dapat membuka kembali untuk revisi, sedangkan lembar lama yang terverifikasi terkunci.
+
+## Hydraulic Feeder dan Coal Valve
+
+- **Tiga pilihan Suhu.** Menu Suhu kini berisi tiga lembar: Daily Temperature Feeder Sizer, Daily Check Sheet Hydraulic Feeder, dan Temperature Coal Valve. Kedua lembar baru memakai bahasa Inggris sesuai formulir cetaknya, dan masing-masing hanya satu per tanggal dan shift.
+- **Daily Check Sheet Hydraulic Feeder.** Ada tiga check per shift: shift pagi pukul 10.00, 14.00, dan 18.00; shift malam pukul 22.00, 02.00, dan 06.00. Isi Feeder 1 lalu Feeder 2: suhu (ambient, main pump, hydraulic motor, flushing valve P1/P2/T, heat exchanger A/B/C), tekanan (forward, charge, case, vacuum), dan speed bila ada. Bila feeder Not running atau Not accessible, cukup isi alasannya.
+- **Temperature Coal Valve.** Ada sepuluh reading per shift. Setiap reading berisi suhu RV01 sampai RV04 di sisi West, East, North, dan South. Jam reading tercatat otomatis saat pertama kali disimpan.
+- **Menyimpan, mengirim, dan mencetak.** Anggota regu yang sama dapat mengisi lembar yang sama. Kartu merah berarti masih ada nilai kosong. Submit sheet membuat lembar final; lembar masih dapat dibuka kembali lewat Reopen for revision. Ikon PDF mencetak lembar dengan tata letak formulir kertas, warna oranye untuk 60 sampai 69 derajat C dan merah untuk 70 derajat C ke atas.
 
 ## Laporan dan ekspor
 
 - **Ekspor satu lembar.** Dari ringkasan lembar, pilih ikon ekspor untuk melihat pratinjau PDF atau mengunduh CSV. PDF memakai warna suhu; CSV tidak dapat berwarna sehingga memakai kolom Peringatan Suhu.
 - **Laporan periode.** Laporan Periode menggabungkan beberapa tanggal sekaligus. Pilih rentang tanggal dan regu, lalu ekspor PDF atau CSV. Judulnya menyebut jumlah lembar yang berisi data beserta jumlah barisnya.
 - **Suhu tinggi.** Menampilkan pembacaan 60 derajat C ke atas dari seluruh lembar, supaya yang berisiko ditangani lebih dulu.
-- **Lembar belum lengkap.** Daftar lembar yang masih punya isian kosong, agar tidak ada yang tertinggal di akhir sif.
+- **Lembar belum lengkap.** Daftar lembar yang masih punya isian kosong, agar tidak ada yang tertinggal di akhir shift.
 
 ## Pengingat
 
@@ -71,6 +78,6 @@ Panduan yang selalu terbaru ada di dalam aplikasi: **Beranda → Panduan penggun
 
 ## Untuk admin
 
-- **Data master.** Kelola lokasi, sif, regu, rotasi regu, peralatan, titik ukur, dan templat formulir. Data master tidak dapat dihapus, hanya dinonaktifkan, supaya riwayat lama tetap terbaca.
+- **Data master.** Kelola lokasi, shift, regu, rotasi regu, peralatan, titik ukur, dan templat formulir. Data master tidak dapat dihapus, hanya dinonaktifkan, supaya riwayat lama tetap terbaca.
 - **Batas suhu.** Atur batas peringatan dan alarm per titik ukur. Angkanya wajib valid, batas peringatan harus lebih kecil dari alarm, dan sumber acuan wajib diisi.
 - **Pengguna.** Tambah pengguna baru lewat Data master & pengguna. Pembuatan akun membutuhkan PIN awal dan hanya dapat dilakukan admin aktif.

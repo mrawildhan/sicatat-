@@ -13,6 +13,12 @@ import 'features/admin/presentation/form_template_management_screen.dart';
 import 'features/admin/presentation/master_data_hub_screen.dart';
 import 'features/admin/presentation/site_management_screen.dart';
 import 'features/admin/presentation/threshold_management_screen.dart';
+import 'features/daily_checks/daily_check_forms.dart';
+import 'features/daily_checks/presentation/daily_check_entry_screen.dart';
+import 'features/daily_checks/presentation/daily_check_hub_screen.dart';
+import 'features/daily_checks/presentation/daily_check_new_screen.dart';
+import 'features/daily_checks/presentation/daily_check_sheet_screen.dart';
+import 'features/daily_checks/presentation/temperature_forms_screen.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/dashboard/presentation/main_navigation_scaffold.dart';
 import 'features/documents/presentation/document_center_screen.dart';
@@ -33,6 +39,27 @@ import 'features/sheets/presentation/sheet_monitoring_screen.dart';
 import 'features/sheets/presentation/incomplete_sheet_screen.dart';
 import 'features/sheets/presentation/sheet_summary_screen.dart';
 import 'features/temperature/presentation/temperature_form_screen.dart';
+
+const Set<UserRole> _temperatureRoles = <UserRole>{
+  UserRole.crew,
+  UserRole.foreman,
+  UserRole.supervisorCop,
+  UserRole.supervisorSmg,
+  UserRole.admin,
+};
+
+Widget _dailyCheckPage(
+  Widget Function(DailyCheckFormType type) screen,
+  GoRouterState state,
+) => RoleGuard(
+  allowed: _temperatureRoles,
+  child: MainNavigationScaffold(
+    selectedTab: MainNavigationTab.temperature,
+    child: screen(
+      DailyCheckFormType.fromStorage(state.pathParameters['type'])!,
+    ),
+  ),
+);
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -148,6 +175,55 @@ final _router = GoRouter(
           ),
         ),
       ),
+    ),
+    GoRoute(
+      path: '/temperature-forms',
+      builder: (_, __) => const RoleGuard(
+        allowed: _temperatureRoles,
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: TemperatureFormsScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/daily-checks/:type',
+      redirect: (_, state) =>
+          DailyCheckFormType.fromStorage(state.pathParameters['type']) == null
+          ? '/temperature-forms'
+          : null,
+      builder: (_, state) =>
+          _dailyCheckPage((type) => DailyCheckHubScreen(type: type), state),
+      routes: <RouteBase>[
+        GoRoute(
+          path: 'new',
+          builder: (_, state) =>
+              _dailyCheckPage((type) => DailyCheckNewScreen(type: type), state),
+        ),
+        GoRoute(
+          path: 'sheet/:id',
+          builder: (_, state) => _dailyCheckPage(
+            (type) => DailyCheckSheetScreen(
+              type: type,
+              sheetId: state.pathParameters['id']!,
+            ),
+            state,
+          ),
+          routes: <RouteBase>[
+            GoRoute(
+              path: ':slot',
+              builder: (_, state) => _dailyCheckPage(
+                (type) => DailyCheckEntryScreen(
+                  type: type,
+                  sheetId: state.pathParameters['id']!,
+                  slotKey: state.pathParameters['slot']!,
+                ),
+                state,
+              ),
+            ),
+          ],
+        ),
+      ],
     ),
     GoRoute(
       path: '/sheets',

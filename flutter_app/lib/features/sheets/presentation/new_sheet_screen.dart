@@ -74,8 +74,8 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         _template = cachedTemplate;
         _selectedShift = _initialShift(cachedShifts);
         _errorMessage = cachedShifts.isEmpty || cachedTemplate == null
-            ? 'Data sif belum tersedia. Sambungkan ke internet untuk memuat data awal.'
-            : 'Mode offline: menggunakan data sif tersimpan.';
+            ? 'Data shift belum tersedia. Sambungkan ke internet untuk memuat data awal.'
+            : 'Mode offline: menggunakan data shift tersimpan.';
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -135,7 +135,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
       );
       if (response is! List) {
         throw const FormatException(
-          'Respons sif yang sudah digunakan tidak valid.',
+          'Respons shift yang sudah digunakan tidak valid.',
         );
       }
       final occupied = response
@@ -222,13 +222,13 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     }
     if (shift == null) {
       setState(
-        () => _errorMessage = 'Kedua sif pada tanggal ini sudah memiliki lembar. Pilih tanggal lain, atau buka lembar yang ada dari Lembar saya.',
+        () => _errorMessage = 'Kedua shift pada tanggal ini sudah memiliki lembar. Pilih tanggal lain, atau buka lembar yang ada dari Lembar saya.',
       );
       return;
     }
     if (_occupiedShiftIds.contains(shift.id)) {
       setState(
-        () => _errorMessage = 'Sif ini sudah memiliki lembar pada tanggal terpilih. Pilih sif yang lain.',
+        () => _errorMessage = 'Shift ini sudah memiliki lembar pada tanggal terpilih. Pilih shift yang lain.',
       );
       return;
     }
@@ -250,7 +250,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
       );
       if (response is! List) {
         throw const FormatException(
-          'Respons sif yang sudah digunakan tidak valid.',
+          'Respons shift yang sudah digunakan tidak valid.',
         );
       }
       final duplicate = response.any(
@@ -265,7 +265,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         setState(() {
           _occupiedShiftIds = <String>{..._occupiedShiftIds, shift.id};
           _selectedShift = _initialShift(_shifts);
-          _errorMessage = 'Kru lain sudah membuka tanggal dan sif ini. Hanya sif yang tersisa yang dapat dibuat.';
+          _errorMessage = 'Kru lain sudah membuka tanggal dan shift ini. Hanya shift yang tersisa yang dapat dibuat.';
         });
         return;
       }
@@ -287,7 +287,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     } on SheetAlreadyExistsException {
       if (mounted) {
         setState(
-          () => _errorMessage = 'Lembar untuk tanggal dan sif ini sudah ada. Buka dari Lembar saya.',
+          () => _errorMessage = 'Lembar untuk tanggal dan shift ini sudah ada. Buka dari Lembar saya.',
         );
       }
     } catch (_) {
@@ -333,7 +333,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Pilih tanggal dan sif sesuai jadwal kerja. Tanggal lampau dapat dipilih untuk inspeksi yang terlewat. Satu regu menggunakan satu lembar untuk setiap tanggal dan sif.',
+                      'Pilih tanggal dan shift sesuai jadwal kerja. Tanggal lampau dapat dipilih untuk inspeksi yang terlewat. Satu regu menggunakan satu lembar untuk setiap tanggal dan shift.',
                       style: TextStyle(
                         height: 1.45,
                         color: AppColors.greenDark,
@@ -391,7 +391,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
               ),
               const SizedBox(height: 22),
             ],
-            const Text('Sif', style: TextStyle(fontWeight: FontWeight.w800)),
+            const Text('Shift', style: TextStyle(fontWeight: FontWeight.w800)),
             const SizedBox(height: 9),
             if (_isLoading)
               const Center(
@@ -402,7 +402,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
               )
             else if (_shifts.isEmpty)
               const Text(
-                'Belum ada sif yang tersedia.',
+                'Belum ada shift yang tersedia.',
                 style: TextStyle(color: AppColors.danger),
               )
             else
@@ -433,7 +433,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
             if (!_isLoading && _occupiedShiftIds.isNotEmpty) ...<Widget>[
               const SizedBox(height: 8),
               const Text(
-                'Sif yang sudah dipakai dikunci agar tidak ada lembar suhu ganda.',
+                'Shift yang sudah dipakai dikunci agar tidak ada lembar suhu ganda.',
                 style: TextStyle(color: AppColors.warning, fontSize: 12),
               ),
             ],

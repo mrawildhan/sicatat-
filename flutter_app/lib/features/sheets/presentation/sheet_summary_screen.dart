@@ -516,9 +516,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
                   ),
                   child: ElevatedButton(
                     onPressed: canSubmit && !_isSubmitting ? _submit : null,
-                    child: Text(
-                      _isSubmitting ? 'Mengirim...' : 'Kirim lembar',
-                    ),
+                    child: Text(_isSubmitting ? 'Mengirim...' : 'Kirim lembar'),
                   ),
                 ),
               ),

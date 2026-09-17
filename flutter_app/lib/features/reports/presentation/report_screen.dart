@@ -179,7 +179,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         decoration: const pw.BoxDecoration(color: PdfColors.green700),
         children: <pw.Widget>[
           _reportCell('Tanggal', header: true),
-          _reportCell('Regu / sif', header: true),
+          _reportCell('Regu / shift', header: true),
           _reportCell('Bagian / ronde / jam', header: true),
           _reportCell('Sisi / status', header: true),
           _reportCell('Peralatan / titik ukur', header: true),

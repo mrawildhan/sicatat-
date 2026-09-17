@@ -20,7 +20,7 @@ Future<void> openNavigationGroup(
         icon: Icons.thermostat_rounded,
         title: 'Suhu',
         subtitle: 'Pencatatan dan pemeriksaan suhu',
-        route: '/sheets',
+        route: '/temperature-forms',
       ),
     if (operational && canReminders)
       const _NavigationGroupOption(

@@ -126,10 +126,12 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
         : user?.role == UserRole.foreman
         ? 'Lembar regu'
         : 'Lembar saya';
-    final title = widget.showList ? listTitle : 'Suhu';
-    // "Semua sheet" is opened from the Suhu hub, so Back returns there; the
-    // hub itself goes back to the dashboard.
-    final String backRoute = widget.showList ? '/sheets' : '/dashboard';
+    final title = widget.showList
+        ? listTitle
+        : 'Daily Temperature Feeder Sizer';
+    // "Semua lembar" is opened from this hub, so Back returns here; the hub
+    // itself goes back to the Suhu form chooser.
+    final String backRoute = widget.showList ? '/sheets' : '/temperature-forms';
     return AppBackScope(
       fallbackRoute: backRoute,
       child: Scaffold(
@@ -743,7 +745,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                       children: <Widget>[
                         Text(
                           displayShiftName(
-                            _shiftNames[sheet.shiftId] ?? 'Sif tersimpan',
+                            _shiftNames[sheet.shiftId] ?? 'Shift tersimpan',
                           ),
                           style: const TextStyle(color: AppColors.muted),
                         ),

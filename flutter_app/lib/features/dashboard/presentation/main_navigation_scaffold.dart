@@ -119,7 +119,7 @@ class MainNavigationScaffold extends ConsumerWidget {
               );
               return;
             case MainNavigationTab.temperature:
-              context.go('/sheets');
+              context.go('/temperature-forms');
               return;
             case MainNavigationTab.reminders:
               context.go('/reminders');

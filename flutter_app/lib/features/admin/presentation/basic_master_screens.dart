@@ -307,7 +307,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           .select('id,code,name,start_time,end_time,is_active')
           .order('code', ascending: true);
       if (response is! List) {
-        throw const FormatException('Respons sif tidak valid.');
+        throw const FormatException('Respons shift tidak valid.');
       }
       final List<_ShiftRecord> items = response
           .map(
@@ -317,7 +317,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           .toList(growable: false);
       if (mounted) setState(() => _items = items);
     } on Object catch (error) {
-      if (mounted) _notice('Sif tidak dapat dimuat: $error');
+      if (mounted) _notice('Shift tidak dapat dimuat: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -348,7 +348,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
               BuildContext context,
               void Function(void Function()) setModalState,
             ) => AlertDialog(
-              title: Text(record == null ? 'Tambah sif' : 'Ubah sif'),
+              title: Text(record == null ? 'Tambah shift' : 'Ubah shift'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -360,7 +360,9 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: name,
-                      decoration: const InputDecoration(labelText: 'Nama sif'),
+                      decoration: const InputDecoration(
+                        labelText: 'Nama shift',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -418,7 +420,7 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
           !_time(cleanStart) ||
           !_time(cleanEnd)) {
         throw const FormatException(
-          'Kode, nama sif, dan jam berformat JJ:mm wajib diisi.',
+          'Kode, nama shift, dan jam berformat JJ:mm wajib diisi.',
         );
       }
       final Map<String, Object?> payload = <String, Object?>{
@@ -437,11 +439,11 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
             .eq('id', record.id);
       }
       if (mounted) {
-        _notice('Sif tersimpan.');
+        _notice('Shift tersimpan.');
         await _load();
       }
     } on Object catch (error) {
-      if (mounted) _notice('Sif tidak dapat disimpan: $error');
+      if (mounted) _notice('Shift tidak dapat disimpan: $error');
     } finally {
       code.dispose();
       name.dispose();
@@ -460,12 +462,12 @@ class _ShiftManagementScreenState extends State<ShiftManagementScreen> {
     child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRoute: '/admin'),
-        title: const Text('Sif'),
+        title: const Text('Shift'),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : () => _edit(null),
         icon: const Icon(Icons.add),
-        label: const Text('Tambah sif'),
+        label: const Text('Tambah shift'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -588,7 +590,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             const Text(
-              'Rotasi 3 hari Sif Siang - 3 hari Sif Malam - 3 hari Libur dihitung dari acuan ini.',
+              'Rotasi 3 hari Shift Siang - 3 hari Shift Malam - 3 hari Libur dihitung dari acuan ini.',
             ),
             const SizedBox(height: 12),
             TextField(

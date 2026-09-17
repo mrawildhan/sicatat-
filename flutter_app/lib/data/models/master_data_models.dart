@@ -25,12 +25,12 @@ String displayShiftName(String value) {
     case 'shift pagi':
     case 'day':
     case 'day shift':
-      return 'Sif Pagi';
+      return 'Shift Pagi';
     case 'malam':
     case 'shift malam':
     case 'night':
     case 'night shift':
-      return 'Sif Malam';
+      return 'Shift Malam';
     default:
       return value;
   }

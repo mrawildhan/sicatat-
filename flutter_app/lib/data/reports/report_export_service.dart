@@ -295,7 +295,7 @@ class ReportExportService {
       <String>[
         'Tanggal',
         'Regu',
-        'Sif',
+        'Shift',
         'Bagian',
         'Ronde',
         'Jam',

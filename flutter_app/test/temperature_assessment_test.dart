@@ -140,8 +140,8 @@ void main() {
   });
 
   test('normalizes legacy Indonesian shift names for the English UI', () {
-    expect(displayShiftName('Pagi'), 'Sif Pagi');
-    expect(displayShiftName('Shift Malam'), 'Sif Malam');
+    expect(displayShiftName('Pagi'), 'Shift Pagi');
+    expect(displayShiftName('Shift Malam'), 'Shift Malam');
     expect(displayShiftName('Custom shift'), 'Custom shift');
   });
 }

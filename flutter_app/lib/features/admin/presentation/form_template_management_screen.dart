@@ -143,7 +143,7 @@ class _FormTemplateManagementScreenState
                 DropdownButtonFormField<int>(
                   initialValue: _roundCount,
                   decoration: const InputDecoration(
-                    labelText: 'Jumlah ronde per sif',
+                    labelText: 'Jumlah ronde per shift',
                   ),
                   items: <int>[1, 2]
                       .map(

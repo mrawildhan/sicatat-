@@ -49,7 +49,14 @@ Android release APKs land in `flutter_app/build/app/outputs/flutter-apk/` (only 
 - Incomplete fields can be skipped while drafting. The Sheet Summary card for an incomplete group is red and opens the first missing entry. Complete cards open their per-entry detail in a bottom sheet.
 - The default Sheet Summary is deliberately compact: four cards, contributor count, export icon, and sticky Submit. Audit/review/override/delete actions sit in `More options & history`.
 - Add User uses a dedicated create-mode state; it calls the `create-crew-user` edge function. If saving a new user fails after deployment, verify that function is deployed and that the signed-in caller is an active `admin`.
-- PDF displays 60–69°C orange and >=70°C red. CSV cannot encode colors, so it contains a `Peringatan Suhu` column with `TINGGI 60-69°C` or `KRITIS >=70°C` (anomalies without a high reading read `PERLU DITINJAU`). The whole UI, PDF, and CSV are Indonesian since 2026-09-17 ("lembar" for sheet, "sif" for shift, "kru" for crew); stored database values stay in their original form.
+- PDF displays 60–69°C orange and >=70°C red. CSV cannot encode colors, so it contains a `Peringatan Suhu` column with `TINGGI 60-69°C` or `KRITIS >=70°C` (anomalies without a high reading read `PERLU DITINJAU`). The whole UI, PDF, and CSV are Indonesian since 2026-09-17 ("lembar" for sheet, "shift" for shift — the owner rejected "sif" on 2026-09-17 — and "kru" for crew); stored database values stay in their original form.
+
+## Suhu menu: three check sheets (2026-09-17)
+
+- Operasional → Suhu opens `/temperature-forms`, which lists **Daily Temperature Feeder Sizer** (the existing `/sheets` flow), **Daily Check Sheet Hydraulic Feeder**, and **Temperature Coal Valve**. The two new sheets are English on purpose (owner request), matching their paper forms in `Print Daily`.
+- They live in `flutter_app/lib/features/daily_checks/`: `daily_check_forms.dart` defines slots, units, and fields once for the entry screen, summary, and PDF. Hydraulic: Check I/II/III at 10/14/18 (day) or 22/02/06 (night), Feeder 1/2 with Running/Not running/Not accessible, 9 temperatures + 4 pressures + optional speed. Coal valve: 10 readings × West/East/North/South × RV01–RV04.
+- Storage is one table, `daily_check_sheet` (readings in JSONB, one row per form+date+shift+site), migrations `20260917090000` and `20260917091000`. Slots are saved with the `daily_check_save_slot` RPC so two crew members never overwrite each other. Crew can read/write their own team's sheets; submitted sheets are locked by trigger until reopened; only drafts can be deleted.
+- Routes: `/daily-checks/:type`, `/new`, `/sheet/:id`, `/sheet/:id/:slot` (`type` = `hydraulic_feeder` | `coal_valve`).
 
 ## Supabase deployment checklist
 
@@ -69,7 +76,7 @@ supabase functions deploy create-crew-user
 Run `flutter analyze` and `flutter test`. For meaningful functional changes, test on Android:
 
 1. Login as crew/admin; use Android Back from sheets, forms, admin, and reports.
-2. Create a dated Sif Pagi or Sif Malam sheet ("Lembar baru"); make draft input, reopen it, and fill Round 2.
+2. Create a dated Shift Pagi or Shift Malam sheet ("Lembar baru"); make draft input, reopen it, and fill Round 2.
 3. Leave entries missing; confirm red summary card returns to the missing input.
 4. Check duplicate date+shift+module creation is rejected from a second account.
 5. Submit, confirm the sheet is final immediately, then reopen and resubmit it as its creator to test the revision path.

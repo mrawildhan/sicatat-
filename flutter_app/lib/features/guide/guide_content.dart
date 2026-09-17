@@ -42,11 +42,11 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     entries: <GuideEntry>[
       GuideEntry(
         'Membuat lembar',
-        'Buka Operasional lalu Suhu, pilih Lembar baru, kemudian pilih tanggal inspeksi dan sif yang benar. Satu lembar hanya untuk satu kombinasi tanggal, sif, modul, dan lokasi. Kombinasi yang sama akan ditolak.',
+        'Buka Operasional lalu Suhu, pilih Daily Temperature Feeder Sizer, pilih Lembar baru, kemudian pilih tanggal inspeksi dan shift yang benar. Satu lembar hanya untuk satu kombinasi tanggal, shift, modul, dan lokasi. Kombinasi yang sama akan ditolak.',
       ),
       GuideEntry(
         'Ronde 1 dan Ronde 2',
-        'Pilih unit serta sisi Barat atau Timur, lalu simpan setiap sisi. Waktu ronde tercatat otomatis saat data pertama disimpan. Lembar boleh tetap draf dan dilanjutkan sebelum sif berakhir.',
+        'Pilih unit serta sisi Barat atau Timur, lalu simpan setiap sisi. Waktu ronde tercatat otomatis saat data pertama disimpan. Lembar boleh tetap draf dan dilanjutkan sebelum shift berakhir.',
       ),
       GuideEntry(
         'Kondisi unit',
@@ -67,6 +67,27 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     ],
   ),
   GuideGroupContent(
+    title: 'Hydraulic Feeder dan Coal Valve',
+    entries: <GuideEntry>[
+      GuideEntry(
+        'Tiga pilihan Suhu',
+        'Menu Suhu kini berisi tiga lembar: Daily Temperature Feeder Sizer, Daily Check Sheet Hydraulic Feeder, dan Temperature Coal Valve. Kedua lembar baru memakai bahasa Inggris sesuai formulir cetaknya, dan masing-masing hanya satu per tanggal dan shift.',
+      ),
+      GuideEntry(
+        'Daily Check Sheet Hydraulic Feeder',
+        'Ada tiga check per shift: shift pagi pukul 10.00, 14.00, dan 18.00; shift malam pukul 22.00, 02.00, dan 06.00. Isi Feeder 1 lalu Feeder 2: suhu (ambient, main pump, hydraulic motor, flushing valve P1/P2/T, heat exchanger A/B/C), tekanan (forward, charge, case, vacuum), dan speed bila ada. Bila feeder Not running atau Not accessible, cukup isi alasannya.',
+      ),
+      GuideEntry(
+        'Temperature Coal Valve',
+        'Ada sepuluh reading per shift. Setiap reading berisi suhu RV01 sampai RV04 di sisi West, East, North, dan South. Jam reading tercatat otomatis saat pertama kali disimpan.',
+      ),
+      GuideEntry(
+        'Menyimpan, mengirim, dan mencetak',
+        'Anggota regu yang sama dapat mengisi lembar yang sama. Kartu merah berarti masih ada nilai kosong. Submit sheet membuat lembar final; lembar masih dapat dibuka kembali lewat Reopen for revision. Ikon PDF mencetak lembar dengan tata letak formulir kertas, warna oranye untuk 60 sampai 69 derajat C dan merah untuk 70 derajat C ke atas.',
+      ),
+    ],
+  ),
+  GuideGroupContent(
     title: 'Laporan dan ekspor',
     entries: <GuideEntry>[
       GuideEntry(
@@ -83,7 +104,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Lembar belum lengkap',
-        'Daftar lembar yang masih punya isian kosong, agar tidak ada yang tertinggal di akhir sif.',
+        'Daftar lembar yang masih punya isian kosong, agar tidak ada yang tertinggal di akhir shift.',
       ),
     ],
   ),
@@ -219,7 +240,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     entries: <GuideEntry>[
       GuideEntry(
         'Data master',
-        'Kelola lokasi, sif, regu, rotasi regu, peralatan, titik ukur, dan templat formulir. Data master tidak dapat dihapus, hanya dinonaktifkan, supaya riwayat lama tetap terbaca.',
+        'Kelola lokasi, shift, regu, rotasi regu, peralatan, titik ukur, dan templat formulir. Data master tidak dapat dihapus, hanya dinonaktifkan, supaya riwayat lama tetap terbaca.',
       ),
       GuideEntry(
         'Batas suhu',

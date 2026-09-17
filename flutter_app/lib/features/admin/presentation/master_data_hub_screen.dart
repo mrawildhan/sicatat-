@@ -53,14 +53,14 @@ class MasterDataHubScreen extends ConsumerWidget {
               context,
               Icons.account_tree_outlined,
               'Template formulir suhu',
-              'Urutan dan jumlah ronde setiap sif',
+              'Urutan dan jumlah ronde setiap shift',
               '/admin/form-template',
             ),
             _item(
               context,
               Icons.schedule_rounded,
-              'Sif',
-              'Nama, kode, dan jam sif siang/malam',
+              'Shift',
+              'Nama, kode, dan jam shift siang/malam',
               '/admin/shifts',
             ),
             _item(
