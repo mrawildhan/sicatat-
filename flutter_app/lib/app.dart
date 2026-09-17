@@ -59,66 +59,93 @@ final _router = GoRouter(
       path: '/admin',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
-        child: MasterDataHubScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: MasterDataHubScreen(),
+        ),
       ),
     ),
     GoRoute(
       path: '/admin/sites',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
-        child: SiteManagementScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: SiteManagementScreen(),
+        ),
       ),
     ),
     GoRoute(
       path: '/admin/shifts',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
-        child: ShiftManagementScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: ShiftManagementScreen(),
+        ),
       ),
     ),
     GoRoute(
       path: '/admin/teams',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
-        child: TeamManagementScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: TeamManagementScreen(),
+        ),
       ),
     ),
     GoRoute(
       path: '/admin/roster',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
-        child: RosterManagementScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: RosterManagementScreen(),
+        ),
       ),
     ),
     GoRoute(
       path: '/admin/equipment',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
-        child: EquipmentManagementScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: EquipmentManagementScreen(),
+        ),
       ),
     ),
     GoRoute(
       path: '/admin/thresholds',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
-        child: ThresholdManagementScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: ThresholdManagementScreen(),
+        ),
       ),
     ),
     GoRoute(
       path: '/admin/form-template',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
-        child: FormTemplateManagementScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: FormTemplateManagementScreen(),
+        ),
       ),
     ),
     GoRoute(
       path: '/admin/measurement-points',
       builder: (_, state) => RoleGuard(
         allowed: const <UserRole>{UserRole.admin, UserRole.supervisorSmg},
-        child: MeasurementPointManagementScreen(
-          equipmentId: state.uri.queryParameters['equipmentId'],
-          equipmentName:
-              state.uri.queryParameters['equipmentName'] ?? 'Titik ukur',
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: MeasurementPointManagementScreen(
+            equipmentId: state.uri.queryParameters['equipmentId'],
+            equipmentName:
+                state.uri.queryParameters['equipmentName'] ?? 'Titik ukur',
+          ),
         ),
       ),
     ),
@@ -554,7 +581,10 @@ final _router = GoRouter(
       path: '/users',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{UserRole.admin},
-        child: UserManagementScreen(),
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: UserManagementScreen(),
+        ),
       ),
     ),
   ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../data/models/sicatat_types.dart';
 
 String _roleLabel(String role) => switch (role) {
@@ -13,6 +14,81 @@ String _roleLabel(String role) => switch (role) {
   'warehouseman' => 'Warehouseman',
   'admin' => 'Admin',
   _ => role,
+};
+
+class _UserGroup {
+  const _UserGroup(this.title, this.icon, this.users);
+  final String title;
+  final IconData icon;
+  final List<_ManagedUser> users;
+}
+
+/// Splits the list by job so the admin sees one kind of account at a time:
+/// admins, supervisors, foremen, crew per team, warehouse, then inactive.
+List<_UserGroup> _groupUsers(List<_ManagedUser> users) {
+  final active = users.where((user) => user.isActive).toList();
+  List<_ManagedUser> byRole(Set<String> roles) =>
+      active.where((user) => roles.contains(user.role)).toList();
+
+  final crew = byRole(const <String>{'crew'});
+  final teamNames =
+      crew.map((user) => user.teamName).whereType<String>().toSet().toList()
+        ..sort();
+  final groups = <_UserGroup>[
+    _UserGroup(
+      'Admin',
+      Icons.admin_panel_settings_outlined,
+      byRole(const <String>{'admin'}),
+    ),
+    _UserGroup(
+      'Supervisor',
+      Icons.supervisor_account_outlined,
+      byRole(const <String>{'supervisor_cop', 'supervisor_smg', 'supervisor'}),
+    ),
+    _UserGroup(
+      'Foreman',
+      Icons.engineering_outlined,
+      byRole(const <String>{'foreman', 'foreman_lv'}),
+    ),
+    for (final team in teamNames)
+      _UserGroup(
+        'Kru · $team',
+        Icons.groups_outlined,
+        crew.where((user) => user.teamName == team).toList(),
+      ),
+    _UserGroup(
+      'Kru tanpa regu',
+      Icons.person_outline_rounded,
+      crew.where((user) => user.teamName == null).toList(),
+    ),
+    _UserGroup(
+      'Warehouseman',
+      Icons.warehouse_outlined,
+      byRole(const <String>{'warehouseman'}),
+    ),
+    _UserGroup(
+      'Lainnya',
+      Icons.person_outline_rounded,
+      active.where((user) => !_roleGroupKeys.contains(user.role)).toList(),
+    ),
+    _UserGroup(
+      'Tidak aktif',
+      Icons.person_off_outlined,
+      users.where((user) => !user.isActive).toList(),
+    ),
+  ];
+  return groups.where((group) => group.users.isNotEmpty).toList();
+}
+
+const Set<String> _roleGroupKeys = <String>{
+  'admin',
+  'supervisor_cop',
+  'supervisor_smg',
+  'supervisor',
+  'foreman',
+  'foreman_lv',
+  'crew',
+  'warehouseman',
 };
 
 class _TeamOption {
@@ -340,33 +416,83 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   const Text(
                     'Tekan pengguna untuk mengubah peran, regu, nomor telepon, atau status aktifnya.',
                   ),
-                  const SizedBox(height: 14),
-                  ..._users.map(_userTile),
+                  for (final group in _groupUsers(_users)) ...<Widget>[
+                    const SizedBox(height: 18),
+                    _groupHeader(group),
+                    const SizedBox(height: 8),
+                    ...group.users.map(_userTile),
+                  ],
+                  const SizedBox(height: 72),
                 ],
               ],
             ),
     ),
   );
 
-  Widget _userTile(_ManagedUser user) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Card(
-      child: ListTile(
-        onTap: () => _openEdit(user),
-        leading: CircleAvatar(
-          child: Text(user.name.substring(0, 1).toUpperCase()),
+  Widget _groupHeader(_UserGroup group) => Row(
+    children: <Widget>[
+      Icon(group.icon, size: 20, color: AppColors.green),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(
+          group.title,
+          style: AppTextStyles.sectionTitle.copyWith(color: AppColors.ink),
         ),
-        title: Text(
-          user.name,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          '${user.nik} · ${_roleLabel(user.role)}${user.teamName == null ? '' : ' · ${user.teamName}'}${user.siteName == null ? '' : ' · ${user.siteName}'}',
-        ),
-        trailing: Chip(label: Text(user.isActive ? 'Aktif' : 'Tidak aktif')),
       ),
-    ),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.mint,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          '${group.users.length} orang',
+          style: AppTextStyles.badge.copyWith(
+            color: AppColors.green,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    ],
   );
+
+  Widget _userTile(_ManagedUser user) {
+    // The group already names the job; only show what tells people apart.
+    final details = <String>[
+      'NIK ${user.nik}',
+      if (user.role != 'crew' &&
+          user.role != 'admin' &&
+          user.role != 'warehouseman')
+        _roleLabel(user.role),
+      if (!user.isActive && user.teamName != null) user.teamName!,
+      if (user.siteName != null) user.siteName!,
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+        child: ListTile(
+          onTap: () => _openEdit(user),
+          leading: CircleAvatar(
+            backgroundColor: user.isActive ? AppColors.mint : AppColors.line,
+            child: Text(user.name.substring(0, 1).toUpperCase()),
+          ),
+          title: Text(
+            user.name,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(details.join(' · ')),
+          trailing: user.isActive
+              ? const Icon(Icons.chevron_right_rounded)
+              : Chip(
+                  label: Text(
+                    _roleLabel(user.role),
+                    style: AppTextStyles.badge,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
 
   Widget _form() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
