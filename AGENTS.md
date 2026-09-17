@@ -264,6 +264,12 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Domain sicatat.com — 2026-09-17
+
+- Pemilik membeli `sicatat.com` di Cloudflare Registrar (akun yang sama dengan proyek Pages). Domain `sicatat.com` dan `www.sicatat.com` ditambahkan ke proyek Pages `sicatat` lewat API; catatan DNS CNAME `@` dan `www` → `sicatat-5l5.pages.dev` (proxied) dibuat pemilik di dashboard karena token wrangler tidak punya izin DNS.
+- Hasil cek: kedua alamat HTTP 200 dengan sertifikat valid, header keamanan ikut aktif, `main.dart.js` identik dengan build lokal, dan halaman masuk di `https://sicatat.com` berhasil memanggil Supabase (`app_version` 200) tanpa galat konsol. Tidak ada perubahan kode: alamat website tidak tertulis di aplikasi maupun email, dan login NIK/kata sandi tidak memakai redirect URL.
+- Deploy berikutnya tetap sama (`wrangler pages deploy ... --branch=main`); domain baru otomatis ikut. Sesi masuk tersimpan per alamat, jadi pengguna perlu masuk sekali lagi saat pertama membuka `sicatat.com`.
+
 ## Anggaran: jangan dipaksa memanjang — 2026-09-17
 
 - Percobaan membuat Anggaran mengisi seluruh tinggi layar (kartu lokasi dan pintasan ikut memanjang lewat `fillViewport` + `IntrinsicHeight`) **ditolak pemilik** karena terlihat dipaksa. Sudah dikembalikan ke tata letak ringkas bertinggi alami; ruang kosong di bawah halaman pendek itu wajar. Jangan diulangi.
