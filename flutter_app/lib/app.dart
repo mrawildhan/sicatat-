@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme/app_theme.dart';
@@ -696,6 +697,11 @@ class _SicatatAppState extends State<SicatatApp> {
               title: 'sicatat',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.light,
+              // Built-in widgets (date picker, text selection, tooltips) speak
+              // Indonesian like the rest of the app.
+              locale: const Locale('id', 'ID'),
+              supportedLocales: const <Locale>[Locale('id', 'ID')],
+              localizationsDelegates: GlobalMaterialLocalizations.delegates,
               routerConfig: _router,
               builder: (BuildContext context, Widget? child) {
                 final MediaQueryData mediaQuery = MediaQuery.of(context);
