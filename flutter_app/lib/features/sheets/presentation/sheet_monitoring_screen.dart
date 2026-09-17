@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../data/models/app_user.dart';
+import '../../../data/models/master_data_models.dart';
 import '../../../data/models/sheet_model.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../auth/application/current_user_provider.dart';
@@ -178,7 +179,7 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                '${sheet.teamName ?? 'Tim'} • ${sheet.shiftName ?? 'Shift'}',
+                '${sheet.teamName ?? 'Regu'} • ${displayShiftName(sheet.shiftName ?? 'Shift')}',
                 style: const TextStyle(color: AppColors.muted),
               ),
               const SizedBox(height: 6),

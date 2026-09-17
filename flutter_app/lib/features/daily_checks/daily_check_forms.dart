@@ -273,21 +273,9 @@ final DailyCheckForm hydraulicFeederForm = DailyCheckForm(
       ),
     ]),
     DailyCheckSection('Pemantauan tekanan', <DailyCheckField>[
-      DailyCheckField(
-        'forward',
-        'Forward',
-        kind: DailyCheckValueKind.pressure,
-      ),
-      DailyCheckField(
-        'charge',
-        'Charge',
-        kind: DailyCheckValueKind.pressure,
-      ),
-      DailyCheckField(
-        'case',
-        'Case',
-        kind: DailyCheckValueKind.pressure,
-      ),
+      DailyCheckField('forward', 'Forward', kind: DailyCheckValueKind.pressure),
+      DailyCheckField('charge', 'Charge', kind: DailyCheckValueKind.pressure),
+      DailyCheckField('case', 'Case', kind: DailyCheckValueKind.pressure),
       DailyCheckField('vacuum', 'Vacuum', kind: DailyCheckValueKind.pressure),
     ]),
     DailyCheckSection('Kecepatan', <DailyCheckField>[

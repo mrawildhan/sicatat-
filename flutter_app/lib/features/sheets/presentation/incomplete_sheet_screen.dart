@@ -263,7 +263,13 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
             sheet.date,
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
-          subtitle: Text('${sheet.teamName} · ${sheet.shiftCode}'),
+          subtitle: Text(
+            '${sheet.teamName} · ${switch (sheet.shiftCode) {
+              'PAGI' => 'Shift Pagi',
+              'MALAM' => 'Shift Malam',
+              final code => code,
+            }}',
+          ),
           trailing: Chip(
             label: Text(
               '${sheet.completed}/$_expectedSides · ${sheet.status == 'submitted_incomplete' ? 'Dikirim tidak lengkap' : 'Draf'}',

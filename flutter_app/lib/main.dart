@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
@@ -15,6 +17,9 @@ SyncCoordinator? _syncCoordinator;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Month and day names ("17 Sep", "Kamis") are written in Indonesian.
+  Intl.defaultLocale = 'id_ID';
+  await initializeDateFormatting('id_ID');
   await configureLocalDatabaseForPlatform();
   // Android 15 draws applications edge-to-edge by default. Every screen owns
   // its safe area, while this sets a predictable default for the system bars.

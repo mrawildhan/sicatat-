@@ -744,9 +744,12 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          displayShiftName(
-                            _shiftNames[sheet.shiftId] ?? 'Shift tersimpan',
-                          ),
+                          <String>[
+                            displayShiftName(
+                              _shiftNames[sheet.shiftId] ?? 'Shift tersimpan',
+                            ),
+                            ?sheet.teamName,
+                          ].join(' · '),
                           style: const TextStyle(color: AppColors.muted),
                         ),
                         const SizedBox(height: 7),
