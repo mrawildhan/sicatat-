@@ -264,6 +264,22 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
+## Tata letak ponsel & aplikasi penuh berbahasa Indonesia — 2026-09-17
+
+Laporan pemilik dari iPhone (Safari), lima poin:
+
+1. **Menu Operasional terpotong.** Lembar bawah memakai tinggi tetap 76% layar dengan `NeverScrollableScrollPhysics`, sehingga baris ketiga (Notulen Rapat) tertutup toolbar Safari. Kini `isScrollControlled`, tinggi mengikuti isi (maks 85%), grid `shrinkWrap` yang boleh digulir, dan padding bawah ikut safe area. Kartu dipendekkan (rasio 1.22).
+2. **Kartu Suhu terlalu besar.** Enam aksi kini 3 kolom dengan ikon di tengah dan judul saja (subjudul jadi tooltip), sehingga muat satu layar.
+3. **Kembali dari "Semua lembar" ke Beranda.** `sheet_list_screen` kini kembali ke `/sheets` saat `showList`; Pemantauan, Belum lengkap, Laporan periode, dan Suhu tinggi juga kembali ke `/sheets`. Aman karena peran di rute-rute itu adalah himpunan bagian dari peran `/sheets`.
+4. **Bahasa Inggris tersisa.** Sapuan penuh (±360 teks di 40 berkas) memakai istilah KBBI: *lembar* (sheet), *sif* (shift), *kru* (crew), *kata sandi* (password), *pemantauan*, *pratinjau*, *templat*, *daring/luring*, *lembar kerja* (spreadsheet), *PM & CM Tertunda*, *Referensi Alat*, *Kode Biaya*, nama bulan Indonesia di Notulen. PDF dan CSV ikut diterjemahkan, termasuk kolom `Peringatan Suhu` dengan nilai `TINGGI 60-69°C` / `KRITIS >=70°C` / `PERLU DITINJAU` (CLAUDE.md sudah disesuaikan).
+   - **Sengaja tidak diterjemahkan:** nilai yang disimpan di database (kategori pengingat `Other`, `Vehicle document`, dll., yang dipetakan ke label Indonesia saat ditampilkan), pesan trigger duplikat `A sheet already exists` yang dicocokkan `sync_service.dart`, nama akun cost code perusahaan, nama peralatan/titik ukur (Gearbox Breaker, Low Speed, …), nama produk (Google Sheet, Excel, Drive), singkatan (PM, CM, PR, PO, SOP, SC), peran (Foreman, Supervisor, Admin), dan kata *email* serta *filter* (yang terakhir ada di KBBI).
+   - Dua jebakan yang tertangkap saat pemeriksaan: penggantian massal sempat mengubah nilai kategori `'Other'` dan string pencocokan trigger — keduanya dikembalikan. Setiap pengalihan kata tunggal harus dicek apakah dipakai di `==`, `switch`, `contains`, atau daftar nilai tersimpan.
+5. **Anggaran tidak muat satu layar.** Ikon kartu metrik di tengah, dua pintasan (Realisasi per bulan, Rincian anggaran) berdampingan sebagai kartu kecil, sumber data jadi satu baris, jarak dirapatkan, dan `_OperationalSectionPage` hanya memberi ruang bawah 120 px bila halamannya punya FAB.
+
+Diperiksa live pada viewport 375×690 (perkiraan iPhone dengan toolbar Safari): menu Operasional menampilkan ketujuh item, Suhu memuat enam aksi, Kembali dari Semua lembar mendarat di `#/sheets`, kedua layar laporan berbahasa Indonesia, dan Anggaran muat tanpa digulir dengan ruang sisa.
+
+Isi panduan (`guide_content.dart`) ikut diselaraskan; `docs/PANDUAN-CREW-SICATAT.md` kini **dibangkitkan** dari isi itu (lihat skrip di catatan sesi) dan PDF-nya dicetak ulang. Belum dirilis ke Android.
+
 ## Kartu ringkasan seragam, Notulen berbahasa Indonesia, rilis 2.8.39 — 2026-09-16
 
 - Temuan pemilik: kotak ringkasan Notulen terlihat lebih besar dari layar lain. Benar — ada **tiga implementasi berbeda** untuk hal yang sama: Suhu (tinggi 108, angka 22), Pengingat (tinggi 60, angka 18), Notulen/Permintaan Barang (tanpa tinggi tetap, angka 22, dibungkus Card lagi).

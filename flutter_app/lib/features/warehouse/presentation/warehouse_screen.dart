@@ -380,8 +380,8 @@ class _WarehouseAutomaticSyncNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     const Color color = AppColors.green;
     final String status = sourceUpdatedOn == null
-        ? 'Tanggal pembaruan spreadsheet belum tersedia'
-        : 'Data spreadsheet terakhir diperbarui ${_formatSourceDate(sourceUpdatedOn!)}';
+        ? 'Tanggal pembaruan lembar kerja belum tersedia'
+        : 'Data lembar kerja terakhir diperbarui ${_formatSourceDate(sourceUpdatedOn!)}';
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),

@@ -1018,7 +1018,7 @@ class _BudgetSourceLine extends StatelessWidget {
           child: Text(
             synced == null
                 ? 'Sumber: anggaran 3271/3275 dan realisasi CPP/PORT'
-                : 'Sumber spreadsheet, diperbarui '
+                : 'Sumber lembar kerja, diperbarui '
                       '${DateFormat('dd/MM/yyyy HH:mm').format(synced.toLocal())}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
