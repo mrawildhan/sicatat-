@@ -211,7 +211,7 @@ const List<double> _hydraulicColumns = <double>[
 const double _hydraulicRemarksLeft = 474.3;
 const double _hydraulicRemarksRight = 634.9;
 
-/// Row edges of the nine temperature rows (Ambient temp … Head Exchanger C).
+/// Row edges of the nine temperature rows (Ambient temp … Heat Exchanger C).
 const List<double> _hydraulicTemperatureRows = <double>[
   162.9,
   176.2,
@@ -225,7 +225,7 @@ const List<double> _hydraulicTemperatureRows = <double>[
   282.1,
 ];
 
-/// Row edges of the four pressure rows (Forward, Charge, case, vacum).
+/// Row edges of the four pressure rows (Forward, Charge, Case, Vacuum).
 const List<double> _hydraulicPressureRows = <double>[
   334.6,
   348.0,
@@ -302,14 +302,18 @@ List<pw.Widget> _hydraulic(DailyCheckSheet sheet) {
   for (var s = 0; s < slots.length; s++) {
     final values = sheet.readings[slots[s].key];
     if (values == null) continue;
-    final parts = <String>[
+    final perFeeder = <String>[
       for (final unit in form.units)
-        if (values[DailyCheckForm.valueKey(unit, speed)] case final num v)
-          'F${form.units.indexOf(unit) + 1}=${_number(v)}',
+        switch (values[DailyCheckForm.valueKey(unit, speed)]) {
+          final num v => _number(v),
+          _ => '-',
+        },
     ];
-    if (parts.isNotEmpty) speeds.add('${numerals[s]}: ${parts.join(' ')}');
+    if (perFeeder.any((value) => value != '-')) {
+      speeds.add('${numerals[s]} ${perFeeder.join('/')}');
+    }
   }
-  if (speeds.isNotEmpty) lines.add('Speed ${speeds.join('; ')}');
+  if (speeds.isNotEmpty) lines.add('Speed (F1/F2): ${speeds.join(', ')}');
   for (var s = 0; s < slots.length; s++) {
     final values = sheet.readings[slots[s].key];
     if (values == null) continue;

@@ -39,6 +39,7 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
   final Map<String, TextEditingController> _controllers =
       <String, TextEditingController>{};
   final TextEditingController _remarks = TextEditingController();
+  final Map<String, FocusNode> _focusNodes = <String, FocusNode>{};
   final Map<String, DailyCheckUnitStatus> _statuses =
       <String, DailyCheckUnitStatus>{};
   DailyCheckSheet? _sheet;
@@ -81,6 +82,9 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
   void dispose() {
     for (final controller in _controllers.values) {
       controller.dispose();
+    }
+    for (final node in _focusNodes.values) {
+      node.dispose();
     }
     _remarks.dispose();
     _scroll.dispose();
@@ -213,6 +217,30 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
       return false;
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  FocusNode _focusNode(String key) =>
+      _focusNodes.putIfAbsent(key, FocusNode.new);
+
+  /// Enter / the keyboard's Next key jumps to the next value on screen, in
+  /// the order the fields are shown.
+  void _focusNext(String key) {
+    final units = _tabbed
+        ? <DailyCheckUnit>[_form.units[_unitIndex]]
+        : _form.units;
+    final order = <String>[
+      for (final unit in units)
+        if ((_statuses[unit.key] ?? DailyCheckUnitStatus.running) ==
+            DailyCheckUnitStatus.running)
+          for (final field in _form.fields)
+            DailyCheckForm.valueKey(unit, field),
+    ];
+    final index = order.indexOf(key);
+    if (index >= 0 && index + 1 < order.length) {
+      _focusNode(order[index + 1]).requestFocus();
+    } else {
+      FocusScope.of(context).unfocus();
     }
   }
 
@@ -614,6 +642,7 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
       padding: const EdgeInsets.only(bottom: 10),
       child: TextField(
         controller: controller,
+        focusNode: _focusNode(key),
         enabled: enabled,
         keyboardType: const TextInputType.numberWithOptions(
           decimal: true,
@@ -622,6 +651,9 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
         inputFormatters: <TextInputFormatter>[
           FilteringTextInputFormatter.allow(RegExp(r'^-?\d*[.,]?\d*')),
         ],
+        // The keyboard's Next key moves straight to the following value.
+        textInputAction: TextInputAction.next,
+        onSubmitted: (_) => _focusNext(key),
         onChanged: (_) => _changed(),
         decoration: InputDecoration(
           labelText: field.label,

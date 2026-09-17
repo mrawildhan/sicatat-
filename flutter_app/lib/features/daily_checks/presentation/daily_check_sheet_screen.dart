@@ -361,7 +361,7 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
-              childAspectRatio: columns == 3 ? 1.0 : 1.9,
+              childAspectRatio: columns == 3 ? 0.82 : 1.5,
               children: slots.map((slot) => _slotCard(sheet, slot)).toList(),
             );
           },
@@ -435,9 +435,13 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
               const SizedBox(height: 4),
               Text(
                 slot.label,
-                maxLines: 1,
+                maxLines: 2,
+                textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                ),
               ),
               if (timeText != null)
                 Text(
