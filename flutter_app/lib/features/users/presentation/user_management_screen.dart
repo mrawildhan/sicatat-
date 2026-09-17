@@ -42,7 +42,7 @@ List<_UserGroup> _groupUsers(List<_ManagedUser> users) {
     ),
     _UserGroup(
       'Supervisor',
-      Icons.supervisor_account_outlined,
+      Icons.verified_outlined,
       byRole(const <String>{'supervisor_cop', 'supervisor_smg', 'supervisor'}),
     ),
     _UserGroup(
@@ -73,7 +73,7 @@ List<_UserGroup> _groupUsers(List<_ManagedUser> users) {
     ),
     _UserGroup(
       'Tidak aktif',
-      Icons.person_off_outlined,
+      Icons.block_outlined,
       users.where((user) => !user.isActive).toList(),
     ),
   ];
@@ -460,9 +460,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     // The group already names the job; only show what tells people apart.
     final details = <String>[
       'NIK ${user.nik}',
-      if (user.role != 'crew' &&
-          user.role != 'admin' &&
-          user.role != 'warehouseman')
+      // Inactive accounts share one group, so they also need their job.
+      if (!user.isActive ||
+          (user.role != 'crew' &&
+              user.role != 'admin' &&
+              user.role != 'warehouseman'))
         _roleLabel(user.role),
       if (!user.isActive && user.teamName != null) user.teamName!,
       if (user.siteName != null) user.siteName!,
@@ -481,14 +483,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           subtitle: Text(details.join(' · ')),
-          trailing: user.isActive
-              ? const Icon(Icons.chevron_right_rounded)
-              : Chip(
-                  label: Text(
-                    _roleLabel(user.role),
-                    style: AppTextStyles.badge,
-                  ),
-                ),
+          trailing: const Icon(Icons.chevron_right_rounded),
         ),
       ),
     );
