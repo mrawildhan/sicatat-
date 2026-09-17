@@ -30,7 +30,11 @@ import 'budget_item_sections.dart';
 const TextStyle _budgetSectionTitleStyle = AppTextStyles.sectionTitle;
 const TextStyle _budgetCardTitleStyle = AppTextStyles.cardTitle;
 const TextStyle _budgetLabelStyle = AppTextStyles.supporting;
-const TextStyle _budgetAmountStyle = AppTextStyles.metric;
+// Amounts are long ("US$354.360"); at the metric size they outweighed every
+// label on the page, so they use the card-title size with a heavier weight.
+final TextStyle _budgetAmountStyle = AppTextStyles.cardTitle.copyWith(
+  fontWeight: FontWeight.w900,
+);
 
 class BudgetOverviewScreen extends StatefulWidget {
   const BudgetOverviewScreen({this.service, super.key});
@@ -104,6 +108,7 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
   Widget build(BuildContext context) => _OperationalSectionPage(
     title: 'Anggaran Operasional',
     icon: Icons.account_balance_wallet_rounded,
+    fillViewport: true,
     child: _BudgetOverviewBody(
       summary: _summary,
       items: _items,
@@ -662,6 +667,7 @@ class _OperationalSectionPage extends StatelessWidget {
     required this.icon,
     required this.child,
     this.floatingActionButton,
+    this.fillViewport = false,
   });
 
   final String title;
@@ -671,6 +677,11 @@ class _OperationalSectionPage extends StatelessWidget {
   /// Primary action of the page. Shown as a floating button so the top of the
   /// list stays free for the data itself.
   final Widget? floatingActionButton;
+
+  /// Stretches [child] to at least the visible height so a short page fills
+  /// the screen instead of leaving an empty band at the bottom. It still
+  /// scrolls on screens too small for the content.
+  final bool fillViewport;
 
   @override
   Widget build(BuildContext context) {
@@ -685,29 +696,45 @@ class _OperationalSectionPage extends StatelessWidget {
                 title: Text(title),
               ),
         floatingActionButton: floatingActionButton,
-        body: ListView(
-          // Room for the floating button only when the page has one, so
-          // pages without it (Anggaran) do not scroll for nothing.
-          padding: EdgeInsets.fromLTRB(
-            20,
-            useDesktopHeader ? 18 : 16,
-            20,
-            (floatingActionButton == null ? 20 : 120) +
-                MediaQuery.paddingOf(context).bottom,
-          ),
-          children: <Widget>[
-            if (useDesktopHeader) ...<Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(icon, color: AppColors.green, size: 28),
-                  const SizedBox(width: 10),
-                  Text(title, style: AppTextStyles.pageTitle),
+        body: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            // Room for the floating button only when the page has one, so
+            // pages without it (Anggaran) do not scroll for nothing.
+            final EdgeInsets padding = EdgeInsets.fromLTRB(
+              20,
+              useDesktopHeader ? 18 : 16,
+              20,
+              (floatingActionButton == null ? 20 : 120) +
+                  MediaQuery.paddingOf(context).bottom,
+            );
+            final Widget content = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                if (useDesktopHeader) ...<Widget>[
+                  Row(
+                    children: <Widget>[
+                      Icon(icon, color: AppColors.green, size: 28),
+                      const SizedBox(width: 10),
+                      Text(title, style: AppTextStyles.pageTitle),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                 ],
-              ),
-              const SizedBox(height: 20),
-            ],
-            child,
-          ],
+                if (fillViewport) Expanded(child: child) else child,
+              ],
+            );
+            return SingleChildScrollView(
+              padding: padding,
+              child: fillViewport
+                  ? ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight - padding.vertical,
+                      ),
+                      child: IntrinsicHeight(child: content),
+                    )
+                  : content,
+            );
+          },
         ),
       ),
     );
@@ -787,42 +814,50 @@ class _BudgetOverviewBody extends StatelessWidget {
         const SizedBox(height: 14),
         const Text('Ringkasan per lokasi', style: _budgetSectionTitleStyle),
         const SizedBox(height: 8),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: _BudgetSiteCard(
-                site: 'CPP',
-                months: summary.forSite('CPP'),
+        Expanded(
+          flex: 2,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Expanded(
+                child: _BudgetSiteCard(
+                  site: 'CPP',
+                  months: summary.forSite('CPP'),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _BudgetSiteCard(
-                site: 'PORT',
-                months: summary.forSite('PORT'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _BudgetSiteCard(
+                  site: 'PORT',
+                  months: summary.forSite('PORT'),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: _BudgetActionCard(
-                icon: Icons.calendar_month_rounded,
-                title: 'Realisasi per bulan',
-                onTap: onOpenMonthly,
+        Expanded(
+          flex: 1,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Expanded(
+                child: _BudgetActionCard(
+                  icon: Icons.calendar_month_rounded,
+                  title: 'Realisasi per bulan',
+                  onTap: onOpenMonthly,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _BudgetActionCard(
-                icon: Icons.search_rounded,
-                title: 'Rincian anggaran',
-                onTap: items.isEmpty ? null : onBrowseItems,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _BudgetActionCard(
+                  icon: Icons.search_rounded,
+                  title: 'Rincian anggaran',
+                  onTap: items.isEmpty ? null : onBrowseItems,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 10),
         _BudgetSourceLine(syncedAt: summary.syncedAt),
@@ -889,6 +924,8 @@ class _BudgetSiteCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          // Spread over the height the page gives the card.
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Row(
@@ -972,6 +1009,7 @@ class _BudgetActionCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             CircleAvatar(
               radius: 17,
