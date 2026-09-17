@@ -264,13 +264,10 @@ Run `flutter analyze` and `flutter test`. For meaningful functional changes, tes
 - Reminders remain admin-only and are not yet a guaranteed push/scheduler workflow.
 - Do not commit `tmp/`, `build/`, `.dart_tool/`, APK files, Supabase local state, or machine-local Codex settings.
 
-## Anggaran mengisi satu layar penuh — 2026-09-17
+## Anggaran: jangan dipaksa memanjang — 2026-09-17
 
-- Setelah dirapatkan, Anggaran memang muat tetapi menyisakan pita kosong di bawah. `_OperationalSectionPage` kini punya `fillViewport`: isi dibungkus `LayoutBuilder` + `SingleChildScrollView` + `ConstrainedBox(minHeight: tinggi layar)` + `IntrinsicHeight`, sehingga anak `Expanded` bisa membagi sisa tinggi dan halaman tetap bisa digulir bila layarnya terlalu pendek. Hanya Anggaran yang memakainya.
-- Di Anggaran, baris kartu lokasi (flex 2) dan baris pintasan (flex 1) berbagi sisa tinggi; isi kartu lokasi disebar `spaceEvenly`, isi pintasan di tengah. Perbandingan 3:2 sempat dicoba dan membuat kartu pintasan terlalu kosong.
-- Angka US$ memakai `cardTitle` bobot 900 (15 px), bukan `metric` 20 px — nominal sepuluh karakter pada ukuran metric terasa jauh lebih berat daripada label di sekitarnya.
-- Jangan menaruh `LayoutBuilder` di dalam isi halaman yang memakai `fillViewport`: `IntrinsicHeight` tidak mendukungnya.
-- Diperiksa live pada 375×760 (terisi penuh) dan 375×640 (tetap muat tanpa terpotong), tanpa galat konsol.
+- Percobaan membuat Anggaran mengisi seluruh tinggi layar (kartu lokasi dan pintasan ikut memanjang lewat `fillViewport` + `IntrinsicHeight`) **ditolak pemilik** karena terlihat dipaksa. Sudah dikembalikan ke tata letak ringkas bertinggi alami; ruang kosong di bawah halaman pendek itu wajar. Jangan diulangi.
+- Yang dipertahankan: angka US$ memakai `cardTitle` bobot 900 (15 px), bukan `metric` 20 px, karena nominal sepuluh karakter di ukuran metric terasa jauh lebih berat daripada label di sekitarnya.
 
 ## Tata letak ponsel & aplikasi penuh berbahasa Indonesia — 2026-09-17
 
