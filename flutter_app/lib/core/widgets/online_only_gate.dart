@@ -184,7 +184,7 @@ class _OfflineOverlay extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               const Text(
-                'SICATAT hanya bekerja secara daring. Sambungkan ke internet agar setiap data lapangan terkirim dengan aman ke server.',
+                'SICATAT hanya bekerja secara online. Sambungkan ke internet agar setiap data lapangan terkirim dengan aman ke server.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.muted, height: 1.5),
               ),

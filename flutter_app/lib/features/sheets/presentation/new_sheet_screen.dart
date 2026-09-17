@@ -75,7 +75,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         _selectedShift = _initialShift(cachedShifts);
         _errorMessage = cachedShifts.isEmpty || cachedTemplate == null
             ? 'Data sif belum tersedia. Sambungkan ke internet untuk memuat data awal.'
-            : 'Mode luring: menggunakan data sif tersimpan.';
+            : 'Mode offline: menggunakan data sif tersimpan.';
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);

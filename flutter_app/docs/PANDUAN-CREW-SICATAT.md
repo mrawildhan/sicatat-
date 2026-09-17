@@ -8,7 +8,7 @@ Panduan yang selalu terbaru ada di dalam aplikasi: **Beranda → Panduan penggun
 
 - **Masuk aplikasi.** Masuk dengan NIK dan kata sandi masing-masing; kata sandi awal berupa PIN dari admin. Jangan berbagi kata sandi. Akun dibuat oleh admin; tidak ada pendaftaran sendiri.
 - **Menemukan menu.** Ada empat tab di bawah layar: Beranda, Operasional, Referensi, dan Profil. Operasional berisi pekerjaan harian, Referensi berisi data yang dicari saat dibutuhkan. Menu yang muncul mengikuti peran dan lokasi akun Anda.
-- **Harus daring.** SICATAT hanya bekerja secara daring. Bila data gagal dimuat, periksa koneksi lalu ketuk Muat ulang. Jangan menghapus aplikasi.
+- **Harus online.** SICATAT hanya bekerja secara online. Bila data gagal dimuat, periksa koneksi lalu ketuk Muat ulang. Jangan menghapus aplikasi.
 
 ## Suhu
 

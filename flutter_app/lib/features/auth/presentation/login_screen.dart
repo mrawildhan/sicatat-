@@ -138,7 +138,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        'Aplikasi pencatatan data lapangan',
+                        'Aplikasi operasional dan referensi kerja',
                         style: TextStyle(
                           fontSize: 15,
                           height: 1.45,
@@ -220,7 +220,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 18),
                       Center(
                         child: Text(
-                          'Versi ${AppConfig.appVersion} • Harus daring',
+                          'Versi ${AppConfig.appVersion} • Harus online',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: AppColors.muted),
                         ),

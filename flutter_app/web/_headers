@@ -5,3 +5,7 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), payment=(), usb=()
+  # Revalidate on every load (cheap 304s via ETag). Without this the
+  # sicatat.com zone's default 4-hour browser cache kept an old main.dart.js
+  # and old images after a deploy.
+  Cache-Control: no-cache

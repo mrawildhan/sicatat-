@@ -32,8 +32,8 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
         'Ada empat tab di bawah layar: Beranda, Operasional, Referensi, dan Profil. Operasional berisi pekerjaan harian, Referensi berisi data yang dicari saat dibutuhkan. Menu yang muncul mengikuti peran dan lokasi akun Anda.',
       ),
       GuideEntry(
-        'Harus daring',
-        'SICATAT hanya bekerja secara daring. Bila data gagal dimuat, periksa koneksi lalu ketuk Muat ulang. Jangan menghapus aplikasi.',
+        'Harus online',
+        'SICATAT hanya bekerja secara online. Bila data gagal dimuat, periksa koneksi lalu ketuk Muat ulang. Jangan menghapus aplikasi.',
       ),
     ],
   ),
