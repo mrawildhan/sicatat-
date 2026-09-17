@@ -6,7 +6,7 @@ void main() {
   testWidgets('struktur cost code membuka angka sesuai segmen', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: CostCodeReferenceScreen()));
 
-    expect(find.text('Struktur cost code'), findsOneWidget);
+    expect(find.text('Struktur kode biaya'), findsOneWidget);
     expect(find.text('Expense element'), findsOneWidget);
 
     await tester.tap(find.text('Site').first);

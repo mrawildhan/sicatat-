@@ -1393,7 +1393,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
               BuildContext context,
               void Function(void Function()) setModalState,
             ) => AlertDialog(
-              title: const Text('Filter reminders'),
+              title: const Text('Filter pengingat'),
               content: SizedBox(
                 width: 460,
                 child: Column(
@@ -1405,7 +1405,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                       items: <DropdownMenuItem<String?>>[
                         const DropdownMenuItem<String?>(
                           value: null,
-                          child: Text('All accessible sites'),
+                          child: Text('Semua lokasi yang dapat diakses'),
                         ),
                         ..._sites.map(
                           (_ReminderSite site) => DropdownMenuItem<String?>(
@@ -1420,19 +1420,21 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     const SizedBox(height: 16),
                     DropdownButtonFormField<_DueDateFilter>(
                       initialValue: dueDateFilter,
-                      decoration: const InputDecoration(labelText: 'Due date'),
+                      decoration: const InputDecoration(
+                        labelText: 'Jatuh tempo',
+                      ),
                       items: const <DropdownMenuItem<_DueDateFilter>>[
                         DropdownMenuItem<_DueDateFilter>(
                           value: _DueDateFilter.all,
-                          child: Text('All dates'),
+                          child: Text('Semua tanggal'),
                         ),
                         DropdownMenuItem<_DueDateFilter>(
                           value: _DueDateFilter.nextThirtyDays,
-                          child: Text('Due in the next 30 days'),
+                          child: Text('Jatuh tempo 30 hari ke depan'),
                         ),
                         DropdownMenuItem<_DueDateFilter>(
                           value: _DueDateFilter.custom,
-                          child: Text('Custom date range'),
+                          child: Text('Rentang tanggal sendiri'),
                         ),
                       ],
                       onChanged: (_DueDateFilter? value) => setModalState(
@@ -1443,12 +1445,12 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     DropdownButtonFormField<_ReminderFilter>(
                       initialValue: reminderFilter,
                       decoration: const InputDecoration(
-                        labelText: 'Reminder status',
+                        labelText: 'Status pengingat',
                       ),
                       items: const <DropdownMenuItem<_ReminderFilter>>[
                         DropdownMenuItem<_ReminderFilter>(
                           value: _ReminderFilter.all,
-                          child: Text('All reminders'),
+                          child: Text('Semua pengingat'),
                         ),
                         DropdownMenuItem<_ReminderFilter>(
                           value: _ReminderFilter.overdue,
@@ -1456,15 +1458,15 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         ),
                         DropdownMenuItem<_ReminderFilter>(
                           value: _ReminderFilter.dueSoon,
-                          child: Text('Due soon (next 7 days)'),
+                          child: Text('Segera (7 hari ke depan)'),
                         ),
                         DropdownMenuItem<_ReminderFilter>(
                           value: _ReminderFilter.open,
-                          child: Text('Open'),
+                          child: Text('Terbuka'),
                         ),
                         DropdownMenuItem<_ReminderFilter>(
                           value: _ReminderFilter.completed,
-                          child: Text('Completed'),
+                          child: Text('Selesai'),
                         ),
                       ],
                       onChanged: (_ReminderFilter? value) => setModalState(
@@ -1477,7 +1479,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         icon: const Icon(Icons.date_range_rounded),
                         label: Text(
                           customRange == null
-                              ? 'Choose date range'
+                              ? 'Pilih rentang tanggal'
                               : '${_prettyDate(customRange!.start)} – ${_prettyDate(customRange!.end)}',
                         ),
                         onPressed: () async {
@@ -1506,7 +1508,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     reminderFilter = _ReminderFilter.all;
                     Navigator.pop(dialogContext, true);
                   },
-                  child: const Text('Clear filters'),
+                  child: const Text('Hapus filter'),
                 ),
                 FilledButton(
                   onPressed:
@@ -1514,7 +1516,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                           customRange == null
                       ? null
                       : () => Navigator.pop(dialogContext, true),
-                  child: const Text('Apply'),
+                  child: const Text('Terapkan'),
                 ),
               ],
             ),
@@ -1565,7 +1567,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: <Widget>[
                 Text(
-                  'History · ${item.title}',
+                  'Riwayat · ${item.title}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
@@ -1579,7 +1581,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                 const SizedBox(height: 6),
                 if (activities.isEmpty)
                   const Text(
-                    'No recorded activity yet.',
+                    'Belum ada aktivitas tercatat.',
                     style: TextStyle(color: AppColors.muted),
                   ),
                 ...activities.map((Object? raw) {
@@ -1614,7 +1616,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                 const SizedBox(height: 6),
                 if (deliveries.isEmpty)
                   const Text(
-                    'No email delivery yet.',
+                    'Belum ada pengiriman email.',
                     style: TextStyle(color: AppColors.muted),
                   ),
                 ...deliveries.map((Object? raw) {
@@ -1716,7 +1718,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
       .toList(growable: false);
 
   String _siteFilterLabel() {
-    if (_siteFilterId == null) return 'All accessible sites';
+    if (_siteFilterId == null) return 'Semua lokasi yang dapat diakses';
     for (final _ReminderSite site in _sites) {
       if (site.id == _siteFilterId) return site.name;
     }
@@ -1727,7 +1729,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
     for (final _ReminderSite site in _sites) {
       if (site.id == siteId) return site.name;
     }
-    return 'Assigned site';
+    return 'Lokasi yang ditugaskan';
   }
 
   String _reminderFilterLabel() => switch (_filter) {

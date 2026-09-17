@@ -132,7 +132,7 @@ void main() {
       expect(sheetXml, contains('Tindak lanjut dari'));
       expect(
         sheetXml,
-        contains('MOM Ban Bocor Kendaraan Ringan (23 January 2026)'),
+        contains('MOM Ban Bocor Kendaraan Ringan (23 Januari 2026)'),
       );
       expect(sheetXml, isNot(contains('panel-lvmdp.png')));
       expect(sheetXml, isNot(contains('screenshot-email.png')));

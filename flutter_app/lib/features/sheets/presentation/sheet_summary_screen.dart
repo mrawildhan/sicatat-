@@ -69,7 +69,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
     if (sheetId == null || sheetId.isEmpty) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Inspection sheet not found.';
+        _errorMessage = 'Lembar inspeksi tidak ditemukan.';
       });
       return;
     }
@@ -86,7 +86,9 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
       ]);
       final sheet = results[0] as SheetModel?;
       if (sheet == null) {
-        throw const LocalRecordNotFoundException('Inspection sheet not found.');
+        throw const LocalRecordNotFoundException(
+          'Lembar inspeksi tidak ditemukan.',
+        );
       }
       final entries = await _buildEntries(
         sheetId,
@@ -121,7 +123,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
       });
     } on Object catch (_) {
       if (mounted) {
-        setState(() => _errorMessage = 'Sheet summary could not be loaded.');
+        setState(() => _errorMessage = 'Ringkasan lembar tidak dapat dimuat.');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -161,7 +163,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
             section: section,
             roundNumber: roundNumber,
             entry: 'equipment',
-            label: '${_sectionLabel(section)} - Round $roundNumber - Equipment',
+            label: '${_sectionLabel(section)} - Ronde $roundNumber - Peralatan',
             missing: missing,
           ),
         );
@@ -234,7 +236,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
       if (mounted) {
         setState(
           () =>
-              _errorMessage = 'Sheet could not be submitted. Please try again.',
+              _errorMessage = 'Lembar tidak dapat dikirim. Silakan coba lagi.',
         );
       }
     } finally {
@@ -265,7 +267,8 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _errorMessage = 'Sheet yang belum lengkap tidak dapat dikirim.',
+          () =>
+              _errorMessage = 'Lembar yang belum lengkap tidak dapat dikirim.',
         );
       }
     } finally {
@@ -280,9 +283,9 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Revise submitted sheet?'),
+        title: const Text('Revisi lembar yang sudah dikirim?'),
         content: const Text(
-          'This sheet will return to draft status so you can correct it and submit it again.',
+          'Lembar ini akan kembali menjadi draf sehingga Anda dapat memperbaiki lalu mengirimnya lagi.',
         ),
         actions: <Widget>[
           TextButton(
@@ -291,7 +294,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Reopen draft'),
+            child: const Text('Buka kembali sebagai draf'),
           ),
         ],
       ),
@@ -311,7 +314,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
     } on Object catch (error) {
       if (mounted) {
         setState(
-          () => _errorMessage = 'Sheet tidak dapat dibuka kembali: $error',
+          () => _errorMessage = 'Lembar tidak dapat dibuka kembali: $error',
         );
       }
     } finally {
@@ -326,9 +329,9 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete sheet?'),
+        title: const Text('Hapus lembar?'),
         content: const Text(
-          'This removes the sheet and all of its field entries.',
+          'Tindakan ini menghapus lembar beserta semua isian lapangannya.',
         ),
         actions: <Widget>[
           TextButton(
@@ -337,7 +340,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
+            child: const Text('Hapus'),
           ),
         ],
       ),
@@ -365,7 +368,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
       if (mounted) context.go('/sheets');
     } on Object catch (error) {
       if (mounted) {
-        setState(() => _errorMessage = 'Sheet tidak dapat dihapus: $error');
+        setState(() => _errorMessage = 'Lembar tidak dapat dihapus: $error');
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -429,7 +432,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
             leading: const AppBackButton(fallbackRoute: '/sheets'),
           ),
           body: Center(
-            child: Text(_errorMessage ?? 'Inspection sheet not found.'),
+            child: Text(_errorMessage ?? 'Lembar inspeksi tidak ditemukan.'),
           ),
         ),
       );
@@ -460,7 +463,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         appBar: AppBar(
           leading: const AppBackButton(fallbackRoute: '/sheets'),
           title: const Text(
-            'Sheet summary',
+            'Ringkasan lembar',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
@@ -514,7 +517,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
                   child: ElevatedButton(
                     onPressed: canSubmit && !_isSubmitting ? _submit : null,
                     child: Text(
-                      _isSubmitting ? 'Submitting...' : 'Submit sheet',
+                      _isSubmitting ? 'Mengirim...' : 'Kirim lembar',
                     ),
                   ),
                 ),
@@ -545,10 +548,10 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         Expanded(
           child: Text(
             submitted
-                ? 'Submitted successfully'
+                ? 'Berhasil dikirim'
                 : canSubmit
-                ? 'All required readings are complete'
-                : '${incomplete.length} item(s) need attention. Tap a red card to continue.',
+                ? 'Semua pembacaan wajib sudah lengkap'
+                : '${incomplete.length} isian perlu dilengkapi. Ketuk kartu merah untuk melanjutkan.',
             style: const TextStyle(fontWeight: FontWeight.w800, height: 1.25),
           ),
         ),
@@ -604,8 +607,8 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
                   Expanded(
                     child: Text(
                       complete
-                          ? '${group.entries.length}/${group.entries.length} ready'
-                          : '${incomplete.length} missing · Continue',
+                          ? '${group.entries.length}/${group.entries.length} lengkap'
+                          : '${incomplete.length} kurang · Lanjutkan',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -635,14 +638,14 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
               color: AppColors.green,
             ),
             title: const Text(
-              'Filled by',
+              'Diisi oleh',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
             subtitle: Text('$_contributors person(s)'),
           ),
         ),
         IconButton(
-          tooltip: 'Export PDF / CSV',
+          tooltip: 'Ekspor PDF / CSV',
           onPressed: _isSubmitting
               ? null
               : () => context.go('/sheet-export?sheetId=${widget.sheetId}'),
@@ -661,7 +664,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
   }) => ExpansionTile(
     tilePadding: const EdgeInsets.symmetric(horizontal: 4),
     title: const Text(
-      'More options & history',
+      'Opsi lain & riwayat',
       style: TextStyle(fontWeight: FontWeight.w800),
     ),
     children: <Widget>[
@@ -669,7 +672,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         OutlinedButton.icon(
           onPressed: _isSubmitting ? null : _reopenForCorrection,
           icon: const Icon(Icons.edit_note_rounded),
-          label: const Text('Revise submitted sheet'),
+          label: const Text('Revisi lembar terkirim'),
         ),
       if (canOverride && user != null) _overrideCard(user),
       if (_audit.isNotEmpty) ...<Widget>[
@@ -677,7 +680,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         const Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            'Audit trail',
+            'Jejak audit',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
@@ -700,7 +703,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
             style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
             onPressed: _isSubmitting ? null : _deleteSheet,
             icon: const Icon(Icons.delete_outline_rounded),
-            label: const Text('Delete sheet'),
+            label: const Text('Hapus lembar'),
           ),
         ),
     ],
@@ -719,11 +722,11 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         style: const TextStyle(fontWeight: FontWeight.w700),
       ),
       subtitle: Text(
-        entry.isComplete ? 'Completed' : 'Missing: ${entry.missing.join(', ')}',
+        entry.isComplete ? 'Selesai' : 'Missing: ${entry.missing.join(', ')}',
       ),
       trailing: entry.isComplete
           ? const Text(
-              'Ready',
+              'Lengkap',
               style: TextStyle(
                 color: AppColors.green,
                 fontWeight: FontWeight.w700,
@@ -732,7 +735,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
           : FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
               onPressed: _isSubmitting ? null : () => _openEntry(entry),
-              child: const Text('Continue'),
+              child: const Text('Lanjutkan'),
             ),
     ),
   );
@@ -750,7 +753,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
-          const Text('A reason is required and recorded for audit.'),
+          const Text('Alasan wajib diisi dan dicatat untuk audit.'),
           const SizedBox(height: 12),
           TextField(
             controller: _forceReasonController,
@@ -767,7 +770,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
                 ? null
                 : _forceSubmit,
             icon: const Icon(Icons.warning_amber_rounded),
-            label: const Text('Submit as incomplete'),
+            label: const Text('Kirim sebagai belum lengkap'),
           ),
         ],
       ),

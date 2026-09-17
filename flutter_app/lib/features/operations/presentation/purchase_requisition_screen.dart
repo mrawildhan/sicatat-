@@ -833,7 +833,7 @@ class _PurchaseRequisitionDetail extends StatelessWidget {
                         icon: Icons.local_shipping_outlined,
                         label: 'Barang datang',
                         value: _dateOrDash(item.closedDate),
-                        helper: 'Close Date pada spreadsheet',
+                        helper: 'Tanggal tutup pada lembar kerja',
                       ),
                       _DetailRow(
                         icon: Icons.event_outlined,

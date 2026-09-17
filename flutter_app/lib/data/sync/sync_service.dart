@@ -56,6 +56,8 @@ class SyncService {
               item.operation == SyncOperation.insert &&
               (error.code == '23505' ||
                   error.message.contains('duplicate key value') ||
+                  // Raised by the duplicate-sheet trigger in the database, so
+                  // this must stay in the trigger's own wording.
                   error.message.contains('A sheet already exists'))) {
             await _database.markSyncConflict(item);
             conflicted += 1;

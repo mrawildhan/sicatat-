@@ -105,7 +105,8 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _errorMessage = 'Daftar sheet lokal tidak dapat dimuat.',
+          () =>
+              _errorMessage = 'Daftar lembar di perangkat tidak dapat dimuat.',
         );
       }
     } finally {
@@ -121,18 +122,21 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
     final listTitle =
         user?.role.isGlobalTemperatureManager == true ||
             user?.role.isSiteScopedTemperature == true
-        ? 'Semua sheet'
+        ? 'Semua lembar'
         : user?.role == UserRole.foreman
-        ? 'Sheet tim'
-        : 'Sheet saya';
+        ? 'Lembar regu'
+        : 'Lembar saya';
     final title = widget.showList ? listTitle : 'Suhu';
+    // "Semua sheet" is opened from the Suhu hub, so Back returns there; the
+    // hub itself goes back to the dashboard.
+    final String backRoute = widget.showList ? '/sheets' : '/dashboard';
     return AppBackScope(
-      fallbackRoute: '/dashboard',
+      fallbackRoute: backRoute,
       child: Scaffold(
         appBar: useDesktopHeader
             ? null
             : AppBar(
-                leading: const AppBackButton(fallbackRoute: '/dashboard'),
+                leading: AppBackButton(fallbackRoute: backRoute),
                 title: Text(
                   title,
                   style: const TextStyle(fontWeight: FontWeight.w800),
@@ -149,7 +153,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                         isLabelVisible: _hasFilter,
                         child: const Icon(Icons.tune_rounded),
                       ),
-                      tooltip: 'Filter sheet',
+                      tooltip: 'Filter lembar',
                     ),
                 ],
               ),
@@ -158,7 +162,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
             ? FloatingActionButton.extended(
                 onPressed: () => context.go('/sheets/new'),
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Sheet baru'),
+                label: const Text('Lembar baru'),
               )
             : null,
         body: useDesktopHeader
@@ -192,13 +196,13 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
           ),
         ),
         IconButton(
-          tooltip: 'Muat ulang sheet',
+          tooltip: 'Muat ulang lembar',
           onPressed: _isLoading ? null : _loadSheets,
           icon: const Icon(Icons.refresh_rounded),
         ),
         if (widget.showList)
           IconButton(
-            tooltip: 'Filter sheet',
+            tooltip: 'Filter lembar',
             onPressed: _isLoading ? null : _showFilters,
             icon: Badge(
               isLabelVisible: _hasFilter,
@@ -246,8 +250,8 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
           Center(
             child: Text(
               _hasFilter
-                  ? 'Tidak ada sheet yang cocok dengan filter ini'
-                  : 'Belum ada sheet inspeksi',
+                  ? 'Tidak ada lembar yang cocok dengan filter ini'
+                  : 'Belum ada lembar inspeksi',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
           ),
@@ -255,8 +259,8 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
           Center(
             child: Text(
               _hasFilter
-                  ? 'Ubah atau hapus filter untuk melihat sheet lain.'
-                  : 'Buat sheet baru untuk mulai mencatat suhu.',
+                  ? 'Ubah atau hapus filter untuk melihat lembar lain.'
+                  : 'Buat lembar baru untuk mulai mencatat suhu.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.muted),
             ),
@@ -342,19 +346,21 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Pencatatan, sinkronisasi, monitoring, dan laporan suhu.',
+          'Pencatatan, sinkronisasi, pemantauan, dan laporan suhu.',
           style: TextStyle(color: AppColors.muted, fontSize: 12),
         ),
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) {
             final bool useCompactDesktopCards = constraints.maxWidth >= 700;
-            final columns = useCompactDesktopCards ? 3 : 2;
+            // Three small cards per row on phones so every Suhu action fits
+            // on one screen without scrolling.
+            const int columns = 3;
             final actions = <_TemperatureAction>[
               _TemperatureAction(
                 icon: Icons.description_rounded,
-                title: 'Sheet saya',
-                subtitle: 'Lihat sheet inspeksi',
+                title: 'Lembar saya',
+                subtitle: 'Lihat lembar inspeksi',
                 onTap: () => context.go('/sheets/list'),
               ),
               _TemperatureAction(
@@ -367,14 +373,14 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                 _TemperatureAction(
                   icon: Icons.assignment_late_outlined,
                   title: 'Belum lengkap',
-                  subtitle: 'Sheet perlu dilengkapi',
+                  subtitle: 'Lembar perlu dilengkapi',
                   onTap: () => context.go('/incomplete'),
                 ),
               if (user?.role.canReviewTemperature == true)
                 _TemperatureAction(
                   icon: Icons.monitor_heart_outlined,
-                  title: 'Monitoring',
-                  subtitle: 'Pantau sheet tim',
+                  title: 'Pemantauan',
+                  subtitle: 'Pantau lembar regu',
                   onTap: () => context.go('/monitoring'),
                 ),
               if (user?.role.canReviewTemperature == true)
@@ -397,9 +403,9 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: columns,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: useCompactDesktopCards ? 3.4 : 1.38,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: useCompactDesktopCards ? 3.4 : 1.05,
               ),
               itemCount: actions.length,
               itemBuilder: (_, index) => _temperatureActionCard(
@@ -477,30 +483,32 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                 ],
               ),
             )
-          : Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Icon(action.icon, color: AppColors.green),
-                  const Spacer(),
-                  Text(
-                    action.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    action.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 11,
+          : Tooltip(
+              message: action.subtitle,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    CircleAvatar(
+                      radius: 17,
+                      backgroundColor: AppColors.mint,
+                      child: Icon(
+                        action.icon,
+                        color: AppColors.green,
+                        size: 18,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      action.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.cardTitle.copyWith(height: 1.15),
+                    ),
+                  ],
+                ),
               ),
             ),
     ),
@@ -539,7 +547,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
     child: ListTile(
       leading: const Icon(Icons.filter_alt_rounded, color: AppColors.green),
       title: Text(
-        '$count sheet(s) shown',
+        '$count lembar ditampilkan',
         style: const TextStyle(fontWeight: FontWeight.w800),
       ),
       subtitle: Text(_filterDescription),
@@ -549,19 +557,19 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
           _toDate = null;
           _statusFilter = _SheetListStatusFilter.all;
         }),
-        child: const Text('Clear'),
+        child: const Text('Hapus'),
       ),
     ),
   );
 
   String get _filterDescription {
     final date = _fromDate == null && _toDate == null
-        ? 'Any date'
-        : '${_fromDate == null ? 'Start' : DateFormat('dd MMM yyyy').format(_fromDate!)} – ${_toDate == null ? 'Today' : DateFormat('dd MMM yyyy').format(_toDate!)}';
+        ? 'Semua tanggal'
+        : '${_fromDate == null ? 'Mulai' : DateFormat('dd MMM yyyy').format(_fromDate!)} – ${_toDate == null ? 'Hari ini' : DateFormat('dd MMM yyyy').format(_toDate!)}';
     final status = switch (_statusFilter) {
-      _SheetListStatusFilter.all => 'All statuses',
-      _SheetListStatusFilter.draft => 'Draft / not submitted',
-      _SheetListStatusFilter.submitted => 'Submitted',
+      _SheetListStatusFilter.all => 'Semua status',
+      _SheetListStatusFilter.draft => 'Draf / belum dikirim',
+      _SheetListStatusFilter.submitted => 'Terkirim',
     };
     return '$date · $status';
   }
@@ -574,7 +582,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setModalState) => AlertDialog(
-          title: const Text('Filter sheets'),
+          title: const Text('Filter lembar'),
           content: SizedBox(
             width: double.maxFinite,
             child: SingleChildScrollView(
@@ -584,14 +592,14 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                 children: <Widget>[
                   _filterDateTile(
                     context,
-                    'From date',
+                    'Tanggal mulai',
                     from,
                     (value) => setModalState(() => from = value),
                   ),
                   const SizedBox(height: 12),
                   _filterDateTile(
                     context,
-                    'To date',
+                    'Tanggal akhir',
                     to,
                     (value) => setModalState(() => to = value),
                   ),
@@ -599,20 +607,20 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                   DropdownButtonFormField<_SheetListStatusFilter>(
                     initialValue: status,
                     decoration: const InputDecoration(
-                      labelText: 'Sheet status',
+                      labelText: 'Status lembar',
                     ),
                     items: const <DropdownMenuItem<_SheetListStatusFilter>>[
                       DropdownMenuItem(
                         value: _SheetListStatusFilter.all,
-                        child: Text('All statuses'),
+                        child: Text('Semua status'),
                       ),
                       DropdownMenuItem(
                         value: _SheetListStatusFilter.draft,
-                        child: Text('Draft / not submitted'),
+                        child: Text('Draf / belum dikirim'),
                       ),
                       DropdownMenuItem(
                         value: _SheetListStatusFilter.submitted,
-                        child: Text('Submitted'),
+                        child: Text('Terkirim'),
                       ),
                     ],
                     onChanged: (value) =>
@@ -629,7 +637,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                 to = null;
                 status = _SheetListStatusFilter.all;
               }),
-              child: const Text('Clear'),
+              child: const Text('Hapus'),
             ),
             ElevatedButton(
               onPressed: from != null && to != null && from!.isAfter(to!)
@@ -642,7 +650,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                       });
                       Navigator.pop(dialogContext);
                     },
-              child: const Text('Apply'),
+              child: const Text('Terapkan'),
             ),
           ],
         ),
@@ -660,7 +668,9 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       leading: const Icon(Icons.calendar_month_rounded, color: AppColors.green),
       title: Text(title),
       subtitle: Text(
-        value == null ? 'Any date' : DateFormat('dd MMM yyyy').format(value),
+        value == null
+            ? 'Semua tanggal'
+            : DateFormat('dd MMM yyyy').format(value),
       ),
       trailing: value == null
           ? const Icon(Icons.chevron_right_rounded)
@@ -687,11 +697,11 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       SheetSyncStatus.conflict => SyncState.conflict,
     };
     final detail = switch (sheet.status) {
-      SheetStatus.draft => 'Draft - continue entry',
-      SheetStatus.submitted => 'Submitted - tap to view or revise',
-      SheetStatus.submittedIncomplete => 'Submitted as incomplete',
+      SheetStatus.draft => 'Draf - lanjutkan pengisian',
+      SheetStatus.submitted => 'Terkirim - ketuk untuk melihat atau merevisi',
+      SheetStatus.submittedIncomplete => 'Terkirim belum lengkap',
       SheetStatus.verified => 'Verified',
-      SheetStatus.returned => 'Returned for correction',
+      SheetStatus.returned => 'Dikembalikan untuk diperbaiki',
     };
     final destination =
         sheet.status == SheetStatus.draft ||
@@ -733,7 +743,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                       children: <Widget>[
                         Text(
                           displayShiftName(
-                            _shiftNames[sheet.shiftId] ?? 'Shift tersimpan',
+                            _shiftNames[sheet.shiftId] ?? 'Sif tersimpan',
                           ),
                           style: const TextStyle(color: AppColors.muted),
                         ),

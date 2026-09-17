@@ -76,7 +76,7 @@ extension UserRoleX on UserRole {
   };
 
   String get label => switch (this) {
-    UserRole.crew => 'Crew',
+    UserRole.crew => 'Kru',
     UserRole.foreman => 'Foreman',
     UserRole.supervisorCop => 'Supervisor COP',
     UserRole.supervisorSmg => 'Supervisor SMG',

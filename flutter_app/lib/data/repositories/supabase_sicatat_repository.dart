@@ -22,7 +22,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
   Future<AppUser> signIn({required String nik, required String pin}) async {
     final normalizedNik = nik.trim();
     if (normalizedNik.isEmpty || pin.isEmpty) {
-      throw const FormatException('Crew ID dan password wajib diisi.');
+      throw const FormatException('NIK dan kata sandi wajib diisi.');
     }
 
     try {
@@ -40,10 +40,10 @@ class SupabaseSicatatRepository implements SicatatRepository {
           .single();
       return AppUser.fromJson(requireJsonMap(row, source: 'profil pengguna'));
     } on AuthException {
-      throw const FormatException('Crew ID atau password tidak sesuai.');
+      throw const FormatException('NIK atau kata sandi tidak sesuai.');
     } on PostgrestException {
       await client.auth.signOut();
-      throw const FormatException('Crew ID atau password tidak sesuai.');
+      throw const FormatException('NIK atau kata sandi tidak sesuai.');
     }
   }
 
@@ -77,7 +77,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
         .order('code', ascending: true);
     if (response is! List) {
       throw const FormatException(
-        'Server mengembalikan daftar shift yang tidak valid.',
+        'Server mengembalikan daftar sif yang tidak valid.',
       );
     }
     final shifts = response
@@ -265,7 +265,7 @@ class SupabaseSicatatRepository implements SicatatRepository {
     }
     if (response is! List) {
       throw const FormatException(
-        'Server mengembalikan daftar sheet yang tidak valid.',
+        'Server mengembalikan daftar lembar yang tidak valid.',
       );
     }
     return response

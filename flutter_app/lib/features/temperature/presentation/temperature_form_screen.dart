@@ -105,7 +105,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
     if (sheetId == null || sheetId.isEmpty) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Sheet inspeksi tidak ditemukan.';
+        _errorMessage = 'Lembar inspeksi tidak ditemukan.';
       });
       return;
     }
@@ -121,18 +121,18 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
       final sheet = results[0] as SheetModel?;
       if (sheet == null) {
         throw const LocalRecordNotFoundException(
-          'Sheet inspeksi tidak ditemukan.',
+          'Lembar inspeksi tidak ditemukan.',
         );
       }
       if (sheet.status == SheetStatus.verified) {
         throw const FormatException(
-          'Sheet ini telah diverifikasi dan terkunci. Minta supervisor mengembalikannya sebelum mengubah data.',
+          'Lembar ini telah diverifikasi dan terkunci. Minta supervisor mengembalikannya sebelum mengubah data.',
         );
       }
       if (sheet.status == SheetStatus.submitted ||
           sheet.status == SheetStatus.submittedIncomplete) {
         throw const FormatException(
-          'Buka kembali sheet yang telah dikirim dari Ringkasan Sheet sebelum mengubah data.',
+          'Buka kembali lembar yang telah dikirim dari Ringkasan lembar sebelum mengubah data.',
         );
       }
       final config = results[1] as InspectionFormConfig;
@@ -543,7 +543,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                _errorMessage ?? 'Sheet inspeksi tidak ditemukan.',
+                _errorMessage ?? 'Lembar inspeksi tidak ditemukan.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.danger),
               ),
@@ -561,7 +561,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
           ),
           title: Text(
             _showEquipment
-                ? '$_sectionLabel - Round $_roundNumber'
+                ? '$_sectionLabel - Ronde $_roundNumber'
                 : 'Suhu $_sectionLabel',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
@@ -590,7 +590,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Anda dapat menyimpan draf sebagian dan melanjutkannya. Ringkasan Sheet menunjukkan setiap titik wajib yang masih kosong.',
+                      'Anda dapat menyimpan draf sebagian dan melanjutkannya. Ringkasan lembar menunjukkan setiap titik wajib yang masih kosong.',
                       style: TextStyle(color: AppColors.muted),
                     ),
                     const SizedBox(height: 16),
@@ -627,7 +627,7 @@ class _TemperatureFormScreenState extends ConsumerState<TemperatureFormScreen> {
                       _reasonField()
                     else
                       _notice(
-                        'Pilih status untuk sisi ini. Sheet tidak dapat dikirim selama masih ada sisi yang belum diisi.',
+                        'Pilih status untuk sisi ini. Lembar tidak dapat dikirim selama masih ada sisi yang belum diisi.',
                       ),
                   ],
                 ],

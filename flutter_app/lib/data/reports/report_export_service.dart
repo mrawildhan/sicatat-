@@ -53,9 +53,9 @@ class ReportRow {
   bool get isHighTemperature => (temperatureCelsius ?? -double.infinity) >= 60;
 
   String get alertLabel {
-    if (isCriticalTemperature) return 'CRITICAL >=70°C';
-    if (isHighTemperature) return 'HIGH 60-69°C';
-    if (isAnomaly) return 'REVIEW REQUIRED';
+    if (isCriticalTemperature) return 'KRITIS >=70°C';
+    if (isHighTemperature) return 'TINGGI 60-69°C';
+    if (isAnomaly) return 'PERLU DITINJAU';
     return '';
   }
 }
@@ -109,7 +109,7 @@ class ReportExportService {
           .select('id,tanggal,status,team:team_id(name),shift:shift_id(name)')
           .eq('id', sheetId);
     } else if (from == null || to == null) {
-      throw ArgumentError('A date range or sheet ID is required.');
+      throw ArgumentError('Rentang tanggal atau ID lembar wajib diisi.');
     } else if (teamId == null) {
       response = await _client
           .from('sheet')
@@ -224,7 +224,7 @@ class ReportExportService {
       rows.add(
         ReportRow(
           date: sheet.requiredString('tanggal'),
-          team: team?.optionalString('name') ?? 'Unassigned',
+          team: team?.optionalString('name') ?? 'Tanpa regu',
           shift: displayShiftName(shift?.optionalString('name') ?? '—'),
           section: _section(round.requiredString('section')),
           round: round.requiredInt('round_number'),
@@ -262,7 +262,7 @@ class ReportExportService {
       rows.add(
         ReportRow(
           date: sheet.requiredString('tanggal'),
-          team: team?.optionalString('name') ?? 'Unassigned',
+          team: team?.optionalString('name') ?? 'Tanpa regu',
           shift: displayShiftName(shift?.optionalString('name') ?? '—'),
           section: _section(round.requiredString('section')),
           round: round.requiredInt('round_number'),
@@ -293,23 +293,23 @@ class ReportExportService {
   String toCsv(ReportExportResult result) {
     final List<List<String>> data = <List<String>>[
       <String>[
-        'Date',
-        'Team',
-        'Shift',
-        'Section',
-        'Round',
-        'Time',
-        'Side',
-        'Unit Status',
-        'Equipment',
-        'Measurement Point',
-        'Value',
-        'Unit',
-        'Recorded By',
-        'Sheet Status',
-        'Temperature Alert',
-        'Anomaly',
-        'Anomaly Note',
+        'Tanggal',
+        'Regu',
+        'Sif',
+        'Bagian',
+        'Ronde',
+        'Jam',
+        'Sisi',
+        'Status Unit',
+        'Peralatan',
+        'Titik Ukur',
+        'Nilai',
+        'Satuan',
+        'Dicatat Oleh',
+        'Status Lembar',
+        'Peringatan Suhu',
+        'Anomali',
+        'Catatan Anomali',
       ],
       ...result.rows.map(
         (ReportRow row) => <String>[
@@ -328,7 +328,7 @@ class ReportExportService {
           row.recordedBy,
           row.sheetStatus,
           row.alertLabel,
-          row.isAnomaly ? 'Yes' : '',
+          row.isAnomaly ? 'Ya' : '',
           // Older rounds copied the note onto normal readings too.
           row.isAnomaly ? row.anomalyNote ?? '' : '',
         ],
@@ -359,22 +359,22 @@ class ReportExportService {
       ? 'Gearbox Sizer'
       : value;
   String _side(String? value) => value == 'BARAT'
-      ? 'West'
+      ? 'Barat'
       : value == 'TIMUR'
-      ? 'East'
+      ? 'Timur'
       : value ?? '';
   String _status(String? value) => value == 'beroperasi'
-      ? 'Operating'
+      ? 'Beroperasi'
       : value == 'tidak_beroperasi'
-      ? 'Not operating'
+      ? 'Tidak beroperasi'
       : value == 'tidak_dapat_diakses'
-      ? 'Not accessible'
+      ? 'Tidak dapat diakses'
       : value ?? '';
   String _value(JsonMap row) {
     final Object? numeric = row['value_numeric'];
     if (numeric is num) return numeric.toString();
     final Object? boolean = row['value_boolean'];
-    if (boolean is bool) return boolean ? 'OK' : 'Low';
+    if (boolean is bool) return boolean ? 'OK' : 'Rendah';
     return row.optionalString('value_text') ?? '';
   }
 }

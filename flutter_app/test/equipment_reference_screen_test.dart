@@ -10,7 +10,7 @@ void main() {
       const MaterialApp(home: EquipmentReferenceScreen()),
     );
 
-    expect(find.text('Cari equipment'), findsOneWidget);
+    expect(find.text('Cari alat'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'ADS01');
     await tester.pump();
 

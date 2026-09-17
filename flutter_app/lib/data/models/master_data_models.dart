@@ -25,12 +25,12 @@ String displayShiftName(String value) {
     case 'shift pagi':
     case 'day':
     case 'day shift':
-      return 'Day shift';
+      return 'Sif Pagi';
     case 'malam':
     case 'shift malam':
     case 'night':
     case 'night shift':
-      return 'Night shift';
+      return 'Sif Malam';
     default:
       return value;
   }
@@ -248,7 +248,7 @@ class InspectionFormConfig {
     if (value < -50 || value > 250) {
       return const TemperatureAssessment(
         level: TemperatureAlertLevel.invalid,
-        message: 'Outside the accepted physical range (-50 to 250 °C).',
+        message: 'Di luar rentang fisik yang diterima (-50 sampai 250 °C).',
       );
     }
     final threshold = thresholdFor(point.id);
@@ -261,18 +261,18 @@ class InspectionFormConfig {
     if (value >= alarmAtOrAbove) {
       return const TemperatureAssessment(
         level: TemperatureAlertLevel.critical,
-        message: 'Critical: exceeds the alarm threshold.',
+        message: 'Kritis: melewati batas alarm.',
       );
     }
     if (value >= warningAtOrAbove) {
       return const TemperatureAssessment(
         level: TemperatureAlertLevel.warning,
-        message: 'Warning: outside the normal temperature range.',
+        message: 'Peringatan: di luar rentang suhu normal.',
       );
     }
     return const TemperatureAssessment(
       level: TemperatureAlertLevel.normal,
-      message: 'Within the configured normal range.',
+      message: 'Dalam rentang normal yang ditetapkan.',
     );
   }
 }

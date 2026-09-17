@@ -29,7 +29,9 @@ class MeetingMinutePhotoCompressor {
       decoded = null;
     }
     if (decoded == null) {
-      throw const FormatException('Unable to read the JPG, JPEG or PNG photo.');
+      throw const FormatException(
+        'Foto JPG, JPEG, atau PNG tidak dapat dibaca.',
+      );
     }
     final bool isRotated =
         decoded.exif.imageIfd.hasOrientation &&

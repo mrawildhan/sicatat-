@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/sicatat_types.dart';
 
 String _roleLabel(String role) => switch (role) {
-  'crew' => 'Crew',
+  'crew' => 'Kru',
   'foreman' => 'Foreman',
   'supervisor_cop' => 'Supervisor COP',
   'supervisor_smg' || 'supervisor' => 'Supervisor SMG',
@@ -232,7 +232,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       return;
     }
     if (_roleNeedsTeam && _teamId == null) {
-      _message('Regu wajib dipilih untuk pengguna crew dan foreman.');
+      _message('Regu wajib dipilih untuk pengguna kru dan foreman.');
       return;
     }
     if (_roleNeedsSite && _siteId == null) {

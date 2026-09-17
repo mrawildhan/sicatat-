@@ -143,7 +143,9 @@ class _HighTemperatureReportScreenState
 
   Future<void> _load() async {
     if (_from.isAfter(_to)) {
-      setState(() => _error = 'Start date cannot be after end date.');
+      setState(
+        () => _error = 'Tanggal mulai tidak boleh setelah tanggal akhir.',
+      );
       return;
     }
     setState(() {
@@ -252,12 +254,12 @@ class _HighTemperatureReportScreenState
         result.add(
           _HighTemperatureRow(
             date: sheet.requiredString('tanggal'),
-            team: team?.optionalString('name') ?? 'Unassigned',
+            team: team?.optionalString('name') ?? 'Tanpa regu',
             shift: shift?.optionalString('code') ?? '—',
             section: _section(round.requiredString('section')),
             round: round.requiredInt('round_number'),
             side: _side(unit?.optionalString('unit_code')),
-            point: point?.optionalString('label') ?? 'Unknown point',
+            point: point?.optionalString('label') ?? 'Titik tidak dikenal',
             value: rawValue.toDouble(),
             unit: point?.optionalString('unit') ?? '°C',
             recordedBy:
@@ -285,29 +287,29 @@ class _HighTemperatureReportScreenState
       ? 'Gearbox Sizer'
       : value;
   String _side(String? value) => value == 'BARAT'
-      ? 'West'
+      ? 'Barat'
       : value == 'TIMUR'
-      ? 'East'
+      ? 'Timur'
       : value ?? '—';
 
   @override
   Widget build(BuildContext context) => AppBackScope(
-    fallbackRoute: '/dashboard',
+    fallbackRoute: '/sheets',
     child: Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(fallbackRoute: '/dashboard'),
-        title: const Text('High temperature report'),
+        leading: const AppBackButton(fallbackRoute: '/sheets'),
+        title: const Text('Laporan Suhu Tinggi'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: <Widget>[
           const Text(
-            'All temperature readings at or above 60°C, across synced sheets.',
+            'Semua pembacaan suhu 60 °C ke atas dari lembar yang sudah tersinkron.',
           ),
           const SizedBox(height: 16),
-          _dateTile('From', _from, () => _pick(true)),
+          _dateTile('Tanggal mulai', _from, () => _pick(true)),
           const SizedBox(height: 10),
-          _dateTile('To', _to, () => _pick(false)),
+          _dateTile('Tanggal akhir', _to, () => _pick(false)),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
             key: const ValueKey<String>('high-temperature-team'),
@@ -315,7 +317,7 @@ class _HighTemperatureReportScreenState
             items: <DropdownMenuItem<String>>[
               const DropdownMenuItem<String>(
                 value: null,
-                child: Text('All teams'),
+                child: Text('Semua regu'),
               ),
               ..._teams.map(
                 (team) => DropdownMenuItem<String>(
@@ -325,7 +327,7 @@ class _HighTemperatureReportScreenState
               ),
             ],
             onChanged: (String? value) => setState(() => _teamId = value),
-            decoration: const InputDecoration(labelText: 'Team'),
+            decoration: const InputDecoration(labelText: 'Regu'),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
@@ -339,7 +341,7 @@ class _HighTemperatureReportScreenState
                     ),
                   )
                 : const Icon(Icons.thermostat_rounded),
-            label: Text(_loading ? 'Loading...' : 'Load report'),
+            label: Text(_loading ? 'Memuat...' : 'Tampilkan laporan'),
           ),
           if (_error != null)
             Padding(
@@ -350,7 +352,7 @@ class _HighTemperatureReportScreenState
             Padding(
               padding: const EdgeInsets.only(top: 18, bottom: 8),
               child: Text(
-                '${_rows.length} reading(s) found.',
+                '${_rows.length} pembacaan ditemukan.',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -386,7 +388,7 @@ class _HighTemperatureReportScreenState
             ),
           ),
           subtitle: Text(
-            '${row.date} · ${row.team} · ${row.shift}\n${row.section}, Round ${row.round} · ${row.side} · ${row.point}\nRecorded by ${row.recordedBy}',
+            '${row.date} · ${row.team} · ${row.shift}\n${row.section}, Ronde ${row.round} · ${row.side} · ${row.point}\nDicatat oleh ${row.recordedBy}',
           ),
           isThreeLine: true,
         ),

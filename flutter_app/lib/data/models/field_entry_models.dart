@@ -102,7 +102,7 @@ class ReadingCommand {
     this.anomalyNote,
   }) : assert(
          valueNumeric != null || valueBoolean != null || valueText != null,
-         'A reading needs a value.',
+         'Pembacaan wajib memiliki nilai.',
        );
 
   final String roundId;
@@ -180,8 +180,8 @@ class ExpectedSide {
     final sectionLabel = section == InspectionSection.gearboxBreaker
         ? 'Gearbox Breaker'
         : 'Gearbox Sizer';
-    final sideLabel = unitCode == 'BARAT' ? 'West' : 'East';
-    return '$sectionLabel • Round $roundNumber • $sideLabel';
+    final sideLabel = unitCode == 'BARAT' ? 'Barat' : 'Timur';
+    return '$sectionLabel • Ronde $roundNumber • $sideLabel';
   }
 }
 

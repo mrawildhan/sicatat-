@@ -28,7 +28,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Gudang'), findsOneWidget);
       expect(find.text('Pusat Dokumen'), findsOneWidget);
-      expect(find.text('Equipment Reference'), findsOneWidget);
+      expect(find.text('Referensi Alat'), findsOneWidget);
       expect(find.byType(GridView), findsOneWidget);
       expect(find.byType(ListTile), findsNothing);
     },

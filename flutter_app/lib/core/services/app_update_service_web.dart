@@ -43,5 +43,5 @@ class AppUpdateService {
   }
 
   Future<AppInstallerResult> downloadAndInstall(AppRelease release) =>
-      throw UnsupportedError('Browser updates are delivered by the website.');
+      throw UnsupportedError('Versi web diperbarui langsung dari situs.');
 }

@@ -110,12 +110,12 @@ class _FormTemplateManagementScreenState
           .eq('id', id);
       if (mounted) {
         setState(
-          () => _message = 'Template tersimpan. Sheet baru memakai urutan ini.',
+          () => _message = 'Templat tersimpan. Lembar baru memakai urutan ini.',
         );
       }
     } on Object catch (error) {
       if (mounted) {
-        setState(() => _message = 'Template tidak dapat disimpan: $error');
+        setState(() => _message = 'Templat tidak dapat disimpan: $error');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -143,7 +143,7 @@ class _FormTemplateManagementScreenState
                 DropdownButtonFormField<int>(
                   initialValue: _roundCount,
                   decoration: const InputDecoration(
-                    labelText: 'Jumlah ronde per shift',
+                    labelText: 'Jumlah ronde per sif',
                   ),
                   items: <int>[1, 2]
                       .map(
@@ -159,7 +159,7 @@ class _FormTemplateManagementScreenState
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Preview',
+                  'Pratinjau',
                   style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
                 ),
                 const SizedBox(height: 8),

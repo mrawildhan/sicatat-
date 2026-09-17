@@ -38,13 +38,13 @@ void main() {
   test('rejects text that is not a number instead of saving null', () {
     expect(
       _validate(warningMin: 'abc').error,
-      'Warning minimum harus berupa angka.',
+      'Peringatan minimum harus berupa angka.',
     );
     expect(_validate(alarmMin: '-').error, 'Alarm minimum harus berupa angka.');
   });
 
   test('requires at least one limit and a source note', () {
-    expect(_validate().error, 'Isi minimal satu batas warning atau alarm.');
+    expect(_validate().error, 'Isi minimal satu batas peringatan atau alarm.');
     expect(
       _validate(alarmMin: '75', sourceNote: '  ').error,
       'Sumber atau referensi engineering wajib diisi.',

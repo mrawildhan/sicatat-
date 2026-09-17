@@ -37,7 +37,7 @@ class _IncompleteSheet {
       id: json.requiredString('id'),
       date: json.requiredString('tanggal'),
       status: json.requiredString('status'),
-      teamName: team?.optionalString('name') ?? 'Unassigned',
+      teamName: team?.optionalString('name') ?? 'Tanpa regu',
       shiftCode: shift?.optionalString('code') ?? '—',
       completed: completed,
     );
@@ -158,12 +158,12 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
     final bool useDesktopHeader =
         kIsWeb && MediaQuery.sizeOf(context).width >= 920;
     return AppBackScope(
-      fallbackRoute: '/dashboard',
+      fallbackRoute: '/sheets',
       child: Scaffold(
         appBar: useDesktopHeader
             ? null
             : AppBar(
-                leading: const AppBackButton(fallbackRoute: '/dashboard'),
+                leading: const AppBackButton(fallbackRoute: '/sheets'),
                 title: const Text('Lembar belum selesai'),
                 actions: <Widget>[
                   IconButton(

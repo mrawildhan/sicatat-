@@ -378,7 +378,7 @@ class _OutstandingMaintenanceScreenState
       isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => _PreventiveMaintenanceListSheet(
-        title: 'PM Crew $crew · $site',
+        title: 'PM Kru $crew · $site',
         items: items,
       ),
     );
@@ -398,7 +398,7 @@ class _OutstandingMaintenanceScreenState
 
   @override
   Widget build(BuildContext context) => _OperationalSectionPage(
-    title: 'Outstanding PM & CM',
+    title: 'PM & CM Tertunda',
     icon: Icons.pending_actions_outlined,
     child: _OutstandingMaintenanceBody(
       items: _items,
@@ -686,11 +686,14 @@ class _OperationalSectionPage extends StatelessWidget {
               ),
         floatingActionButton: floatingActionButton,
         body: ListView(
+          // Room for the floating button only when the page has one, so
+          // pages without it (Anggaran) do not scroll for nothing.
           padding: EdgeInsets.fromLTRB(
             20,
-            useDesktopHeader ? 18 : 20,
+            useDesktopHeader ? 18 : 16,
             20,
-            120 + MediaQuery.paddingOf(context).bottom,
+            (floatingActionButton == null ? 20 : 120) +
+                MediaQuery.paddingOf(context).bottom,
           ),
           children: <Widget>[
             if (useDesktopHeader) ...<Widget>[
@@ -760,9 +763,9 @@ class _BudgetOverviewBody extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text('Asam-Asam', style: _budgetSectionTitleStyle),
-                  SizedBox(height: 4),
+                  SizedBox(height: 2),
                   Text(
-                    'Budget dan aktual USD · Januari–Juni 2026',
+                    'Anggaran dan realisasi USD · Januari–Juni 2026',
                     style: _budgetLabelStyle,
                   ),
                 ],
@@ -770,19 +773,20 @@ class _BudgetOverviewBody extends StatelessWidget {
             ),
             IconButton(
               onPressed: onRefresh,
+              visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.refresh_rounded),
               tooltip: 'Perbarui data',
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         _BudgetMetricLayout(
           budget: summary.budgetUsd,
           actual: summary.actualUsd,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
         const Text('Ringkasan per lokasi', style: _budgetSectionTitleStyle),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Row(
           children: <Widget>[
             Expanded(
@@ -791,7 +795,7 @@ class _BudgetOverviewBody extends StatelessWidget {
                 months: summary.forSite('CPP'),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Expanded(
               child: _BudgetSiteCard(
                 site: 'PORT',
@@ -800,24 +804,28 @@ class _BudgetOverviewBody extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 18),
-        _BudgetActionCard(
-          icon: Icons.calendar_month_rounded,
-          title: 'Realisasi per bulan',
-          subtitle: 'Lihat budget, aktual, dan sisa tiap bulan',
-          onTap: onOpenMonthly,
+        const SizedBox(height: 12),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: _BudgetActionCard(
+                icon: Icons.calendar_month_rounded,
+                title: 'Realisasi per bulan',
+                onTap: onOpenMonthly,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _BudgetActionCard(
+                icon: Icons.search_rounded,
+                title: 'Rincian anggaran',
+                onTap: items.isEmpty ? null : onBrowseItems,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
-        _BudgetActionCard(
-          icon: Icons.search_rounded,
-          title: 'Rincian anggaran',
-          subtitle: items.isEmpty
-              ? 'Data item akan tersedia setelah diperbarui'
-              : 'Cari item, pemakaian terbesar, atau overbudget',
-          onTap: items.isEmpty ? null : onBrowseItems,
-        ),
-        const SizedBox(height: 14),
-        _BudgetSourceCard(syncedAt: summary.syncedAt),
+        _BudgetSourceLine(syncedAt: summary.syncedAt),
       ],
     );
   }
@@ -879,13 +887,14 @@ class _BudgetSiteCard extends StatelessWidget {
     final bool overBudget = actual > budget;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Row(
               children: <Widget>[
                 CircleAvatar(
+                  radius: 15,
                   backgroundColor: AppColors.mint,
                   child: Text(
                     site == 'CPP' ? 'C' : 'P',
@@ -902,7 +911,7 @@ class _BudgetSiteCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
@@ -915,12 +924,12 @@ class _BudgetSiteCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: _budgetLabelStyle,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(99),
               child: LinearProgressIndicator(
                 value: usage,
-                minHeight: 8,
+                minHeight: 6,
                 backgroundColor: AppColors.mint,
                 color: overBudget ? AppColors.danger : AppColors.green,
               ),
@@ -943,17 +952,16 @@ class _BudgetSiteCard extends StatelessWidget {
   }
 }
 
+/// Small centred shortcut, matching the Operasional menu tiles.
 class _BudgetActionCard extends StatelessWidget {
   const _BudgetActionCard({
     required this.icon,
     required this.title,
-    required this.subtitle,
     this.onTap,
   });
 
   final IconData icon;
   final String title;
-  final String subtitle;
   final VoidCallback? onTap;
 
   @override
@@ -962,25 +970,26 @@ class _BudgetActionCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(22),
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        child: Column(
           children: <Widget>[
             CircleAvatar(
+              radius: 17,
               backgroundColor: AppColors.mint,
-              child: Icon(icon, color: AppColors.green),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(title, style: _budgetCardTitleStyle),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: _budgetLabelStyle),
-                ],
+              child: Icon(
+                icon,
+                size: 18,
+                color: onTap == null ? AppColors.muted : AppColors.green,
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.cardTitle,
+            ),
           ],
         ),
       ),
@@ -988,27 +997,37 @@ class _BudgetActionCard extends StatelessWidget {
   );
 }
 
-class _BudgetSourceCard extends StatelessWidget {
-  const _BudgetSourceCard({this.syncedAt});
+/// Where the figures come from, kept to one line so the page fits a phone.
+class _BudgetSourceLine extends StatelessWidget {
+  const _BudgetSourceLine({this.syncedAt});
 
   final DateTime? syncedAt;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: ListTile(
-      leading: const CircleAvatar(
-        backgroundColor: AppColors.mint,
-        child: Icon(Icons.table_chart_outlined, color: AppColors.green),
-      ),
-      title: const Text('Sumber data', style: _budgetCardTitleStyle),
-      subtitle: Text(
-        syncedAt == null
-            ? 'Budget 3271/3275 dan aktual CPP/PORT'
-            : 'Diperbarui ${DateFormat('dd/MM/yyyy HH:mm').format(syncedAt!.toLocal())}',
-        style: _budgetLabelStyle,
-      ),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final DateTime? synced = syncedAt;
+    return Row(
+      children: <Widget>[
+        const Icon(
+          Icons.table_chart_outlined,
+          size: 14,
+          color: AppColors.muted,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            synced == null
+                ? 'Sumber: anggaran 3271/3275 dan realisasi CPP/PORT'
+                : 'Sumber spreadsheet, diperbarui '
+                      '${DateFormat('dd/MM/yyyy HH:mm').format(synced.toLocal())}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.supporting,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 String _usd(double value) =>
@@ -1202,10 +1221,10 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const Text('PM per crew & lokasi', style: AppTextStyles.sectionTitle),
+        const Text('PM per kru & lokasi', style: AppTextStyles.sectionTitle),
         const SizedBox(height: 5),
         const Text(
-          'Pilih crew untuk membuka daftar PM layar penuh.',
+          'Pilih kru untuk membuka daftar PM layar penuh.',
           style: TextStyle(color: AppColors.muted, height: 1.35),
         ),
         const SizedBox(height: 12),
@@ -1226,19 +1245,19 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
                   children: <Widget>[
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Crew A',
+                      title: 'Kru A',
                       count: _countPm('A', 'CPP'),
                       onTap: () => onOpenPmSection('A', 'CPP'),
                     ),
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Crew B',
+                      title: 'Kru B',
                       count: _countPm('B', 'CPP'),
                       onTap: () => onOpenPmSection('B', 'CPP'),
                     ),
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Crew C',
+                      title: 'Kru C',
                       count: _countPm('C', 'CPP'),
                       onTap: () => onOpenPmSection('C', 'CPP'),
                     ),
@@ -1252,19 +1271,19 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
                   children: <Widget>[
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Crew A',
+                      title: 'Kru A',
                       count: _countPm('A', 'PORT'),
                       onTap: () => onOpenPmSection('A', 'PORT'),
                     ),
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Crew B',
+                      title: 'Kru B',
                       count: _countPm('B', 'PORT'),
                       onTap: () => onOpenPmSection('B', 'PORT'),
                     ),
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Crew C',
+                      title: 'Kru C',
                       count: _countPm('C', 'PORT'),
                       onTap: () => onOpenPmSection('C', 'PORT'),
                     ),
@@ -2441,7 +2460,7 @@ class _PreventiveMaintenanceListSheetState
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${_filteredItems.length} dari ${widget.items.length} work order outstanding',
+                        '${_filteredItems.length} dari ${widget.items.length} perintah kerja tertunda',
                         style: const TextStyle(color: Colors.white70),
                       ),
                     ],
@@ -2461,7 +2480,8 @@ class _PreventiveMaintenanceListSheetState
               onChanged: (String value) => setState(() => _searchQuery = value),
               textInputAction: TextInputAction.search,
               decoration: const InputDecoration(
-                hintText: 'Cari work order, pekerjaan, aset, crew, atau lokasi',
+                hintText:
+                    'Cari perintah kerja, pekerjaan, aset, kru, atau lokasi',
                 prefixIcon: Icon(Icons.search_rounded, color: AppColors.green),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(vertical: 14),
@@ -2516,7 +2536,7 @@ class _EmptyPmList extends StatelessWidget {
   Widget build(BuildContext context) => const Card(
     child: Padding(
       padding: EdgeInsets.all(16),
-      child: Text('Tidak ada PM outstanding yang sesuai pencarian.'),
+      child: Text('Tidak ada PM tertunda yang sesuai pencarian.'),
     ),
   );
 }
@@ -2600,7 +2620,7 @@ class _CorrectiveMaintenanceListSheetState
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${_filteredItems.length} dari ${widget.items.length} work order outstanding',
+                        '${_filteredItems.length} dari ${widget.items.length} perintah kerja tertunda',
                         style: const TextStyle(color: Colors.white70),
                       ),
                     ],
@@ -2709,7 +2729,7 @@ class _PreventiveMaintenanceTile extends StatelessWidget {
             const SizedBox(height: 4),
             _PmDetail(
               icon: Icons.location_on_outlined,
-              text: '${item.site} • Crew ${item.crew}',
+              text: '${item.site} • Kru ${item.crew}',
             ),
           ],
         ),
@@ -2953,22 +2973,21 @@ class _BudgetMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 10),
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 4),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: _budgetLabelStyle,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
             child: Text(value, style: _budgetAmountStyle),
           ),
         ],
@@ -3032,7 +3051,7 @@ class _MeetingMinuteTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDraft = item.status == MeetingMinuteStatus.draft;
     final String date = item.meetingDate == null
-        ? 'Date not set'
+        ? 'Tanggal belum diisi'
         : _momDate(item.meetingDate!);
     return Card(
       child: ListTile(
@@ -3223,7 +3242,7 @@ class _MeetingMinuteEditorScreenState
         if (_actions.isEmpty) _actions.add(_ActionDraft(itemDate: _date));
       }
     } on Object catch (error) {
-      _error = 'Unable to open minutes. $error';
+      _error = 'Notulen tidak dapat dibuka. $error';
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -3321,7 +3340,7 @@ class _MeetingMinuteEditorScreenState
         return '$label requires an issue description.';
       }
       if (action.itemDate == null) {
-        return '$label requires a date raised.';
+        return '$label wajib memiliki tanggal temuan.';
       }
       if (action.assignedTo.text.trim().isEmpty) {
         return '$label requires a responsible person.';
@@ -3381,7 +3400,7 @@ class _MeetingMinuteEditorScreenState
       );
       context.go('/meeting-minutes/${saved.id}');
     } on Object catch (error) {
-      if (mounted) _message('Unable to save minutes. $error');
+      if (mounted) _message('Notulen tidak dapat disimpan. $error');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -3419,7 +3438,7 @@ class _MeetingMinuteEditorScreenState
         ]);
       }
     } on Object catch (error) {
-      if (mounted) _message('Unable to export minutes to Excel. $error');
+      if (mounted) _message('Notulen tidak dapat diekspor ke Excel. $error');
     }
   }
 
@@ -3459,7 +3478,7 @@ class _MeetingMinuteEditorScreenState
       _applyMinute(updated);
       _message('Foto dikompres dan ditambahkan.');
     } on Object catch (error) {
-      if (mounted) _message('Unable to add photo. $error');
+      if (mounted) _message('Foto tidak dapat ditambahkan. $error');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -3476,7 +3495,7 @@ class _MeetingMinuteEditorScreenState
       _applyMinute(updated);
       _message('Foto dihapus.');
     } on Object catch (error) {
-      if (mounted) _message('Unable to delete photo. $error');
+      if (mounted) _message('Foto tidak dapat dihapus. $error');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -3523,7 +3542,7 @@ class _MeetingMinuteEditorScreenState
       await _service.delete(minute.id);
       if (mounted) context.go('/meeting-minutes');
     } on Object catch (error) {
-      if (mounted) _message('Unable to delete minutes. $error');
+      if (mounted) _message('Notulen tidak dapat dihapus. $error');
     }
   }
 
@@ -4277,18 +4296,18 @@ class _ActionDraft {
 
 String _momDate(DateTime value) {
   const List<String> months = <String>[
-    'January',
-    'February',
-    'March',
+    'Januari',
+    'Februari',
+    'Maret',
     'April',
-    'May',
-    'June',
-    'July',
-    'August',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
     'September',
-    'October',
+    'Oktober',
     'November',
-    'December',
+    'Desember',
   ];
   return '${value.day} ${months[value.month - 1]} ${value.year}';
 }

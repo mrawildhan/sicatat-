@@ -40,7 +40,7 @@ Future<void> openNavigationGroup(
       const _NavigationGroupOption(
         icon: Icons.handyman_outlined,
         title: 'Permintaan Barang',
-        subtitle: 'Order kebutuhan LV dan Drilling',
+        subtitle: 'Ajukan kebutuhan LV, COP, dan Drilling',
         route: '/material-requests',
       ),
     if (operational)
@@ -53,7 +53,7 @@ Future<void> openNavigationGroup(
     if (operational)
       const _NavigationGroupOption(
         icon: Icons.pending_actions_outlined,
-        title: 'Outstanding PM & CM',
+        title: 'PM & CM Tertunda',
         subtitle: 'Pantau pekerjaan yang belum selesai',
         route: '/outstanding-maintenance',
       ),
@@ -81,14 +81,14 @@ Future<void> openNavigationGroup(
     if (!operational)
       const _NavigationGroupOption(
         icon: Icons.account_tree_outlined,
-        title: 'Cost Code',
+        title: 'Kode Biaya',
         subtitle: 'Cari struktur dan elemen biaya',
         route: '/cost-codes',
       ),
     if (!operational)
       const _NavigationGroupOption(
         icon: Icons.precision_manufacturing_outlined,
-        title: 'Equipment Reference',
+        title: 'Referensi Alat',
         subtitle: 'Cari unit Asamasam dan Kintap',
         route: '/equipment-reference',
       ),
@@ -97,54 +97,51 @@ Future<void> openNavigationGroup(
     context: context,
     showDragHandle: true,
     useSafeArea: true,
+    // Lets the sheet grow past half the screen when the menu needs it.
+    isScrollControlled: true,
     builder: (sheetContext) {
       final bool tablet = MediaQuery.sizeOf(sheetContext).width >= 600;
       final bool compactGrid = !tablet;
-      return SafeArea(
-        top: false,
-        child: SizedBox(
-          height:
-              MediaQuery.sizeOf(sheetContext).height *
-              (tablet
-                  ? 0.5
-                  : operational
-                  ? options.length > 6
-                        ? 0.76
-                        : 0.5
-                  : options.length > 3
-                  ? 0.58
-                  : 0.4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                child: Text(
-                  operational ? 'Operasional' : 'Referensi',
-                  style: Theme.of(context).textTheme.titleLarge,
+      // Size the sheet to its menu instead of a fixed share of the screen.
+      // A fixed 76% with scrolling disabled let mobile browsers hide the last
+      // row (Notulen Rapat) behind their own toolbar; the grid now scrolls if
+      // it ever has to, and keeps clear of the bottom inset.
+      final double bottomInset = MediaQuery.paddingOf(sheetContext).bottom;
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                operational ? 'Operasional' : 'Referensi',
+                style: AppTextStyles.sectionTitle,
+              ),
+            ),
+            Flexible(
+              child: GridView.builder(
+                shrinkWrap: true,
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 32 + bottomInset),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: compactGrid ? 8 : 12,
+                  crossAxisSpacing: compactGrid ? 8 : 12,
+                  childAspectRatio: tablet ? 1.7 : 1.22,
+                ),
+                itemCount: options.length,
+                itemBuilder: (_, index) => _NavigationGroupCard(
+                  option: options[index],
+                  compact: compactGrid,
+                  onTap: () =>
+                      Navigator.pop(sheetContext, options[index].route),
                 ),
               ),
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: tablet || compactGrid ? 3 : 2,
-                    mainAxisSpacing: compactGrid ? 8 : 12,
-                    crossAxisSpacing: compactGrid ? 8 : 12,
-                    childAspectRatio: tablet ? 1.7 : 1.08,
-                  ),
-                  itemCount: options.length,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemBuilder: (_, index) => _NavigationGroupCard(
-                    option: options[index],
-                    compact: compactGrid,
-                    onTap: () =>
-                        Navigator.pop(sheetContext, options[index].route),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     },
@@ -201,7 +198,7 @@ class _NavigationGroupCard extends StatelessWidget {
                   size: compact ? 17 : 18,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 option.title,
                 maxLines: 2,

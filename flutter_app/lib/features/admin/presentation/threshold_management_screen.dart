@@ -271,13 +271,13 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                         const SizedBox(height: 10),
                         _numberField(
                           warningMin,
-                          'Warning minimum (°C)',
+                          'Peringatan minimum (°C)',
                           () => setModalState(() => problem = null),
                         ),
                         const SizedBox(height: 10),
                         _numberField(
                           warningMax,
-                          'Warning maximum (°C)',
+                          'Peringatan maksimum (°C)',
                           () => setModalState(() => problem = null),
                         ),
                         const SizedBox(height: 10),
@@ -289,7 +289,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                         const SizedBox(height: 10),
                         _numberField(
                           alarmMax,
-                          'Alarm maximum (°C)',
+                          'Alarm maksimum (°C)',
                           () => setModalState(() => problem = null),
                         ),
                         const SizedBox(height: 10),
@@ -314,7 +314,7 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
                           title: const Text('Aktif'),
                         ),
                         Text(
-                          'Batas yang dikosongkan memakai bawaan: warning 60°C, alarm 70°C.',
+                          'Batas yang dikosongkan memakai bawaan: peringatan 60°C, alarm 70°C.',
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(context).colorScheme.outline,
@@ -508,10 +508,10 @@ String formatThresholdNumber(double value) => value == value.roundToDouble()
   ({Map<String, Object?>? payload, String? error}) fail(String message) =>
       (payload: null, error: message);
   const Map<String, String> labels = <String, String>{
-    'warning_min': 'Warning minimum',
-    'warning_max': 'Warning maximum',
+    'warning_min': 'Peringatan minimum',
+    'warning_max': 'Peringatan maksimum',
     'alarm_min': 'Alarm minimum',
-    'alarm_max': 'Alarm maximum',
+    'alarm_max': 'Alarm maksimum',
     'delta_max_per_round': 'Perubahan maksimum antar ronde',
   };
   final Map<String, String> raw = <String, String>{
@@ -540,15 +540,15 @@ String formatThresholdNumber(double value) => value == value.roundToDouble()
   final double? aMax = values['alarm_max'];
   final double? maxDelta = values['delta_max_per_round'];
   if (wMin == null && wMax == null && aMin == null && aMax == null) {
-    return fail('Isi minimal satu batas warning atau alarm.');
+    return fail('Isi minimal satu batas peringatan atau alarm.');
   }
   if (wMin != null && wMax != null && wMin > wMax) {
     return fail(
-      'Warning minimum tidak boleh lebih besar dari warning maximum.',
+      'Peringatan minimum tidak boleh lebih besar dari peringatan maksimum.',
     );
   }
   if (aMin != null && aMax != null && aMin > aMax) {
-    return fail('Alarm minimum tidak boleh lebih besar dari alarm maximum.');
+    return fail('Alarm minimum tidak boleh lebih besar dari alarm maksimum.');
   }
   // Mirrors assessTemperature: the minimum wins, the maximum is a
   // fallback, and an empty pair falls back to the 60/70°C defaults.

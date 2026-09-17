@@ -7,9 +7,7 @@ import 'supabase_sicatat_repository.dart';
 
 final sicatatRepositoryProvider = Provider<SicatatRepository>((ref) {
   if (!AppConfig.isSupabaseConfigured) {
-    throw StateError(
-      'Supabase configuration is not available in this application.',
-    );
+    throw StateError('Konfigurasi server belum tersedia di aplikasi ini.');
   }
   return SupabaseSicatatRepository(Supabase.instance.client);
 });

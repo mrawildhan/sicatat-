@@ -123,7 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'Welcome to',
+                        'Selamat datang di',
                         style: TextStyle(fontSize: 18, color: AppColors.muted),
                       ),
                       const SizedBox(height: 4),
@@ -138,7 +138,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        'Field data recording application',
+                        'Aplikasi pencatatan data lapangan',
                         style: TextStyle(
                           fontSize: 15,
                           height: 1.45,
@@ -147,7 +147,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 28),
                       const Text(
-                        'Masuk ke akun crew Anda',
+                        'Masuk ke akun Anda',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
@@ -161,7 +161,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         textInputAction: TextInputAction.next,
                         enabled: !_isSubmitting,
                         decoration: const InputDecoration(
-                          labelText: 'Crew ID / NIK',
+                          labelText: 'NIK',
                           prefixIcon: Icon(Icons.badge_outlined),
                         ),
                       ),
@@ -177,7 +177,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         autocorrect: false,
                         onSubmitted: (_) => _signIn(),
                         decoration: InputDecoration(
-                          labelText: 'Password',
+                          labelText: 'Kata sandi',
                           prefixIcon: const Icon(Icons.lock_outline_rounded),
                           suffixIcon: IconButton(
                             onPressed: _isSubmitting
@@ -220,7 +220,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 18),
                       Center(
                         child: Text(
-                          'Version ${AppConfig.appVersion} • Online-only',
+                          'Versi ${AppConfig.appVersion} • Harus daring',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: AppColors.muted),
                         ),

@@ -49,7 +49,7 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _errorMessage = 'Server sheets could not be loaded. Check the connection and refresh.',
+          () => _errorMessage = 'Lembar dari server tidak dapat dimuat. Periksa koneksi lalu muat ulang.',
         );
       }
     } finally {
@@ -61,7 +61,7 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final title = user?.role.isTeamScopedTemperature == true
-        ? 'Lembar tim'
+        ? 'Lembar regu'
         : 'Pemantauan lembar';
     final errorMessage = _errorMessage;
     final bool useDesktopHeader =
@@ -93,12 +93,12 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
             ),
           );
     return AppBackScope(
-      fallbackRoute: '/dashboard',
+      fallbackRoute: '/sheets',
       child: Scaffold(
         appBar: useDesktopHeader
             ? null
             : AppBar(
-                leading: const AppBackButton(fallbackRoute: '/dashboard'),
+                leading: const AppBackButton(fallbackRoute: '/sheets'),
                 title: Text(
                   title,
                   style: const TextStyle(fontWeight: FontWeight.w800),
@@ -205,7 +205,7 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
   }
 
   String _statusLabel(SheetStatus status) => switch (status) {
-    SheetStatus.draft => 'Draf crew',
+    SheetStatus.draft => 'Draf kru',
     SheetStatus.submitted => 'Dikirim',
     SheetStatus.submittedIncomplete => 'Dikirim tidak lengkap',
     SheetStatus.verified => 'Terverifikasi',

@@ -74,8 +74,8 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         _template = cachedTemplate;
         _selectedShift = _initialShift(cachedShifts);
         _errorMessage = cachedShifts.isEmpty || cachedTemplate == null
-            ? 'Data shift belum tersedia. Hubungkan ke internet untuk memuat data awal.'
-            : 'Mode offline: menggunakan data shift tersimpan.';
+            ? 'Data sif belum tersedia. Sambungkan ke internet untuk memuat data awal.'
+            : 'Mode luring: menggunakan data sif tersimpan.';
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -135,7 +135,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
       );
       if (response is! List) {
         throw const FormatException(
-          'Respons shift yang sudah digunakan tidak valid.',
+          'Respons sif yang sudah digunakan tidak valid.',
         );
       }
       final occupied = response
@@ -192,7 +192,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     final template = _template;
     if (user == null) {
       setState(
-        () => _errorMessage = 'Please sign in again before creating a sheet.',
+        () => _errorMessage = 'Silakan masuk kembali sebelum membuat lembar.',
       );
       return;
     }
@@ -203,8 +203,8 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     if (teamId == null) {
       setState(
         () => _errorMessage = user.role.isGlobalTemperatureManager
-            ? 'Pilih crew sebelum membuat sheet ini.'
-            : 'Your account has no active crew assignment. Ask an admin to assign your crew before creating a sheet.',
+            ? 'Pilih kru sebelum membuat lembar ini.'
+            : 'Akun Anda belum ditugaskan ke kru aktif. Minta admin menetapkan kru Anda sebelum membuat lembar.',
       );
       return;
     }
@@ -222,13 +222,13 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     }
     if (shift == null) {
       setState(
-        () => _errorMessage = 'Both shifts already have sheets for this date. Choose another date, or open the existing sheet from My sheets.',
+        () => _errorMessage = 'Kedua sif pada tanggal ini sudah memiliki lembar. Pilih tanggal lain, atau buka lembar yang ada dari Lembar saya.',
       );
       return;
     }
     if (_occupiedShiftIds.contains(shift.id)) {
       setState(
-        () => _errorMessage = 'This shift already has a sheet for the selected date. Choose the other shift.',
+        () => _errorMessage = 'Sif ini sudah memiliki lembar pada tanggal terpilih. Pilih sif yang lain.',
       );
       return;
     }
@@ -250,7 +250,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
       );
       if (response is! List) {
         throw const FormatException(
-          'Respons shift yang sudah digunakan tidak valid.',
+          'Respons sif yang sudah digunakan tidak valid.',
         );
       }
       final duplicate = response.any(
@@ -265,7 +265,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         setState(() {
           _occupiedShiftIds = <String>{..._occupiedShiftIds, shift.id};
           _selectedShift = _initialShift(_shifts);
-          _errorMessage = 'A crew has already opened this date and shift. Only the remaining shift can be created.';
+          _errorMessage = 'Kru lain sudah membuka tanggal dan sif ini. Hanya sif yang tersisa yang dapat dibuat.';
         });
         return;
       }
@@ -287,14 +287,14 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     } on SheetAlreadyExistsException {
       if (mounted) {
         setState(
-          () => _errorMessage = 'A sheet for this date and shift already exists. Open it from My sheets.',
+          () => _errorMessage = 'Lembar untuk tanggal dan sif ini sudah ada. Buka dari Lembar saya.',
         );
       }
     } catch (_) {
       if (mounted) {
         setState(
           () =>
-              _errorMessage = 'Sheet tidak dapat disimpan. Silakan coba lagi.',
+              _errorMessage = 'Lembar tidak dapat disimpan. Silakan coba lagi.',
         );
       }
     } finally {
@@ -313,7 +313,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         appBar: AppBar(
           leading: const AppBackButton(fallbackRoute: '/sheets'),
           title: const Text(
-            'Create new sheet',
+            'Buat lembar baru',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
@@ -333,7 +333,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Pilih tanggal dan shift sesuai jadwal kerja. Tanggal lampau dapat dipilih untuk inspeksi yang terlewat. Satu regu menggunakan satu sheet untuk setiap tanggal dan shift.',
+                      'Pilih tanggal dan sif sesuai jadwal kerja. Tanggal lampau dapat dipilih untuk inspeksi yang terlewat. Satu regu menggunakan satu lembar untuk setiap tanggal dan sif.',
                       style: TextStyle(
                         height: 1.45,
                         color: AppColors.greenDark,
@@ -345,7 +345,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
             ),
             const SizedBox(height: 26),
             const Text(
-              'Inspection date',
+              'Tanggal inspeksi',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 9),
@@ -361,7 +361,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
             const SizedBox(height: 22),
             if (user?.role.isGlobalTemperatureManager == true) ...<Widget>[
               const Text(
-                'Record for crew',
+                'Catat untuk kru',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 9),
@@ -391,7 +391,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
               ),
               const SizedBox(height: 22),
             ],
-            const Text('Shift', style: TextStyle(fontWeight: FontWeight.w800)),
+            const Text('Sif', style: TextStyle(fontWeight: FontWeight.w800)),
             const SizedBox(height: 9),
             if (_isLoading)
               const Center(
@@ -402,7 +402,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
               )
             else if (_shifts.isEmpty)
               const Text(
-                'No shifts are available.',
+                'Belum ada sif yang tersedia.',
                 style: TextStyle(color: AppColors.danger),
               )
             else
@@ -433,13 +433,13 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
             if (!_isLoading && _occupiedShiftIds.isNotEmpty) ...<Widget>[
               const SizedBox(height: 8),
               const Text(
-                'A used shift is locked to prevent duplicate temperature sheets.',
+                'Sif yang sudah dipakai dikunci agar tidak ada lembar suhu ganda.',
                 style: TextStyle(color: AppColors.warning, fontSize: 12),
               ),
             ],
             const SizedBox(height: 34),
             const Text(
-              'Assigned crew',
+              'Kru yang ditugaskan',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 9),

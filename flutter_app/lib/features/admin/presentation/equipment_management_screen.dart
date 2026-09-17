@@ -199,7 +199,7 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
       if (item == null) {
         final String? moduleId = _moduleId;
         if (moduleId == null) {
-          throw StateError('Temperature module is not loaded.');
+          throw StateError('Modul suhu belum dimuat.');
         }
         payload['module_id'] = moduleId;
         await Supabase.instance.client.from('equipment').insert(payload);

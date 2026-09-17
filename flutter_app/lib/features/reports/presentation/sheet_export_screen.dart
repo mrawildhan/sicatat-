@@ -25,7 +25,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
   Future<ReportExportResult?> _load() async {
     final String? sheetId = widget.sheetId;
     if (sheetId == null || sheetId.isEmpty) {
-      _message('Sheet ID is missing.');
+      _message('ID lembar tidak ada.');
       return null;
     }
     setState(() => _loading = true);
@@ -34,7 +34,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
         Supabase.instance.client,
       ).load(sheetId: sheetId);
       if (result.rows.isEmpty) {
-        _message('No reading data is available for this sheet.');
+        _message('Belum ada data pembacaan pada lembar ini.');
         return null;
       }
       return result;
@@ -76,14 +76,14 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: <pw.Widget>[
               pw.Text(
-                'SICATAT - Equipment condition record',
+                'SICATAT - Catatan kondisi peralatan',
                 style: const pw.TextStyle(
                   fontSize: 7,
                   color: PdfColors.grey600,
                 ),
               ),
               pw.Text(
-                'Page ${context.pageNumber} of ${context.pagesCount}',
+                'Halaman ${context.pageNumber} dari ${context.pagesCount}',
                 style: const pw.TextStyle(
                   fontSize: 7,
                   color: PdfColors.grey600,
@@ -98,13 +98,13 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
           pw.Row(
             children: <pw.Widget>[
               _metricCard(
-                'Temperature readings',
+                'Pembacaan suhu',
                 '${temperatures.length}',
                 PdfColors.blue700,
               ),
               pw.SizedBox(width: 8),
               _metricCard(
-                'Highest temperature',
+                'Suhu tertinggi',
                 maxTemperature == null
                     ? '-'
                     : '${maxTemperature.toStringAsFixed(1)}°C',
@@ -119,7 +119,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
               pw.SizedBox(width: 8),
               _metricCard('Attention 60-69°C', '$warning', PdfColors.orange700),
               pw.SizedBox(width: 8),
-              _metricCard('Critical 70°C+', '$critical', PdfColors.red700),
+              _metricCard('Kritis 70°C+', '$critical', PdfColors.red700),
             ],
           ),
           pw.SizedBox(height: 9),
@@ -138,8 +138,8 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
               pw.SizedBox(width: 14),
               pw.Expanded(
                 child: _exportTable(
-                  'Gearbox Temperature',
-                  'Section / point',
+                  'Suhu Gearbox',
+                  'Bagian / titik',
                   _gearboxBody(result.rows),
                 ),
               ),
@@ -192,7 +192,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: <pw.Widget>[
               pw.Text(
-                'DAILY TEMPERATURE CHECK',
+                'PEMERIKSAAN SUHU HARIAN',
                 style: const pw.TextStyle(
                   fontSize: 15,
                   color: PdfColors.white,
@@ -213,9 +213,9 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: <pw.Widget>[
-            _headerInfo('DATE', first.date),
-            _headerInfo('CREW / SHIFT', '${first.team} / ${first.shift}'),
-            _headerInfo('FILLED BY', filledBy.isEmpty ? '-' : filledBy),
+            _headerInfo('TANGGAL', first.date),
+            _headerInfo('KRU / SIF', '${first.team} / ${first.shift}'),
+            _headerInfo('DIISI OLEH', filledBy.isEmpty ? '-' : filledBy),
           ],
         ),
       ],
@@ -302,7 +302,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
           pw.SizedBox(
             width: 106,
             child: pw.Text(
-              'TEMPERATURE DISTRIBUTION',
+              'SEBARAN SUHU',
               style: const pw.TextStyle(
                 fontSize: 6.5,
                 fontWeight: pw.FontWeight.bold,
@@ -420,7 +420,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
     } else if (value == '—' || value == '-') {
       background = PdfColors.grey100;
       foreground = PdfColors.grey500;
-    } else if (value == 'Operating') {
+    } else if (value == 'Beroperasi') {
       background = PdfColors.green100;
       foreground = PdfColors.green800;
     }
@@ -483,7 +483,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
 
   List<List<String>> _gearboxBody(List<ReportRow> rows) {
     const sections = <String>['Gearbox Breaker', 'Gearbox Sizer'];
-    const sides = <String>['West', 'East'];
+    const sides = <String>['Barat', 'Timur'];
     const points = <String>[
       'Low Speed',
       'Intermediate',
@@ -537,7 +537,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
     child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRoute: '/sheets'),
-        title: const Text('Export this sheet'),
+        title: const Text('Ekspor lembar ini'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -545,7 +545,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             const Text(
-              'Create a PDF or CSV export containing every saved reading in this sheet.',
+              'Buat ekspor PDF atau CSV berisi semua pembacaan tersimpan di lembar ini.',
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -559,13 +559,13 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
                       ),
                     )
                   : const Icon(Icons.picture_as_pdf_rounded),
-              label: const Text('Create and share PDF'),
+              label: const Text('Buat dan bagikan PDF'),
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: _loading ? null : _csv,
               icon: const Icon(Icons.table_view_rounded),
-              label: const Text('Export CSV for Excel'),
+              label: const Text('Ekspor CSV untuk Excel'),
             ),
           ],
         ),
@@ -586,7 +586,7 @@ class _SheetPdfPreview extends StatelessWidget {
     child: Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRoute: '/sheets'),
-        title: const Text('PDF preview'),
+        title: const Text('Pratinjau PDF'),
       ),
       body: PdfPreview(
         // pdf.js takes ownership of the buffer it rasterizes, which left the

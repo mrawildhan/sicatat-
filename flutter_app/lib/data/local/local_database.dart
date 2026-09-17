@@ -838,12 +838,12 @@ class LocalDatabase {
         limit: 1,
       );
       if (rows.isEmpty) {
-        throw const LocalRecordNotFoundException('Round not found.');
+        throw const LocalRecordNotFoundException('Ronde tidak ditemukan.');
       }
       final clientUuid = rows.single['client_uuid'];
       final syncStatus = rows.single['sync_status'];
       if (clientUuid is! String || syncStatus is! String) {
-        throw const FormatException('Round UUID is invalid.');
+        throw const FormatException('ID ronde tidak valid.');
       }
       final timestamp = inspectedAt.toUtc().toIso8601String();
       await transaction.update(
@@ -979,7 +979,7 @@ class LocalDatabase {
         final id = row['id'];
         final clientUuid = row['client_uuid'];
         if (id is! String || clientUuid is! String) {
-          throw const FormatException('Local unit status is invalid.');
+          throw const FormatException('Status unit di perangkat tidak valid.');
         }
         final payload = <String, Object?>{
           'id': id,
@@ -1088,7 +1088,7 @@ class LocalDatabase {
         final id = row['id'];
         final clientUuid = row['client_uuid'];
         if (id is! String || clientUuid is! String) {
-          throw const FormatException('Local reading is invalid.');
+          throw const FormatException('Pembacaan di perangkat tidak valid.');
         }
         final payload = <String, Object?>{
           'id': id,
@@ -1243,12 +1243,12 @@ class LocalDatabase {
         limit: 1,
       );
       if (rows.isEmpty) {
-        throw const LocalRecordNotFoundException('Sheet not found.');
+        throw const LocalRecordNotFoundException('Lembar tidak ditemukan.');
       }
       final row = rows.single;
       final clientUuid = row['client_uuid'];
       if (clientUuid is! String) {
-        throw const FormatException('Sheet UUID is invalid.');
+        throw const FormatException('ID lembar tidak valid.');
       }
       final submittedAt = DateTime.now().toUtc().toIso8601String();
       await transaction.update(
@@ -1301,15 +1301,17 @@ class LocalDatabase {
         limit: 1,
       );
       if (rows.isEmpty) {
-        throw const LocalRecordNotFoundException('Sheet not found.');
+        throw const LocalRecordNotFoundException('Lembar tidak ditemukan.');
       }
       final row = rows.single;
       if (row['status'] == SheetStatus.verified.storageValue) {
-        throw const FormatException('A verified sheet cannot be reopened.');
+        throw const FormatException(
+          'Lembar yang sudah diverifikasi tidak dapat dibuka kembali.',
+        );
       }
       final clientUuid = row['client_uuid'];
       if (clientUuid is! String) {
-        throw const FormatException('Sheet UUID is invalid.');
+        throw const FormatException('ID lembar tidak valid.');
       }
       const payload = <String, Object?>{
         'status': 'draft',
@@ -1350,7 +1352,7 @@ class LocalDatabase {
     final String cleanReason = reason.trim();
     if (cleanReason.isEmpty) {
       throw const FormatException(
-        'A reason is required for incomplete submission.',
+        'Alasan wajib diisi untuk pengiriman yang belum lengkap.',
       );
     }
     final db = await database;
@@ -1362,11 +1364,11 @@ class LocalDatabase {
         limit: 1,
       );
       if (rows.isEmpty) {
-        throw const LocalRecordNotFoundException('Sheet not found.');
+        throw const LocalRecordNotFoundException('Lembar tidak ditemukan.');
       }
       final Object? rawClientUuid = rows.single['client_uuid'];
       if (rawClientUuid is! String) {
-        throw const FormatException('Sheet UUID is invalid.');
+        throw const FormatException('ID lembar tidak valid.');
       }
       final String submittedAt = DateTime.now().toUtc().toIso8601String();
       final Map<String, Object?> payload = <String, Object?>{
@@ -1414,16 +1416,18 @@ class LocalDatabase {
         limit: 1,
       );
       if (rows.isEmpty) {
-        throw const LocalRecordNotFoundException('Sheet not found.');
+        throw const LocalRecordNotFoundException('Lembar tidak ditemukan.');
       }
       final row = rows.single;
       if (row['status'] != SheetStatus.submitted.storageValue &&
           row['status'] != SheetStatus.submittedIncomplete.storageValue) {
-        throw const FormatException('Only submitted sheets can be verified.');
+        throw const FormatException(
+          'Hanya lembar yang sudah dikirim yang dapat diverifikasi.',
+        );
       }
       final clientUuid = row['client_uuid'];
       if (clientUuid is! String) {
-        throw const FormatException('Sheet UUID is invalid.');
+        throw const FormatException('ID lembar tidak valid.');
       }
       final verifiedAt = DateTime.now().toUtc().toIso8601String();
       final payload = <String, Object?>{
@@ -1463,7 +1467,7 @@ class LocalDatabase {
   }) async {
     final cleanReason = reason.trim();
     if (cleanReason.isEmpty) {
-      throw const FormatException('A return reason is required.');
+      throw const FormatException('Alasan pengembalian wajib diisi.');
     }
     final db = await database;
     await db.transaction((transaction) async {
@@ -1474,16 +1478,18 @@ class LocalDatabase {
         limit: 1,
       );
       if (rows.isEmpty) {
-        throw const LocalRecordNotFoundException('Sheet not found.');
+        throw const LocalRecordNotFoundException('Lembar tidak ditemukan.');
       }
       final row = rows.single;
       if (row['status'] != SheetStatus.submitted.storageValue &&
           row['status'] != SheetStatus.submittedIncomplete.storageValue) {
-        throw const FormatException('Only submitted sheets can be returned.');
+        throw const FormatException(
+          'Hanya lembar yang sudah dikirim yang dapat dikembalikan.',
+        );
       }
       final clientUuid = row['client_uuid'];
       if (clientUuid is! String) {
-        throw const FormatException('Sheet UUID is invalid.');
+        throw const FormatException('ID lembar tidak valid.');
       }
       final payload = <String, Object?>{
         'client_uuid': clientUuid,
@@ -1799,13 +1805,15 @@ class LocalDatabase {
       <Object?>[roundId],
     );
     if (rows.isEmpty) {
-      throw const LocalRecordNotFoundException('Inspection round not found.');
+      throw const LocalRecordNotFoundException(
+        'Ronde inspeksi tidak ditemukan.',
+      );
     }
     final status = rows.single['status'];
     if (status != SheetStatus.draft.storageValue &&
         status != SheetStatus.returned.storageValue) {
       throw const FormatException(
-        'Only draft or returned sheets can be changed.',
+        'Hanya lembar draf atau yang dikembalikan yang dapat diubah.',
       );
     }
   }

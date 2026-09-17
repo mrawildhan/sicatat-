@@ -91,12 +91,12 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           .showSnackBar(SnackBar(content: Text(value)));
   Future<void> _export() async {
     if (_from.isAfter(_to)) {
-      _message('Start date cannot be after end date.');
+      _message('Tanggal mulai tidak boleh setelah tanggal akhir.');
       return;
     }
     if (_teamLocked && _teamId == null) {
       _message(
-        'Your foreman account needs a team assignment before exporting.',
+        'Akun foreman Anda perlu ditugaskan ke regu sebelum mengekspor.',
       );
       return;
     }
@@ -106,17 +106,17 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         Supabase.instance.client,
       ).load(from: _from, to: _to, teamId: _teamId);
       if (result.rows.isEmpty) {
-        _message('No reading data was found for this period.');
+        _message('Tidak ada data pembacaan pada periode ini.');
         return;
       }
       final pw.Document pdf = pw.Document();
       final String teamName = _teamId == null
-          ? 'All teams'
+          ? 'Semua regu'
           : _teams
                     .where((team) => team.id == _teamId)
                     .map((team) => team.name)
                     .firstOrNull ??
-                'Selected team';
+                'Regu terpilih';
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4.landscape,
@@ -125,7 +125,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: <pw.Widget>[
               pw.Text(
-                'SICATAT FIELD TEMPERATURE REPORT',
+                'LAPORAN SUHU LAPANGAN SICATAT',
                 style: const pw.TextStyle(
                   fontSize: 15,
                   fontWeight: pw.FontWeight.bold,
@@ -144,7 +144,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           footer: (pw.Context context) => pw.Align(
             alignment: pw.Alignment.centerRight,
             child: pw.Text(
-              'Page ${context.pageNumber} of ${context.pagesCount}',
+              'Halaman ${context.pageNumber} dari ${context.pagesCount}',
               style: const pw.TextStyle(fontSize: 8),
             ),
           ),
@@ -178,14 +178,14 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       pw.TableRow(
         decoration: const pw.BoxDecoration(color: PdfColors.green700),
         children: <pw.Widget>[
-          _reportCell('Date', header: true),
-          _reportCell('Team / shift', header: true),
-          _reportCell('Section / round / time', header: true),
-          _reportCell('Side / status', header: true),
+          _reportCell('Tanggal', header: true),
+          _reportCell('Regu / sif', header: true),
+          _reportCell('Bagian / ronde / jam', header: true),
+          _reportCell('Sisi / status', header: true),
           _reportCell('Peralatan / titik ukur', header: true),
-          _reportCell('Value / alert', header: true),
-          _reportCell('Recorded by', header: true),
-          _reportCell('Sheet status', header: true),
+          _reportCell('Nilai / peringatan', header: true),
+          _reportCell('Dicatat oleh', header: true),
+          _reportCell('Status lembar', header: true),
         ],
       ),
       ...rows.map(
@@ -193,7 +193,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           children: <pw.Widget>[
             _reportCell(row.date),
             _reportCell('${row.team}\n${row.shift}'),
-            _reportCell('${row.section}\nRound ${row.round} - ${row.time}'),
+            _reportCell('${row.section}\nRonde ${row.round} - ${row.time}'),
             _reportCell('${row.side}\n${row.unitStatus}'),
             _reportCell(
               '${row.equipment.isEmpty ? '' : '${row.equipment} - '}${row.point}',
@@ -215,8 +215,8 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     bool header = false,
     String alert = '',
   }) {
-    final bool critical = alert.startsWith('CRITICAL');
-    final bool high = alert.startsWith('HIGH');
+    final bool critical = alert.startsWith('KRITIS');
+    final bool high = alert.startsWith('TINGGI');
     final bool review = alert.isNotEmpty && !critical && !high;
     final PdfColor background = header
         ? PdfColors.green700
@@ -248,12 +248,12 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
   Future<void> _exportCsv() async {
     if (_from.isAfter(_to)) {
-      _message('Start date cannot be after end date.');
+      _message('Tanggal mulai tidak boleh setelah tanggal akhir.');
       return;
     }
     if (_teamLocked && _teamId == null) {
       _message(
-        'Your foreman account needs a team assignment before exporting.',
+        'Akun foreman Anda perlu ditugaskan ke regu sebelum mengekspor.',
       );
       return;
     }
@@ -268,7 +268,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         teamId: _teamId,
       );
       if (result.rows.isEmpty) {
-        _message('No reading data was found for this period.');
+        _message('Tidak ada data pembacaan pada periode ini.');
         return;
       }
       await Share.shareXFiles(<XFile>[
@@ -287,27 +287,27 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
   @override
   Widget build(BuildContext context) => AppBackScope(
-    fallbackRoute: '/dashboard',
+    fallbackRoute: '/sheets',
     child: Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(fallbackRoute: '/dashboard'),
-        title: const Text('Period report'),
+        leading: const AppBackButton(fallbackRoute: '/sheets'),
+        title: const Text('Laporan Periode'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: <Widget>[
           const Text(
-            'Export every synced reading for a selected date range. For example, select 1 August 2026 through 31 August 2026, or 1 January through 31 December 2026.',
+            'Ekspor semua pembacaan yang sudah tersinkron dalam rentang tanggal tertentu, misalnya 1 sampai 31 Agustus 2026, atau 1 Januari sampai 31 Desember 2026.',
           ),
           const SizedBox(height: 18),
-          _dateTile('From date', _from, () => _pick(true)),
+          _dateTile('Tanggal mulai', _from, () => _pick(true)),
           const SizedBox(height: 10),
-          _dateTile('To date', _to, () => _pick(false)),
+          _dateTile('Tanggal akhir', _to, () => _pick(false)),
           const SizedBox(height: 10),
           if (_teamLocked)
             InputDecorator(
               decoration: const InputDecoration(
-                labelText: 'Team scope',
+                labelText: 'Cakupan regu',
                 prefixIcon: Icon(Icons.groups_rounded),
               ),
               child: Text(
@@ -315,7 +315,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                         .where((team) => team.id == _teamId)
                         .map((team) => team.name)
                         .firstOrNull ??
-                    'Your assigned team',
+                    'Regu Anda',
               ),
             )
           else
@@ -325,7 +325,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
               items: <DropdownMenuItem<String>>[
                 const DropdownMenuItem<String>(
                   value: null,
-                  child: Text('All teams'),
+                  child: Text('Semua regu'),
                 ),
                 ..._teams.map(
                   (team) => DropdownMenuItem<String>(
@@ -335,7 +335,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                 ),
               ],
               onChanged: (String? value) => setState(() => _teamId = value),
-              decoration: const InputDecoration(labelText: 'Team'),
+              decoration: const InputDecoration(labelText: 'Regu'),
             ),
           const SizedBox(height: 22),
           ElevatedButton.icon(
@@ -350,14 +350,14 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                   )
                 : const Icon(Icons.picture_as_pdf_rounded),
             label: Text(
-              _loading ? 'Creating export...' : 'Create and share PDF',
+              _loading ? 'Menyiapkan ekspor...' : 'Buat dan bagikan PDF',
             ),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: _loading ? null : _exportCsv,
             icon: const Icon(Icons.table_view_rounded),
-            label: const Text('Export CSV for Excel'),
+            label: const Text('Ekspor CSV untuk Excel'),
           ),
         ],
       ),

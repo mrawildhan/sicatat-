@@ -42,7 +42,9 @@ class _EquipmentReferenceScreenState extends State<EquipmentReferenceScreen> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
         mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Folder Equipment belum dapat dibuka.')),
+        const SnackBar(
+          content: Text('Folder referensi alat belum dapat dibuka.'),
+        ),
       );
     }
   }
@@ -87,7 +89,7 @@ class _EquipmentReferenceScreenState extends State<EquipmentReferenceScreen> {
             ? null
             : AppBar(
                 leading: const AppBackButton(fallbackRoute: '/dashboard'),
-                title: const Text('Equipment Reference'),
+                title: const Text('Referensi Alat'),
               ),
         body: SafeArea(
           top: false,
@@ -101,18 +103,14 @@ class _EquipmentReferenceScreenState extends State<EquipmentReferenceScreen> {
             ),
             children: <Widget>[
               if (desktop) ...<Widget>[
-                const Text(
-                  'Equipment Reference',
-                  style: AppTextStyles.pageTitle,
-                ),
+                const Text('Referensi Alat', style: AppTextStyles.pageTitle),
                 const SizedBox(height: 16),
               ],
               TextField(
                 controller: _searchController,
                 onChanged: (value) => setState(() => _query = value),
                 decoration: InputDecoration(
-                  hintText:
-                      'Cari referensi, nama unit, tipe, atau account code',
+                  hintText: 'Cari referensi, nama unit, tipe, atau kode akun',
                   prefixIcon: const Icon(Icons.search_rounded),
                   suffixIcon: _query.isEmpty
                       ? null
@@ -130,7 +128,7 @@ class _EquipmentReferenceScreenState extends State<EquipmentReferenceScreen> {
               OutlinedButton.icon(
                 onPressed: _openSourceFolder,
                 icon: const Icon(Icons.folder_open_outlined),
-                label: const Text('Buka sumber Equipment di Drive'),
+                label: const Text('Buka sumber referensi alat di Drive'),
               ),
               const SizedBox(height: 10),
               SingleChildScrollView(
@@ -157,7 +155,7 @@ class _EquipmentReferenceScreenState extends State<EquipmentReferenceScreen> {
                 const _EquipmentEmptyResult()
               else ...<Widget>[
                 Text(
-                  '${_results.length} equipment ditemukan',
+                  '${_results.length} alat ditemukan',
                   style: AppTextStyles.supporting,
                 ),
                 const SizedBox(height: 8),
@@ -200,10 +198,10 @@ class _EquipmentSearchPrompt extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('Cari equipment', style: AppTextStyles.cardTitle),
+                Text('Cari alat', style: AppTextStyles.cardTitle),
                 SizedBox(height: 3),
                 Text(
-                  'Masukkan kode seperti ADS01, nama unit, tipe, atau account code.',
+                  'Masukkan kode seperti ADS01, nama unit, tipe, atau kode akun.',
                   style: AppTextStyles.supporting,
                 ),
               ],
@@ -223,7 +221,7 @@ class _EquipmentEmptyResult extends StatelessWidget {
     padding: EdgeInsets.symmetric(vertical: 24),
     child: Center(
       child: Text(
-        'Tidak ada equipment yang cocok. Coba kata atau kode lain.',
+        'Tidak ada alat yang cocok. Coba kata atau kode lain.',
         textAlign: TextAlign.center,
         style: AppTextStyles.supporting,
       ),

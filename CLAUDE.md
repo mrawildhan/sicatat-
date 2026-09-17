@@ -49,7 +49,7 @@ Android release APKs land in `flutter_app/build/app/outputs/flutter-apk/` (only 
 - Incomplete fields can be skipped while drafting. The Sheet Summary card for an incomplete group is red and opens the first missing entry. Complete cards open their per-entry detail in a bottom sheet.
 - The default Sheet Summary is deliberately compact: four cards, contributor count, export icon, and sticky Submit. Audit/review/override/delete actions sit in `More options & history`.
 - Add User uses a dedicated create-mode state; it calls the `create-crew-user` edge function. If saving a new user fails after deployment, verify that function is deployed and that the signed-in caller is an active `admin`.
-- PDF displays 60–69°C orange and >=70°C red. CSV cannot encode colors, so it contains a `Temperature Alert` column with `HIGH 60-69°C` or `CRITICAL >=70°C`.
+- PDF displays 60–69°C orange and >=70°C red. CSV cannot encode colors, so it contains a `Peringatan Suhu` column with `TINGGI 60-69°C` or `KRITIS >=70°C` (anomalies without a high reading read `PERLU DITINJAU`). The whole UI, PDF, and CSV are Indonesian since 2026-09-17 ("lembar" for sheet, "sif" for shift, "kru" for crew); stored database values stay in their original form.
 
 ## Supabase deployment checklist
 
@@ -69,11 +69,11 @@ supabase functions deploy create-crew-user
 Run `flutter analyze` and `flutter test`. For meaningful functional changes, test on Android:
 
 1. Login as crew/admin; use Android Back from sheets, forms, admin, and reports.
-2. Create a dated Shift Pagi or Malam sheet; make draft input, reopen it, and fill Round 2.
+2. Create a dated Sif Pagi or Sif Malam sheet ("Lembar baru"); make draft input, reopen it, and fill Round 2.
 3. Leave entries missing; confirm red summary card returns to the missing input.
 4. Check duplicate date+shift+module creation is rejected from a second account.
 5. Submit, confirm the sheet is final immediately, then reopen and resubmit it as its creator to test the revision path.
-6. Export values 59, 60, 69, 70°C; inspect PDF colours and CSV `Temperature Alert` values.
+6. Export values 59, 60, 69, 70°C; inspect PDF colours and CSV `Peringatan Suhu` values.
 7. As admin, open User Management, tap Add User, create a test account, and confirm its login.
 
 ## Current limits / next safe work

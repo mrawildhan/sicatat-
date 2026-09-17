@@ -93,7 +93,9 @@ class AppUpdateService {
 
   Future<AppInstallerResult> downloadAndInstall(AppRelease release) async {
     if (!Platform.isAndroid) {
-      throw UnsupportedError('In-app updates are available on Android.');
+      throw UnsupportedError(
+        'Pembaruan dari aplikasi hanya tersedia di Android.',
+      );
     }
     final String signedUrl = await _client.storage
         .from('app-releases')
@@ -160,8 +162,6 @@ class AppUpdateService {
       final String abi = rawAbi.toString();
       if (supported.contains(abi)) return abi;
     }
-    throw UnsupportedError(
-      'This Android device architecture is not supported.',
-    );
+    throw UnsupportedError('Arsitektur perangkat Android ini tidak didukung.');
   }
 }

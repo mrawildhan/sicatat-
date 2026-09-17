@@ -21,7 +21,7 @@ class MeetingMinuteService {
         .select(_select)
         .order('updated_at', ascending: false);
     if (response is! List) {
-      throw const FormatException('Invalid meeting minutes data.');
+      throw const FormatException('Data notulen tidak valid.');
     }
     return response
         .map(
@@ -166,10 +166,10 @@ class MeetingMinuteService {
     required String fileName,
   }) async {
     if (bytes.isEmpty) {
-      throw const FormatException('The photo file is empty.');
+      throw const FormatException('Berkas foto kosong.');
     }
     if (bytes.lengthInBytes > 8 * 1024 * 1024) {
-      throw const FormatException('Maximum photo size is 8 MB.');
+      throw const FormatException('Ukuran foto maksimal 8 MB.');
     }
     final Object existing = await _client
         .from('meeting_minute_action_photo')
@@ -177,9 +177,7 @@ class MeetingMinuteService {
         .eq('meeting_minute_action_id', actionId)
         .limit(2);
     if (existing is List && existing.length >= 2) {
-      throw const FormatException(
-        'Each action plan supports up to two photos.',
-      );
+      throw const FormatException('Setiap rencana tindakan maksimal dua foto.');
     }
     _imageExtension(fileName);
     final CompressedMeetingMinutePhoto compressed =
@@ -278,7 +276,7 @@ class MeetingMinuteService {
     if (normalized.endsWith('.jpg') || normalized.endsWith('.jpeg')) {
       return 'jpg';
     }
-    throw const FormatException('Use a JPG, JPEG or PNG photo.');
+    throw const FormatException('Gunakan foto JPG, JPEG, atau PNG.');
   }
 }
 
@@ -321,18 +319,18 @@ class MeetingMinuteExcelService {
     }
     sheet.merge(
       'A1:H1',
-      minute.title.isEmpty ? 'MEETING MINUTES' : minute.title,
+      minute.title.isEmpty ? 'NOTULEN RAPAT' : minute.title,
       1,
       60,
     );
-    sheet.metadata(3, 'Date & time', _meetingTime(minute));
+    sheet.metadata(3, 'Tanggal & jam', _meetingTime(minute));
     sheet.metadata(4, 'Location', minute.location);
     sheet.metadata(5, 'Attendees', minute.attendees);
     sheet.metadata(6, 'Apologies', minute.apologies);
     sheet.metadata(7, 'Minute taker', minute.minuteTaker);
-    sheet.metadata(8, 'Distribution', minute.distributionList);
-    sheet.metadata(9, 'New business', minute.newBusinessAgenda);
-    sheet.metadata(10, 'Proposed by', minute.proposedBy);
+    sheet.metadata(8, 'Distribusi', minute.distributionList);
+    sheet.metadata(9, 'Pembahasan baru', minute.newBusinessAgenda);
+    sheet.metadata(10, 'Diusulkan oleh', minute.proposedBy);
     sheet.metadata(11, 'Tindak lanjut dari', _followUpText(minute));
     sheet.merge('A13:H13', 'ACTION PLAN', 4, 22);
     const List<String> headers = <String>[
@@ -340,7 +338,7 @@ class MeetingMinuteExcelService {
       'Issues Description',
       'Action Plan',
       'Photos',
-      'Date\nRaised',
+      'Tanggal\nTemuan',
       'Due\nDate',
       'Resp.\nPerson',
       'Progress /\nRemark',
@@ -374,7 +372,7 @@ class MeetingMinuteExcelService {
         height: actionHeight,
       );
       if (actionPhotos.isEmpty) {
-        sheet.cell(3, actionRow, 'No photo', 7);
+        sheet.cell(3, actionRow, 'Tanpa foto', 7);
       } else {
         for (
           int photoIndex = 0;
@@ -401,8 +399,18 @@ class MeetingMinuteExcelService {
       }
       sheet.cell(0, actionRow, '${actionIndex + 1}', 7);
       sheet.cell(1, actionRow, _issueText(action), 6);
-      sheet.cell(4, actionRow, _date(action.itemDate, fallback: 'Not set'), 7);
-      sheet.cell(5, actionRow, _date(action.dueDate, fallback: 'Not set'), 7);
+      sheet.cell(
+        4,
+        actionRow,
+        _date(action.itemDate, fallback: 'Belum diisi'),
+        7,
+      );
+      sheet.cell(
+        5,
+        actionRow,
+        _date(action.dueDate, fallback: 'Belum diisi'),
+        7,
+      );
       sheet.cell(6, actionRow, _displayValue(action.assignedTo), 7);
       sheet.cell(7, actionRow, _displayValue(action.progressRemark), 7);
       row = actionRow + 1;
@@ -483,7 +491,7 @@ class MeetingMinuteExcelService {
     final MeetingMinuteReference? source = minute.followUpSource;
     if (source == null) return '—';
     final String title = source.title.trim().isEmpty
-        ? 'Previous minutes'
+        ? 'Notulen sebelumnya'
         : source.title.trim();
     final String date = _date(source.meetingDate, format: 'd MMMM y');
     return date.isEmpty ? title : '$title ($date)';
@@ -493,11 +501,11 @@ class MeetingMinuteExcelService {
     final String issue = action.issueDescription.trim();
     if (issue.isNotEmpty) return issue;
     final String actionPlan = action.subjectDiscussion.trim();
-    return actionPlan.isEmpty ? 'Not specified' : actionPlan;
+    return actionPlan.isEmpty ? 'Tidak disebutkan' : actionPlan;
   }
 
   static String _displayValue(String value) =>
-      value.trim().isEmpty ? 'Not specified' : value.trim();
+      value.trim().isEmpty ? 'Tidak disebutkan' : value.trim();
 
   static double _actionHeight(MeetingMinuteAction action) {
     int estimatedLines(String text, int charactersPerLine) =>
@@ -519,18 +527,18 @@ class MeetingMinuteExcelService {
     if (value == null) return fallback;
     if (format == 'd MMMM y') {
       const List<String> months = <String>[
-        'January',
-        'February',
-        'March',
+        'Januari',
+        'Februari',
+        'Maret',
         'April',
-        'May',
-        'June',
-        'July',
-        'August',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
         'September',
-        'October',
+        'Oktober',
         'November',
-        'December',
+        'Desember',
       ];
       return '${value.day} ${months[value.month - 1]} ${value.year}';
     }

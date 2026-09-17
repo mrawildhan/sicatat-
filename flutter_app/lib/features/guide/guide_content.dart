@@ -25,15 +25,15 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     entries: <GuideEntry>[
       GuideEntry(
         'Masuk aplikasi',
-        'Masuk dengan NIK dan PIN masing-masing. Jangan berbagi PIN. Akun dibuat oleh admin; tidak ada pendaftaran sendiri.',
+        'Masuk dengan NIK dan kata sandi masing-masing; kata sandi awal berupa PIN dari admin. Jangan berbagi kata sandi. Akun dibuat oleh admin; tidak ada pendaftaran sendiri.',
       ),
       GuideEntry(
         'Menemukan menu',
-        'Ada empat tab di bawah layar: Beranda, Operasional, Referensi, dan Profil. Operasional berisi pekerjaan harian, Referensi berisi data yang dicari saat dibutuhkan. Menu yang muncul mengikuti peran dan site akun Anda.',
+        'Ada empat tab di bawah layar: Beranda, Operasional, Referensi, dan Profil. Operasional berisi pekerjaan harian, Referensi berisi data yang dicari saat dibutuhkan. Menu yang muncul mengikuti peran dan lokasi akun Anda.',
       ),
       GuideEntry(
-        'Harus online',
-        'SICATAT hanya bekerja saat ada internet. Bila data gagal dimuat, periksa koneksi lalu ketuk Muat ulang. Jangan menghapus aplikasi.',
+        'Harus daring',
+        'SICATAT hanya bekerja secara daring. Bila data gagal dimuat, periksa koneksi lalu ketuk Muat ulang. Jangan menghapus aplikasi.',
       ),
     ],
   ),
@@ -41,12 +41,12 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     title: 'Suhu',
     entries: <GuideEntry>[
       GuideEntry(
-        'Membuat sheet',
-        'Buka Operasional lalu Suhu, pilih Buat sheet, kemudian pilih tanggal inspeksi dan shift yang benar. Satu sheet hanya untuk satu kombinasi tanggal, shift, modul, dan site. Kombinasi yang sama akan ditolak.',
+        'Membuat lembar',
+        'Buka Operasional lalu Suhu, pilih Lembar baru, kemudian pilih tanggal inspeksi dan sif yang benar. Satu lembar hanya untuk satu kombinasi tanggal, sif, modul, dan lokasi. Kombinasi yang sama akan ditolak.',
       ),
       GuideEntry(
         'Ronde 1 dan Ronde 2',
-        'Pilih unit serta sisi Barat atau Timur, lalu simpan setiap sisi. Waktu ronde tercatat otomatis saat data pertama disimpan. Sheet boleh tetap draf dan dilanjutkan sebelum shift berakhir.',
+        'Pilih unit serta sisi Barat atau Timur, lalu simpan setiap sisi. Waktu ronde tercatat otomatis saat data pertama disimpan. Lembar boleh tetap draf dan dilanjutkan sebelum sif berakhir.',
       ),
       GuideEntry(
         'Kondisi unit',
@@ -62,7 +62,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Ringkasan dan kirim',
-        'Buka Ringkasan sheet untuk melihat bagian yang belum lengkap, lalu ketuk kartu merah untuk langsung membuka data yang kurang. Sheet yang sudah dikirim bersifat final; pembuatnya masih dapat membuka kembali untuk revisi, sedangkan sheet lama yang terverifikasi terkunci.',
+        'Buka Ringkasan lembar untuk melihat bagian yang belum lengkap, lalu ketuk kartu merah untuk langsung membuka data yang kurang. Lembar yang sudah dikirim bersifat final; pembuatnya masih dapat membuka kembali untuk revisi, sedangkan lembar lama yang terverifikasi terkunci.',
       ),
     ],
   ),
@@ -70,20 +70,20 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     title: 'Laporan dan ekspor',
     entries: <GuideEntry>[
       GuideEntry(
-        'Ekspor satu sheet',
-        'Dari ringkasan sheet, pilih ikon ekspor untuk melihat pratinjau PDF atau mengunduh CSV. PDF memakai warna suhu; CSV tidak dapat berwarna sehingga memakai kolom Temperature Alert.',
+        'Ekspor satu lembar',
+        'Dari ringkasan lembar, pilih ikon ekspor untuk melihat pratinjau PDF atau mengunduh CSV. PDF memakai warna suhu; CSV tidak dapat berwarna sehingga memakai kolom Peringatan Suhu.',
       ),
       GuideEntry(
         'Laporan periode',
-        'Menu Laporan menggabungkan beberapa tanggal sekaligus. Pilih rentang tanggal dan regu, lalu ekspor PDF atau CSV. Judulnya menyebut jumlah sheet yang berisi data beserta jumlah barisnya.',
+        'Laporan Periode menggabungkan beberapa tanggal sekaligus. Pilih rentang tanggal dan regu, lalu ekspor PDF atau CSV. Judulnya menyebut jumlah lembar yang berisi data beserta jumlah barisnya.',
       ),
       GuideEntry(
         'Suhu tinggi',
-        'Menampilkan pembacaan 60 derajat C ke atas dari seluruh sheet, supaya yang berisiko ditangani lebih dulu.',
+        'Menampilkan pembacaan 60 derajat C ke atas dari seluruh lembar, supaya yang berisiko ditangani lebih dulu.',
       ),
       GuideEntry(
-        'Sheet belum lengkap',
-        'Daftar sheet yang masih punya isian kosong, agar tidak ada yang tertinggal di akhir shift.',
+        'Lembar belum lengkap',
+        'Daftar lembar yang masih punya isian kosong, agar tidak ada yang tertinggal di akhir sif.',
       ),
     ],
   ),
@@ -142,11 +142,11 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     entries: <GuideEntry>[
       GuideEntry(
         'Anggaran Operasional',
-        'Menampilkan anggaran dan realisasi per elemen biaya beserta sisanya. Angkanya mengikuti spreadsheet sumber dan hanya dapat dibaca.',
+        'Menampilkan anggaran dan realisasi per elemen biaya beserta sisanya. Angkanya mengikuti lembar kerja sumber dan hanya dapat dibaca.',
       ),
       GuideEntry(
-        'Outstanding PM & CM',
-        'Daftar pekerjaan preventif dan korektif yang belum selesai, dipisah per unit dan site.',
+        'PM & CM Tertunda',
+        'Daftar pekerjaan preventif dan korektif yang belum selesai, dipisah per kru dan lokasi.',
       ),
       GuideEntry(
         'Data PR',
@@ -154,7 +154,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Permintaan Barang',
-        'Mengajukan kebutuhan barang untuk LV dan Drilling. Permintaan yang sudah dibuat tidak dapat dihapus, jadi periksa dulu sebelum menyimpan.',
+        'Mengajukan kebutuhan barang untuk LV, COP, dan Drilling, boleh dilengkapi link produk dan foto barang. Permintaan yang sudah dibuat tidak dapat dihapus, jadi periksa dulu sebelum menyimpan.',
       ),
     ],
   ),
@@ -167,11 +167,11 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Melihat detail',
-        'Ketuk kartu item untuk melihat kode SC, site, lokasi bin, satuan, stok, harga unit, serta tanggal pembaruan spreadsheet.',
+        'Ketuk kartu item untuk melihat kode SC, lokasi, lokasi bin, satuan, stok, harga unit, serta tanggal pembaruan lembar kerja.',
       ),
       GuideEntry(
         'Stok dan alat',
-        'Tab Stok & harga untuk barang, tab Alat untuk peralatan. Filter site mempersempit hasil.',
+        'Tab Stok & harga untuk barang, tab Alat untuk peralatan. Filter lokasi mempersempit hasil.',
       ),
       GuideEntry(
         'Hasil terlalu banyak',
@@ -191,21 +191,18 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
         'Di bawah jawaban selalu ada daftar sumber. Buka berkas aslinya sebelum dipakai sebagai dasar pekerjaan. Jawaban biasanya butuh 10 sampai 25 detik karena dokumennya dibaca lebih dulu.',
       ),
       GuideEntry(
-        'Cost Code',
+        'Kode Biaya',
         'Mencari struktur dan elemen biaya beserta referensinya.',
       ),
-      GuideEntry(
-        'Equipment Reference',
-        'Mencari data unit Asamasam dan Kintap.',
-      ),
+      GuideEntry('Referensi Alat', 'Mencari data unit Asamasam dan Kintap.'),
     ],
   ),
   GuideGroupContent(
     title: 'Profil dan aplikasi',
     entries: <GuideEntry>[
       GuideEntry(
-        'Ganti password',
-        'Buka Profil lalu Ganti password. Password baru minimal delapan karakter, gabungan huruf dan angka. Setelah berhasil, semua perangkat lain ikut keluar dan harus masuk lagi.',
+        'Ganti kata sandi',
+        'Buka Profil lalu Ganti kata sandi. Kata sandi baru minimal delapan karakter, gabungan huruf dan angka. Setelah berhasil, semua perangkat lain ikut keluar dan harus masuk lagi.',
       ),
       GuideEntry(
         'Memperbarui Android',
@@ -222,7 +219,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     entries: <GuideEntry>[
       GuideEntry(
         'Data master',
-        'Kelola site, shift, regu, rotasi regu, peralatan, titik ukur, dan template formulir. Data master tidak dapat dihapus, hanya dinonaktifkan, supaya riwayat lama tetap terbaca.',
+        'Kelola lokasi, sif, regu, rotasi regu, peralatan, titik ukur, dan templat formulir. Data master tidak dapat dihapus, hanya dinonaktifkan, supaya riwayat lama tetap terbaca.',
       ),
       GuideEntry(
         'Batas suhu',

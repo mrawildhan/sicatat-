@@ -163,7 +163,7 @@ class MainNavigationScaffold extends ConsumerWidget {
             builder: (dialogContext) => AlertDialog(
               title: const Text('Keluar dari akun?'),
               content: const Text(
-                'Anda memerlukan ID Crew dan password untuk masuk kembali.',
+                'Anda memerlukan NIK dan kata sandi untuk masuk kembali.',
               ),
               actions: <Widget>[
                 TextButton(

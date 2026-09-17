@@ -175,9 +175,7 @@ class _OfflineOverlay extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                checking
-                    ? 'Checking connection'
-                    : 'Internet connection required',
+                checking ? 'Checking connection' : 'Perlu koneksi internet',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 22,
@@ -186,7 +184,7 @@ class _OfflineOverlay extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               const Text(
-                'sicatat is online-only. Connect to the internet so every field entry can be sent safely to the server.',
+                'SICATAT hanya bekerja secara daring. Sambungkan ke internet agar setiap data lapangan terkirim dengan aman ke server.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.muted, height: 1.5),
               ),
@@ -199,7 +197,7 @@ class _OfflineOverlay extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh_rounded),
-                label: Text(checking ? 'Checking…' : 'Try again'),
+                label: Text(checking ? 'Memeriksa…' : 'Coba lagi'),
               ),
             ],
           ),

@@ -527,7 +527,7 @@ class _WarehouseEmptyState extends StatelessWidget {
       ),
       SizedBox(height: 6),
       Text(
-        'Coba nama item, kode SC, atau filter site lain.',
+        'Coba nama item, kode SC, atau filter lokasi lain.',
         textAlign: TextAlign.center,
         style: TextStyle(color: AppColors.muted),
       ),
@@ -634,7 +634,7 @@ class _WarehouseStockDetails extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Detail dari data Warehouse Google Sheet',
+            'Detail dari data Gudang di Google Sheet',
             style: TextStyle(color: AppColors.muted),
           ),
           const SizedBox(height: 16),
@@ -645,7 +645,7 @@ class _WarehouseStockDetails extends StatelessWidget {
           _detailRow('Stok tersedia', _stockLabel(item.stockOnHand, item.uoi)),
           _detailRow('Harga unit', _priceLabel(item.unitPrice)),
           _detailRow(
-            'Tanggal update sheet',
+            'Tanggal pembaruan lembar kerja',
             item.sourceUpdatedOn == null
                 ? 'Belum tercatat'
                 : _formatDate(item.sourceUpdatedOn!),

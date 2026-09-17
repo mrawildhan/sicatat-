@@ -84,7 +84,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final crewName = user?.name ?? 'Crew';
+    final crewName = user?.name ?? 'Kru';
     final bool hasTemperatureTab = user?.role.canCreateTemperatureSheet == true;
     final bool hasReminderTab = user?.role.canUseReminders == true;
     final bool hasWarehouseTab = user?.role.canUseWarehouse == true;
@@ -277,7 +277,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Keluar dari akun?'),
         content: const Text(
-          'Anda memerlukan Crew ID dan password untuk masuk kembali.',
+          'Anda memerlukan NIK dan kata sandi untuk masuk kembali.',
         ),
         actions: <Widget>[
           TextButton(
@@ -312,15 +312,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Password berhasil diubah'),
+        title: const Text('Kata sandi berhasil diubah'),
         content: const Text(
           'Untuk melindungi akun, semua sesi SICATAT akan dikeluarkan. '
-          'Silakan masuk kembali dengan password baru.',
+          'Silakan masuk kembali dengan kata sandi baru.',
         ),
         actions: <Widget>[
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Login kembali'),
+            child: const Text('Masuk kembali'),
           ),
         ],
       ),
@@ -476,7 +476,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       actions: <Widget>[
         FilledButton(
           onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('OK'),
+          child: const Text('Oke'),
         ),
       ],
     ),
@@ -484,7 +484,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _profile(BuildContext context, AppUser? user) {
     final name = user?.name ?? 'Account';
-    final role = user == null ? 'Not signed in' : user.role.label;
+    final role = user == null ? 'Belum masuk' : user.role.label;
     final phone = user?.phone?.trim();
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
@@ -538,7 +538,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Card(
           child: Column(
             children: <Widget>[
-              _profileRow(Icons.badge_outlined, 'ID Crew', user?.nik ?? '—'),
+              _profileRow(Icons.badge_outlined, 'NIK', user?.nik ?? '—'),
               const Divider(height: 1),
               _profileRow(Icons.admin_panel_settings_outlined, 'Peran', role),
               const Divider(height: 1),
@@ -589,9 +589,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.password_rounded, color: AppColors.green),
-            title: const Text('Ganti password'),
+            title: const Text('Ganti kata sandi'),
             subtitle: const Text(
-              'Ubah password dan keluarkan semua perangkat yang masih login',
+              'Ubah kata sandi dan keluarkan semua perangkat yang masih masuk',
             ),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => _changePassword(user),
@@ -605,9 +605,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               color: AppColors.green,
             ),
             title: const Text('Panduan pengguna'),
-            subtitle: const Text(
-              'Panduan Temperature, Reminder, dan Warehouse',
-            ),
+            subtitle: const Text('Panduan penggunaan setiap menu'),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => context.go('/guide'),
           ),
@@ -713,7 +711,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         _homeMenuCard(
           icon: Icons.fact_check_rounded,
           title: 'Operasional',
-          subtitle: 'Suhu, pengingat, anggaran, permintaan barang, outstanding PM & CM, dan notulen',
+          subtitle: 'Suhu, pengingat, anggaran, permintaan barang, PM & CM tertunda, dan notulen',
           onTap: () => openNavigationGroup(
             context,
             operational: true,
@@ -909,14 +907,14 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
       if (mounted) {
         setState(
           () => _error =
-              'Password lama tidak sesuai atau tidak dapat diverifikasi.',
+              'Kata sandi lama tidak sesuai atau tidak dapat diverifikasi.',
         );
       }
     } on Object {
       if (mounted) {
         setState(
           () => _error =
-              'Password belum dapat diubah. Periksa koneksi lalu coba lagi.',
+              'Kata sandi belum dapat diubah. Periksa koneksi lalu coba lagi.',
         );
       }
     } finally {
@@ -934,7 +932,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
       return 'Gunakan gabungan huruf dan angka.';
     }
     if (password == _currentPassword.text) {
-      return 'Password baru harus berbeda dari password lama.';
+      return 'Kata sandi baru harus berbeda dari kata sandi lama.';
     }
     return null;
   }
@@ -947,7 +945,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
     labelText: label,
     prefixIcon: const Icon(Icons.lock_outline_rounded),
     suffixIcon: IconButton(
-      tooltip: obscure ? 'Tampilkan password' : 'Sembunyikan password',
+      tooltip: obscure ? 'Tampilkan kata sandi' : 'Sembunyikan kata sandi',
       onPressed: _saving ? null : onToggle,
       icon: Icon(
         obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -971,7 +969,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             const Text(
-              'Ganti password',
+              'Ganti kata sandi',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 6),
@@ -990,13 +988,13 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
               autocorrect: false,
               textInputAction: TextInputAction.next,
               decoration: _decoration(
-                label: 'Password lama',
+                label: 'Kata sandi lama',
                 obscure: _obscureCurrent,
                 onToggle: () =>
                     setState(() => _obscureCurrent = !_obscureCurrent),
               ),
               validator: (String? value) => (value == null || value.isEmpty)
-                  ? 'Masukkan password lama.'
+                  ? 'Masukkan kata sandi lama.'
                   : null,
             ),
             const SizedBox(height: 12),
@@ -1009,7 +1007,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
               autocorrect: false,
               textInputAction: TextInputAction.next,
               decoration: _decoration(
-                label: 'Password baru',
+                label: 'Kata sandi baru',
                 obscure: _obscureNew,
                 onToggle: () => setState(() => _obscureNew = !_obscureNew),
               ),
@@ -1026,14 +1024,14 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _submit(),
               decoration: _decoration(
-                label: 'Ulangi password baru',
+                label: 'Ulangi kata sandi baru',
                 obscure: _obscureConfirmation,
                 onToggle: () => setState(
                   () => _obscureConfirmation = !_obscureConfirmation,
                 ),
               ),
               validator: (String? value) => value != _newPassword.text
-                  ? 'Password baru belum sama.'
+                  ? 'Kata sandi baru belum sama.'
                   : null,
             ),
             if (_error case final message?) ...<Widget>[
@@ -1057,7 +1055,9 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.lock_reset_rounded),
-                label: Text(_saving ? 'Menyimpan...' : 'Simpan password baru'),
+                label: Text(
+                  _saving ? 'Menyimpan...' : 'Simpan kata sandi baru',
+                ),
               ),
             ),
           ],

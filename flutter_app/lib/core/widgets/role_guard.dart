@@ -33,7 +33,7 @@ class RoleGuard extends ConsumerWidget {
                 const Icon(Icons.lock_outline_rounded, size: 46),
                 const SizedBox(height: 14),
                 const Text(
-                  'You do not have permission to access this page.',
+                  'Anda tidak memiliki izin untuk membuka halaman ini.',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 18),

@@ -191,7 +191,7 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
               ),
               const SizedBox(height: 22),
               const Text(
-                'Struktur cost code',
+                'Struktur kode biaya',
                 style: AppTextStyles.sectionTitle,
               ),
               const SizedBox(height: 3),

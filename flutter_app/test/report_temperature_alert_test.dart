@@ -3,7 +3,7 @@ import 'package:sicatat_flutter/data/reports/report_export_service.dart';
 
 ReportRow _row({required String value, required String unit}) => ReportRow(
   date: '2026-08-20',
-  team: 'Crew A',
+  team: 'Kru A',
   shift: 'Pagi',
   section: 'Gearbox Breaker',
   round: 1,
@@ -26,13 +26,13 @@ void main() {
     expect(row.temperatureCelsius, 64.5);
     expect(row.isHighTemperature, isTrue);
     expect(row.isCriticalTemperature, isFalse);
-    expect(row.alertLabel, 'HIGH 60-69°C');
+    expect(row.alertLabel, 'TINGGI 60-69°C');
   });
 
   test('marks 70 Celsius and above as critical', () {
     final ReportRow row = _row(value: '70', unit: '°C');
 
     expect(row.isCriticalTemperature, isTrue);
-    expect(row.alertLabel, 'CRITICAL >=70°C');
+    expect(row.alertLabel, 'KRITIS >=70°C');
   });
 }
