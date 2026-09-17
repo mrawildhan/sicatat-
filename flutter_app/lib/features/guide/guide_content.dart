@@ -75,7 +75,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Daily Check Sheet Hydraulic Feeder',
-        'Ada tiga pengecekan per shift: shift pagi pukul 10.00, 14.00, dan 18.00; shift malam pukul 22.00, 02.00, dan 06.00. Isi Feeder 1 lalu Feeder 2: suhu (ambien, pompa utama, motor hidrolik, katup flushing P1/P2/T, penukar panas A/B/C), tekanan (forward, charge, case, vakum), dan kecepatan feeder bila ada. Bila feeder Tidak beroperasi atau Tidak dapat diakses, cukup isi alasannya.',
+        'Ada tiga pengecekan per shift: shift pagi pukul 10.00, 14.00, dan 18.00; shift malam pukul 22.00, 02.00, dan 06.00. Isi Feeder 1 lalu Feeder 2: suhu (Ambient temp, Main pump, Hydraulic motor, Flushing valve P1/P2/T, Heat exchanger A/B/C), tekanan (Forward, Charge, Case, Vacuum), dan Feeder speed bila ada. Nama titik ukur mengikuti istilah di formulir kertas. Bila feeder Tidak beroperasi atau Tidak dapat diakses, cukup isi alasannya.',
       ),
       GuideEntry(
         'Temperature Coal Valve',

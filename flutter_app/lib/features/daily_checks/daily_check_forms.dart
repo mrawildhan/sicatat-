@@ -228,72 +228,72 @@ final DailyCheckForm hydraulicFeederForm = DailyCheckForm(
     DailyCheckSection('Pemantauan suhu', <DailyCheckField>[
       DailyCheckField(
         'ambient',
-        'Suhu ambien',
+        'Ambient temp',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'main_pump',
-        'Pompa utama',
+        'Main pump',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'hydraulic_motor',
-        'Motor hidrolik',
+        'Hydraulic motor',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'flushing_p1',
-        'Katup flushing P1',
+        'Flushing valve P1',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'flushing_p2',
-        'Katup flushing P2',
+        'Flushing valve P2',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'flushing_t',
-        'Katup flushing T',
+        'Flushing valve T',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'heat_exchanger_a',
-        'Penukar panas A',
+        'Heat exchanger A',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'heat_exchanger_b',
-        'Penukar panas B',
+        'Heat exchanger B',
         kind: DailyCheckValueKind.temperature,
       ),
       DailyCheckField(
         'heat_exchanger_c',
-        'Penukar panas C',
+        'Heat exchanger C',
         kind: DailyCheckValueKind.temperature,
       ),
     ]),
     DailyCheckSection('Pemantauan tekanan', <DailyCheckField>[
       DailyCheckField(
         'forward',
-        'Tekanan forward',
+        'Forward',
         kind: DailyCheckValueKind.pressure,
       ),
       DailyCheckField(
         'charge',
-        'Tekanan charge',
+        'Charge',
         kind: DailyCheckValueKind.pressure,
       ),
       DailyCheckField(
         'case',
-        'Tekanan case',
+        'Case',
         kind: DailyCheckValueKind.pressure,
       ),
-      DailyCheckField('vacuum', 'Vakum', kind: DailyCheckValueKind.pressure),
+      DailyCheckField('vacuum', 'Vacuum', kind: DailyCheckValueKind.pressure),
     ]),
     DailyCheckSection('Kecepatan', <DailyCheckField>[
       DailyCheckField(
         'speed',
-        'Kecepatan feeder',
+        'Feeder speed',
         kind: DailyCheckValueKind.speed,
         required: false,
       ),
