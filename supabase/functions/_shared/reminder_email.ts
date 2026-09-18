@@ -24,7 +24,7 @@ export type ReminderEmailResult = {
   recipients: string[];
 };
 
-function escapeHtml(value: string) {
+export function escapeHtml(value: string) {
   return value.replace(
     /[&<>"']/g,
     (character) =>
@@ -51,7 +51,7 @@ function encodeHeader(value: string) {
   return "=?UTF-8?B?" + btoa(binary) + "?=";
 }
 
-function isValidEmail(value: string) {
+export function isValidEmail(value: string) {
   return /^[^\s@<>]+@[^\s@<>]+$/.test(value);
 }
 
@@ -325,13 +325,6 @@ async function sendWithResend({
 export async function sendReminderEmail(
   reminder: ReminderEmailRecord,
 ): Promise<ReminderEmailResult> {
-  const gmailClientId = Deno.env.get("GMAIL_CLIENT_ID");
-  const gmailClientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
-  const gmailRefreshToken = Deno.env.get("GMAIL_REFRESH_TOKEN");
-  const gmailSenderEmail = Deno.env.get("GMAIL_SENDER_EMAIL")?.trim();
-  const resendApiKey = Deno.env.get("RESEND_API_KEY")?.trim();
-  const resendSenderEmail = Deno.env.get("RESEND_FROM_EMAIL")?.trim();
-
   const storedRecipients = Array.isArray(reminder.recipient_emails)
     ? reminder.recipient_emails
         .filter(
@@ -416,6 +409,28 @@ export async function sendReminderEmail(
     "Testing mode: delivery is routed to the designated test mailbox.",
   ].join("\n");
   const subject = prefix + " " + site.name + " - " + title + " - " + urgency.toLowerCase();
+  return deliverEmail({ recipients, subject, html, text });
+}
+
+/// Sends one email through Gmail, falling back to Resend. Shared by the
+/// reminder emails and the critical-temperature alerts.
+export async function deliverEmail({
+  recipients,
+  subject,
+  html,
+  text,
+}: {
+  recipients: string[];
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<ReminderEmailResult> {
+  const gmailClientId = Deno.env.get("GMAIL_CLIENT_ID");
+  const gmailClientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
+  const gmailRefreshToken = Deno.env.get("GMAIL_REFRESH_TOKEN");
+  const gmailSenderEmail = Deno.env.get("GMAIL_SENDER_EMAIL")?.trim();
+  const resendApiKey = Deno.env.get("RESEND_API_KEY")?.trim();
+  const resendSenderEmail = Deno.env.get("RESEND_FROM_EMAIL")?.trim();
   const mime = [
     "From: " + safeHeader(gmailSenderEmail ?? resendSenderEmail ?? ""),
     "To: " + recipients.join(", "),

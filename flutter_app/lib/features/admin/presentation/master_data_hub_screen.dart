@@ -51,6 +51,13 @@ class MasterDataHubScreen extends ConsumerWidget {
             ),
             _item(
               context,
+              Icons.notifications_active_outlined,
+              'Batas & peringatan suhu',
+              'Batas suhu Hydraulic/Coal Valve dan email peringatan kritis',
+              '/admin/daily-check-settings',
+            ),
+            _item(
+              context,
               Icons.account_tree_outlined,
               'Template formulir suhu',
               'Urutan dan jumlah ronde setiap shift',

@@ -12,6 +12,8 @@ import '../../../data/models/master_data_models.dart';
 import '../../../data/models/sheet_model.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../auth/application/current_user_provider.dart';
+import '../../daily_checks/daily_check_repository.dart';
+import '../../daily_checks/presentation/daily_check_widgets.dart';
 
 class SheetMonitoringScreen extends ConsumerStatefulWidget {
   const SheetMonitoringScreen({super.key});
@@ -23,6 +25,8 @@ class SheetMonitoringScreen extends ConsumerStatefulWidget {
 
 class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
   List<SheetModel> _sheets = const <SheetModel>[];
+  List<DailyCheckSheet> _dailySheets = const <DailyCheckSheet>[];
+  List<TemperatureAlert> _alerts = const <TemperatureAlert>[];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -44,8 +48,23 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
       final sheets = await ref
           .read(sicatatRepositoryProvider)
           .listSharedSheets(teamId: teamId);
+      final dailyRepository = DailyCheckRepository();
+      await dailyRepository.loadThresholds();
+      final daily = await dailyRepository.listSince(
+        DateTime.now().subtract(const Duration(days: 14)),
+      );
+      List<TemperatureAlert> alerts = const <TemperatureAlert>[];
+      try {
+        alerts = await dailyRepository.recentAlerts(days: 7);
+      } on Object {
+        // Alerts are a bonus; the sheet lists still show.
+      }
       if (mounted) {
-        setState(() => _sheets = sheets);
+        setState(() {
+          _sheets = sheets;
+          _dailySheets = daily;
+          _alerts = alerts;
+        });
       }
     } catch (_) {
       if (mounted) {
@@ -80,17 +99,44 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
               ),
             ),
           )
-        : _sheets.isEmpty
-        ? const Center(
-            child: Text('Belum ada lembar yang tersinkron ke server.'),
-          )
         : RefreshIndicator(
             onRefresh: _load,
-            child: ListView.separated(
+            child: ListView(
               padding: const EdgeInsets.all(20),
-              itemCount: _sheets.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (_, index) => _sheet(_sheets[index]),
+              children: <Widget>[
+                if (_alerts.isNotEmpty) ...<Widget>[
+                  _heading(
+                    'Suhu kritis 7 hari terakhir',
+                    'Juga dikirim lewat email ke penerima yang diatur admin.',
+                  ),
+                  ..._alerts.map(_alert),
+                  const SizedBox(height: 18),
+                ],
+                _heading(
+                  'Hydraulic Feeder & Coal Valve',
+                  '14 hari terakhir. Lembar terkirim menunggu persetujuan '
+                      'foreman/supervisor.',
+                ),
+                if (_dailySheets.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('Belum ada lembar.'),
+                  )
+                else
+                  ..._dailySheets.map(_dailySheet),
+                const SizedBox(height: 18),
+                _heading('Daily Temperature Feeder Sizer', null),
+                if (_sheets.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('Belum ada lembar yang tersinkron ke server.'),
+                  )
+                else
+                  for (final sheet in _sheets) ...<Widget>[
+                    _sheet(sheet),
+                    const SizedBox(height: 12),
+                  ],
+              ],
             ),
           );
     return AppBackScope(
@@ -190,6 +236,69 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _heading(String title, String? subtitle) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(title, style: AppTextStyles.sectionTitle),
+        if (subtitle != null) Text(subtitle, style: AppTextStyles.supporting),
+      ],
+    ),
+  );
+
+  Widget _alert(TemperatureAlert alert) => Card(
+    margin: const EdgeInsets.only(bottom: 8),
+    color: const Color(0xFFFFECEB),
+    child: ListTile(
+      leading: const Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+      title: Text(
+        '${formatReading(alert.value)} °C · ${alert.pointLabel}',
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          color: AppColors.danger,
+        ),
+      ),
+      subtitle: Text(
+        '${alert.formLabel}\n${alert.teamName ?? 'Regu'} · '
+        '${alert.shiftLabel ?? '-'} · '
+        '${DateFormat('dd MMM yyyy, HH:mm').format(alert.occurredAt)}',
+      ),
+      isThreeLine: true,
+    ),
+  );
+
+  Widget _dailySheet(DailyCheckSheet sheet) {
+    final waiting = !sheet.isDraft && !sheet.isApproved;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: () => context.go(
+          '/daily-checks/${sheet.type.storageValue}/sheet/${sheet.id}',
+        ),
+        leading: Icon(
+          sheet.form.icon,
+          color: sheet.worstLevel.index > 0
+              ? temperatureColor(sheet.worstLevel)
+              : AppColors.green,
+        ),
+        title: Text(
+          '${DateFormat('dd/MM/yyyy').format(sheet.date)} · ${sheet.form.title}',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          '${sheet.teamName ?? 'Regu'} · ${sheet.shiftLabel} · '
+          '${sheet.completeSlots}/${sheet.slots.length} lengkap',
+        ),
+        trailing: sheet.isDraft
+            ? const DailyCheckStatusChip(DailyCheckStatus.draft)
+            : waiting
+            ? const Chip(label: Text('Perlu disetujui'))
+            : const Icon(Icons.verified_rounded, color: AppColors.green),
       ),
     );
   }

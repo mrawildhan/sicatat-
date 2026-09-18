@@ -356,6 +356,10 @@ Isi panduan (`guide_content.dart`) ikut diselaraskan; `docs/PANDUAN-CREW-SICATAT
 - Catatan uji Browser pane: jangan menghitung koordinat dari screenshot ber-skala kecil untuk elemen setinggi tombol. Beberapa klik meleset ke kolom teks di atasnya karena estimasi dari gambar 0,5x. Ambil satu screenshot `scale: 1` (frame = piksel perangkat) sebelum menekan tombol yang posisinya kritis.
 - Catatan uji kedua: `ctrl+a` **tidak** menyeleksi isi kolom teks Flutter web lewat tool ini, dan `Backspace` juga tidak sampai — akibatnya isian menumpuk ("unitpcspcs"). Cara yang berhasil: klik kolomnya, lalu lewat JS `document.activeElement.setSelectionRange(0, value.length)` pada input tersembunyi milik Flutter, baru ketik penggantinya.
 
+## Perbaikan dari sudut pandang pengguna (v2.8.40) — 2026-09-18
+
+Pemilik meminta semua saran dikerjakan: (1) menu Suhu untuk Foreman/Supervisor COP; (2) APK 2.8.40; (3) kartu jadwal pengecekan di Beranda + notifikasi Android 10 menit sebelum jadwal Hydraulic sesuai rotasi 3-3-3; (4) nilai pengecekan sebelumnya di bawah kolom, lonjakan ≥15 ditandai; (5) tekanan dalam bar (tanpa batas normal karena belum ada data OEM); (6) Hydraulic/Coal Valve masuk Suhu tinggi, Lembar belum selesai, Pemantauan, Laporan periode; (7) email peringatan suhu kritis tiap 5 menit ke penerima yang diatur admin; (8) grafik Tren suhu; (9) persetujuan "Mengetahui" tercetak di PDF; (10) batas suhu per titik; (11) cetak banyak lembar sekaligus. Detail teknis di CLAUDE.md. Uji deteksi peringatan memakai dua lembar DATA DUMMY 01/09/2026 (tercatat `no_recipient`, tidak ada email).
+
 ## Suhu: Hydraulic Feeder & Coal Valve, kata "shift" — 2026-09-17
 
 1. **Tiga pilihan Suhu.** Menu Suhu kini membuka `/temperature-forms` berisi Daily Temperature Feeder Sizer (alur lama `/sheets`), Daily Check Sheet Hydraulic Feeder, dan Temperature Coal Valve (dari `Print Daily/*.xlsx`). Dua lembar baru berbahasa Inggris atas permintaan pemilik. Detail teknis ada di CLAUDE.md bagian "Suhu menu".

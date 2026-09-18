@@ -88,6 +88,39 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     ],
   ),
   GuideGroupContent(
+    title: 'Jadwal, persetujuan, dan tren suhu',
+    entries: <GuideEntry>[
+      GuideEntry(
+        'Jadwal pengecekan di Beranda',
+        'Kru dan foreman melihat jadwal Hydraulic Feeder shift yang sedang berjalan: hijau selesai, oranye segera, merah terlambat 30 menit. Di aplikasi Android, notifikasi muncul 10 menit sebelum tiap jadwal untuk regu yang bertugas menurut rotasi 3-3-3; izinkan notifikasi saat diminta.',
+      ),
+      GuideEntry(
+        'Nilai pengecekan sebelumnya',
+        'Saat mengisi Pengecekan II atau III, di bawah setiap kolom tampil angka pengecekan sebelumnya. Kenaikan 15 atau lebih ditandai merah agar salah ketik atau lonjakan suhu langsung terlihat. Tekanan dicatat dalam bar.',
+      ),
+      GuideEntry(
+        'Persetujuan foreman atau supervisor',
+        'Setelah lembar Hydraulic atau Coal Valve dikirim, foreman atau supervisor menekan Setujui (Mengetahui). Nama dan waktu persetujuan tercetak di kolom Pengawas/Foreman pada PDF. Lembar yang dibuka kembali untuk revisi kehilangan persetujuannya.',
+      ),
+      GuideEntry(
+        'Peringatan suhu kritis',
+        'Setiap 5 menit SICATAT memeriksa pembacaan baru dari ketiga lembar Suhu. Nilai yang mencapai batas kritis dikirim sekali lewat email ke penerima yang diatur admin, dan tampil di Pemantauan & persetujuan.',
+      ),
+      GuideEntry(
+        'Tren suhu',
+        'Menu Suhu > Tren suhu menampilkan grafik satu titik ukur selama 7, 30, atau 90 hari, lengkap dengan garis batas waspada dan kritis, rata-rata, minimum, maksimum, dan pembacaan terakhir.',
+      ),
+      GuideEntry(
+        'Cetak banyak lembar',
+        'Di halaman Hydraulic Feeder atau Coal Valve, ikon printer mencetak semua lembar pada rentang tanggal dalam satu PDF. Laporan Periode juga punya tombol cetak untuk kedua lembar ini.',
+      ),
+      GuideEntry(
+        'Batas suhu per titik (admin)',
+        'Data master > Batas & peringatan suhu mengatur batas waspada dan kritis setiap titik Hydraulic dan Coal Valve, misalnya sesuai manual OEM, serta daftar email penerima peringatan. Titik tanpa pengaturan memakai 60/70 derajat C.',
+      ),
+    ],
+  ),
+  GuideGroupContent(
     title: 'Laporan dan ekspor',
     entries: <GuideEntry>[
       GuideEntry(

@@ -10,6 +10,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/app_update_service.dart';
 import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
+import '../../daily_checks/check_reminders.dart';
+import '../../daily_checks/presentation/check_schedule_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({this.showProfile = false, super.key});
@@ -85,7 +87,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final crewName = user?.name ?? 'Kru';
-    final bool hasTemperatureTab = user?.role.canCreateTemperatureSheet == true;
+    final bool hasTemperatureTab = user?.role.canOpenTemperature == true;
     final bool hasReminderTab = user?.role.canUseReminders == true;
     final bool hasWarehouseTab = user?.role.canUseWarehouse == true;
     final int? reminderIndex = hasReminderTab
@@ -292,6 +294,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
     if (shouldLogOut != true) return;
+    await CheckReminders.cancelAll();
     await Supabase.instance.client.auth.signOut();
     ref.read(currentUserProvider.notifier).state = null;
     if (mounted) context.go('/login');
@@ -700,6 +703,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
         ),
+        if (user != null &&
+            (user.role == UserRole.crew || user.role == UserRole.foreman))
+          CheckScheduleCard(user: user),
         const SizedBox(height: 16),
         const Text('Akses cepat', style: AppTextStyles.sectionTitle),
         const SizedBox(height: 4),

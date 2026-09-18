@@ -96,6 +96,11 @@ extension UserRoleX on UserRole {
       this == UserRole.supervisorCop ||
       isGlobalTemperatureManager;
 
+  /// Sees the Suhu menu: people who fill sheets and the foremen and
+  /// supervisors who review them.
+  bool get canOpenTemperature =>
+      canCreateTemperatureSheet || canReviewTemperature;
+
   bool get isTeamScopedTemperature => this == UserRole.foreman;
 
   bool get isSiteScopedTemperature => this == UserRole.supervisorCop;

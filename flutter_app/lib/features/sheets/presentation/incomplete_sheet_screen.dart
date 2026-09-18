@@ -8,6 +8,7 @@ import '../../../data/models/app_user.dart';
 import '../../../data/models/sicatat_types.dart';
 import '../../auth/application/current_user_provider.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../daily_checks/daily_check_repository.dart';
 
 class _IncompleteSheet {
   const _IncompleteSheet({
@@ -17,6 +18,9 @@ class _IncompleteSheet {
     required this.teamName,
     required this.shiftCode,
     required this.completed,
+    this.total = _IncompleteSheetScreenState._expectedSides,
+    this.formTitle = 'Daily Temperature Feeder Sizer',
+    this.route,
   });
   final String id;
   final String date;
@@ -24,6 +28,11 @@ class _IncompleteSheet {
   final String teamName;
   final String shiftCode;
   final int completed;
+  final int total;
+  final String formTitle;
+
+  /// Set for Hydraulic Feeder and Coal Valve sheets, which open elsewhere.
+  final String? route;
   factory _IncompleteSheet.fromJson(JsonMap json, int completed) {
     final Object? rawTeam = json['team'];
     final Object? rawShift = json['shift'];
@@ -135,20 +144,45 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
           }
         }
       }
-      final List<_IncompleteSheet> loaded = sheets
-          .map(
-            (JsonMap sheet) => _IncompleteSheet.fromJson(
-              sheet,
-              completedBySheet[sheet.requiredString('id')] ?? 0,
-            ),
-          )
-          .toList(growable: false);
+      final List<_IncompleteSheet> loaded = <_IncompleteSheet>[
+        ...sheets.map(
+          (JsonMap sheet) => _IncompleteSheet.fromJson(
+            sheet,
+            completedBySheet[sheet.requiredString('id')] ?? 0,
+          ),
+        ),
+        ...await _dailyChecks(),
+      ]..sort((a, b) => b.date.compareTo(a.date));
       if (mounted) setState(() => _items = loaded);
     } on Object catch (error) {
       if (mounted) setState(() => _error = '$error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Hydraulic Feeder and Coal Valve sheets of the last 60 days that still
+  /// miss checks. Row-level security limits them to the viewer's scope.
+  Future<List<_IncompleteSheet>> _dailyChecks() async {
+    final sheets = await DailyCheckRepository().listSince(
+      DateTime.now().subtract(const Duration(days: 60)),
+    );
+    return <_IncompleteSheet>[
+      for (final sheet in sheets)
+        if (sheet.completeSlots < sheet.slots.length)
+          _IncompleteSheet(
+            id: sheet.id,
+            date:
+                '${sheet.date.year.toString().padLeft(4, '0')}-${sheet.date.month.toString().padLeft(2, '0')}-${sheet.date.day.toString().padLeft(2, '0')}',
+            status: sheet.isDraft ? 'draft' : 'submitted_incomplete',
+            teamName: sheet.teamName ?? 'Tanpa regu',
+            shiftCode: sheet.shiftCode ?? '—',
+            completed: sheet.completeSlots,
+            total: sheet.slots.length,
+            formTitle: sheet.form.title,
+            route: '/daily-checks/${sheet.type.storageValue}/sheet/${sheet.id}',
+          ),
+    ];
   }
 
   @override
@@ -219,8 +253,8 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
             children: <Widget>[
               Text(
                 teamOnly
-                    ? 'Menampilkan lembar milik tim Anda.'
-                    : 'Menampilkan lembar dari semua tim.',
+                    ? 'Lembar ketiga form Suhu milik regu Anda yang belum lengkap.'
+                    : 'Lembar ketiga form Suhu dari semua regu yang belum lengkap.',
                 style: const TextStyle(color: Colors.black54),
               ),
               const SizedBox(height: 14),
@@ -264,7 +298,7 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           subtitle: Text(
-            '${sheet.teamName} · ${switch (sheet.shiftCode) {
+            '${sheet.formTitle}\n${sheet.teamName} · ${switch (sheet.shiftCode) {
               'PAGI' => 'Shift Pagi',
               'MALAM' => 'Shift Malam',
               final code => code,
@@ -272,7 +306,7 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
           ),
           trailing: Chip(
             label: Text(
-              '${sheet.completed}/$_expectedSides · ${sheet.status == 'submitted_incomplete' ? 'Dikirim tidak lengkap' : 'Draf'}',
+              '${sheet.completed}/${sheet.total} · ${sheet.status == 'submitted_incomplete' ? 'Dikirim tidak lengkap' : 'Draf'}',
             ),
           ),
         ),
@@ -281,6 +315,10 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
   );
 
   void _openSheet(_IncompleteSheet sheet) {
+    if (sheet.route case final route?) {
+      context.go(route);
+      return;
+    }
     final AppUser? user = ref.read(currentUserProvider);
     final bool canContinueDraft =
         sheet.status == 'draft' && user?.role.canCreateTemperatureSheet == true;

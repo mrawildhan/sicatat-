@@ -18,8 +18,10 @@ import 'features/daily_checks/daily_check_forms.dart';
 import 'features/daily_checks/presentation/daily_check_entry_screen.dart';
 import 'features/daily_checks/presentation/daily_check_hub_screen.dart';
 import 'features/daily_checks/presentation/daily_check_new_screen.dart';
+import 'features/daily_checks/presentation/daily_check_settings_screen.dart';
 import 'features/daily_checks/presentation/daily_check_sheet_screen.dart';
 import 'features/daily_checks/presentation/temperature_forms_screen.dart';
+import 'features/daily_checks/presentation/temperature_trend_screen.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/dashboard/presentation/main_navigation_scaffold.dart';
 import 'features/documents/presentation/document_center_screen.dart';
@@ -164,6 +166,16 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/admin/daily-check-settings',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: DailyCheckSettingsScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
       path: '/admin/measurement-points',
       builder: (_, state) => RoleGuard(
         allowed: const <UserRole>{UserRole.admin, UserRole.supervisorSmg},
@@ -184,6 +196,16 @@ final _router = GoRouter(
         child: MainNavigationScaffold(
           selectedTab: MainNavigationTab.temperature,
           child: TemperatureFormsScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/temperature-trend',
+      builder: (_, __) => const RoleGuard(
+        allowed: _temperatureRoles,
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: TemperatureTrendScreen(),
         ),
       ),
     ),

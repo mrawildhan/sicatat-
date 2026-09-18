@@ -59,6 +59,15 @@ Android release APKs land in `flutter_app/build/app/outputs/flutter-apk/` (only 
 - Storage is one table, `daily_check_sheet` (readings in JSONB, one row per form+date+shift+site), migrations `20260917090000` and `20260917091000`. Slots are saved with the `daily_check_save_slot` RPC so two crew members never overwrite each other. Crew can read/write their own team's sheets; submitted sheets are locked by trigger until reopened; only drafts can be deleted.
 - Routes: `/daily-checks/:type`, `/new`, `/sheet/:id`, `/sheet/:id/:slot` (`type` = `hydraulic_feeder` | `coal_valve`).
 
+## Review, alerts, and reminders (2026-09-18, v2.8.40)
+
+- Suhu menu is visible to reviewers too (`UserRole.canOpenTemperature` = create or review). The Suhu chooser adds Tren suhu (`/temperature-trend`, fl_chart), and for reviewers Pemantauan & Laporan suhu tinggi, which now include Hydraulic/Coal Valve.
+- Daily check sheets have approval ("Mengetahui"): `daily_check_approve(p_id, p_approve)` RPC; `approved_by/approved_at` are only settable through it (trigger + `sicatat.daily_check_approving` setting) and are cleared on reopen. The PDF prints the approver on the signature line.
+- Per-point limits: `daily_check_threshold` (admin/SMG, Data master → Batas & peringatan suhu); `DailyCheckThresholds` caches them client-side, default 60/70 °C. Pressure unit is bar.
+- Critical alerts: edge function `dispatch-temperature-alerts` (verify_jwt false, `x-reminder-cron-secret`), cron `sicatat-dispatch-temperature-alerts` every 5 min, scans the last 6 h of `daily_check_sheet` and Feeder/Sizer `reading` rows, writes `temperature_alert` (unique `source_key`) and emails `temperature_alert_recipient` via the shared Gmail/Resend `deliverEmail()` in `_shared/reminder_email.ts`. No recipients → status `no_recipient`, nothing sent.
+- Check reminders: `check_schedule.dart` computes the 3-3-3 rotation from `roster_anchor` (Pagi team = order[block], Malam = order[(block+2)%3]); Beranda shows `CheckScheduleCard`; Android schedules notifications 10 min before each Hydraulic check for 7 days (`flutter_local_notifications`, inexact alarms, core-library desugaring enabled).
+- App locale is `id_ID` (`flutter_localizations`, `Intl.defaultLocale`).
+
 ## Supabase deployment checklist
 
 1. Apply `supabase/schema.sql` to a new project, then every migration in chronological order.

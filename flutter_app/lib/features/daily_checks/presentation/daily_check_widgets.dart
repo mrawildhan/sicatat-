@@ -5,7 +5,7 @@ import '../daily_check_forms.dart';
 import '../daily_check_repository.dart';
 
 /// In-app temperature colours, matching the Feeder/Sizer form.
-Color temperatureColor(double value) => switch (temperatureLevel(value)) {
+Color temperatureColor(DailyCheckTemperatureLevel level) => switch (level) {
   DailyCheckTemperatureLevel.critical => AppColors.danger,
   DailyCheckTemperatureLevel.warning => AppColors.warning,
   DailyCheckTemperatureLevel.normal => AppColors.green,
@@ -59,14 +59,20 @@ class DailyCheckStatusChip extends StatelessWidget {
 }
 
 class TemperatureBadge extends StatelessWidget {
-  const TemperatureBadge(this.value, {this.prefix = '', super.key});
+  const TemperatureBadge(
+    this.value, {
+    required this.level,
+    this.prefix = '',
+    super.key,
+  });
 
   final double value;
+  final DailyCheckTemperatureLevel level;
   final String prefix;
 
   @override
   Widget build(BuildContext context) {
-    final color = temperatureColor(value);
+    final color = temperatureColor(level);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(

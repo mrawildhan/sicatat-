@@ -62,7 +62,7 @@ class DailyCheckField {
 
   String? get unit => switch (kind) {
     DailyCheckValueKind.temperature => '°C',
-    DailyCheckValueKind.pressure => null,
+    DailyCheckValueKind.pressure => 'bar',
     DailyCheckValueKind.speed => null,
   };
 }
@@ -177,6 +177,31 @@ class DailyCheckForm {
         : DailyCheckSlotState.partial;
   }
 
+  DailyCheckLimits limitsFor(DailyCheckField field) =>
+      DailyCheckThresholds.of(type, field.key);
+
+  DailyCheckTemperatureLevel levelOf(DailyCheckField field, double value) =>
+      temperatureLevel(value, limitsFor(field));
+
+  /// Worst band on the sheet, judged against each point's own limits.
+  DailyCheckTemperatureLevel worstLevel(
+    Map<String, Map<String, Object?>> readings,
+  ) {
+    var worst = DailyCheckTemperatureLevel.normal;
+    for (final slot in readings.values) {
+      for (final unit in units) {
+        for (final field in fields) {
+          if (field.kind != DailyCheckValueKind.temperature) continue;
+          final value = slot[valueKey(unit, field)];
+          if (value is! num) continue;
+          final level = levelOf(field, value.toDouble());
+          if (level.index > worst.index) worst = level;
+        }
+      }
+    }
+    return worst;
+  }
+
   /// Highest temperature on the sheet, for the "High temp" counter.
   double? highestTemperature(Map<String, Map<String, Object?>> readings) {
     double? highest;
@@ -195,12 +220,44 @@ class DailyCheckForm {
   }
 }
 
-/// App-wide temperature bands: 60–69 °C warning, 70 °C and above critical.
+/// Temperature bands. The app-wide default is 60–69 °C warning and 70 °C and
+/// above critical; admins can set other limits per point (Data master →
+/// Batas suhu lembar harian), for example for hydraulic oil.
 enum DailyCheckTemperatureLevel { normal, warning, critical }
 
-DailyCheckTemperatureLevel temperatureLevel(double value) => value >= 70
+class DailyCheckLimits {
+  const DailyCheckLimits(this.warning, this.critical);
+
+  final double warning;
+  final double critical;
+
+  static const DailyCheckLimits standard = DailyCheckLimits(60, 70);
+}
+
+/// Limits loaded from `daily_check_threshold`; points without a row use
+/// [DailyCheckLimits.standard].
+abstract final class DailyCheckThresholds {
+  static Map<String, DailyCheckLimits> _limits = <String, DailyCheckLimits>{};
+
+  static String key(DailyCheckFormType type, String fieldKey) =>
+      '${type.storageValue}:$fieldKey';
+
+  static void replaceAll(Map<String, DailyCheckLimits> limits) =>
+      _limits = Map<String, DailyCheckLimits>.unmodifiable(limits);
+
+  static DailyCheckLimits of(DailyCheckFormType type, String fieldKey) =>
+      _limits[key(type, fieldKey)] ?? DailyCheckLimits.standard;
+
+  static bool isCustom(DailyCheckFormType type, String fieldKey) =>
+      _limits.containsKey(key(type, fieldKey));
+}
+
+DailyCheckTemperatureLevel temperatureLevel(
+  double value, [
+  DailyCheckLimits limits = DailyCheckLimits.standard,
+]) => value >= limits.critical
     ? DailyCheckTemperatureLevel.critical
-    : value >= 60
+    : value >= limits.warning
     ? DailyCheckTemperatureLevel.warning
     : DailyCheckTemperatureLevel.normal;
 

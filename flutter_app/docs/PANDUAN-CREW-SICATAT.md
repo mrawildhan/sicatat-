@@ -26,6 +26,16 @@ Panduan yang selalu terbaru ada di dalam aplikasi: **Beranda → Panduan penggun
 - **Temperature Coal Valve.** Ada empat pembacaan per shift, sama dengan formulir kertas. Setiap pembacaan berisi suhu RV01 sampai RV04 di Sisi Barat, Timur, Utara, dan Selatan. Jam pembacaan tercatat otomatis saat pertama kali disimpan.
 - **Menyimpan, mengirim, dan mencetak.** Anggota regu yang sama dapat mengisi lembar yang sama. Kartu merah berarti masih ada nilai kosong. Kirim lembar membuat lembar final; lembar masih dapat dibuka lewat Buka kembali untuk revisi. Ikon PDF mencetak nilai langsung di atas formulir kertas aslinya (termasuk logo), dengan warna oranye untuk 60 sampai 69 derajat C dan merah untuk 70 derajat C ke atas.
 
+## Jadwal, persetujuan, dan tren suhu
+
+- **Jadwal pengecekan di Beranda.** Kru dan foreman melihat jadwal Hydraulic Feeder shift yang sedang berjalan: hijau selesai, oranye segera, merah terlambat 30 menit. Di aplikasi Android, notifikasi muncul 10 menit sebelum tiap jadwal untuk regu yang bertugas menurut rotasi 3-3-3; izinkan notifikasi saat diminta.
+- **Nilai pengecekan sebelumnya.** Saat mengisi Pengecekan II atau III, di bawah setiap kolom tampil angka pengecekan sebelumnya. Kenaikan 15 atau lebih ditandai merah agar salah ketik atau lonjakan suhu langsung terlihat. Tekanan dicatat dalam bar.
+- **Persetujuan foreman atau supervisor.** Setelah lembar Hydraulic atau Coal Valve dikirim, foreman atau supervisor menekan Setujui (Mengetahui). Nama dan waktu persetujuan tercetak di kolom Pengawas/Foreman pada PDF. Lembar yang dibuka kembali untuk revisi kehilangan persetujuannya.
+- **Peringatan suhu kritis.** Setiap 5 menit SICATAT memeriksa pembacaan baru dari ketiga lembar Suhu. Nilai yang mencapai batas kritis dikirim sekali lewat email ke penerima yang diatur admin, dan tampil di Pemantauan & persetujuan.
+- **Tren suhu.** Menu Suhu > Tren suhu menampilkan grafik satu titik ukur selama 7, 30, atau 90 hari, lengkap dengan garis batas waspada dan kritis, rata-rata, minimum, maksimum, dan pembacaan terakhir.
+- **Cetak banyak lembar.** Di halaman Hydraulic Feeder atau Coal Valve, ikon printer mencetak semua lembar pada rentang tanggal dalam satu PDF. Laporan Periode juga punya tombol cetak untuk kedua lembar ini.
+- **Batas suhu per titik (admin).** Data master > Batas & peringatan suhu mengatur batas waspada dan kritis setiap titik Hydraulic dan Coal Valve, misalnya sesuai manual OEM, serta daftar email penerima peringatan. Titik tanpa pengaturan memakai 60/70 derajat C.
+
 ## Laporan dan ekspor
 
 - **Ekspor satu lembar.** Dari ringkasan lembar, pilih ikon ekspor untuk melihat pratinjau PDF atau mengunduh CSV. PDF memakai warna suhu; CSV tidak dapat berwarna sehingga memakai kolom Peringatan Suhu.

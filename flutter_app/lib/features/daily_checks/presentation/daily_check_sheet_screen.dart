@@ -54,6 +54,7 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      await _repository.loadThresholds();
       final sheet = await _repository.get(widget.sheetId);
       if (!mounted) return;
       setState(() {
@@ -77,6 +78,16 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
     return user.role.isGlobalTemperatureManager ||
         (user.role == UserRole.crew && user.teamId == sheet.teamId);
   }
+
+  /// Foremen and supervisors see only sheets they may review (row-level
+  /// security), so the role is enough here; the server checks again.
+  bool get _canReview =>
+      ref.read(currentUserProvider)?.role.canReviewTemperature == true;
+
+  Future<void> _approve(bool approve) => _run(
+    () => _repository.approve(_sheet!.id, approve: approve),
+    approve ? 'Lembar disetujui.' : 'Persetujuan dibatalkan.',
+  );
 
   Future<void> _run(Future<void> Function() action, String done) async {
     setState(() => _busy = true);
@@ -141,10 +152,35 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
     }, 'Lembar terkirim.');
   }
 
-  Future<void> _reopen() => _run(
-    () => _repository.reopen(_sheet!.id),
-    'Lembar dibuka kembali untuk revisi.',
-  );
+  Future<void> _reopen() async {
+    if (_sheet?.isApproved == true) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Buka kembali lembar yang sudah disetujui?'),
+          content: Text(
+            'Persetujuan ${_sheet?.approverName ?? 'foreman/supervisor'} akan '
+            'dihapus dan lembar perlu disetujui lagi setelah dikirim ulang.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Buka kembali'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+    await _run(
+      () => _repository.reopen(_sheet!.id),
+      'Lembar dibuka kembali untuk revisi.',
+    );
+  }
 
   Future<void> _delete() async {
     final confirmed = await showDialog<bool>(
@@ -258,21 +294,49 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
                 ),
               )
             : RefreshIndicator(onRefresh: _load, child: _content(sheet)),
-        bottomNavigationBar: sheet == null || !_canWrite
-            ? null
-            : DailyCheckBottomBar(
-                child: sheet.isDraft
-                    ? ElevatedButton.icon(
-                        onPressed: _busy ? null : _submit,
-                        icon: busyIcon(_busy, Icons.send_rounded),
-                        label: const Text('Kirim lembar'),
-                      )
-                    : OutlinedButton.icon(
-                        onPressed: _busy ? null : _reopen,
-                        icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Buka kembali untuk revisi'),
-                      ),
-              ),
+        bottomNavigationBar: sheet == null ? null : _bottomBar(sheet),
+      ),
+    );
+  }
+
+  Widget? _bottomBar(DailyCheckSheet sheet) {
+    final buttons = <Widget>[
+      if (sheet.isDraft && _canWrite)
+        ElevatedButton.icon(
+          onPressed: _busy ? null : _submit,
+          icon: busyIcon(_busy, Icons.send_rounded),
+          label: const Text('Kirim lembar'),
+        ),
+      if (!sheet.isDraft && _canReview && !sheet.isApproved)
+        ElevatedButton.icon(
+          onPressed: _busy ? null : () => _approve(true),
+          icon: busyIcon(_busy, Icons.verified_outlined),
+          label: const Text('Setujui (Mengetahui)'),
+        ),
+      if (!sheet.isDraft && _canReview && sheet.isApproved)
+        OutlinedButton.icon(
+          onPressed: _busy ? null : () => _approve(false),
+          icon: const Icon(Icons.undo_rounded),
+          label: const Text('Batalkan persetujuan'),
+        ),
+      if (!sheet.isDraft && _canWrite)
+        OutlinedButton.icon(
+          onPressed: _busy ? null : _reopen,
+          icon: const Icon(Icons.edit_outlined),
+          label: const Text('Buka kembali untuk revisi'),
+        ),
+    ];
+    if (buttons.isEmpty) return null;
+    return DailyCheckBottomBar(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          for (var i = 0; i < buttons.length; i++) ...<Widget>[
+            if (i > 0) const SizedBox(height: 8),
+            buttons[i],
+          ],
+        ],
       ),
     );
   }
@@ -316,6 +380,37 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
                     'Dikirim ${DateFormat('dd/MM/yyyy, HH:mm').format(submittedAt)} oleh ${sheet.submitterName ?? '—'}',
                     style: AppTextStyles.supporting,
                   ),
+                if (sheet.approvedAt case final approvedAt?) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: <Widget>[
+                      const Icon(
+                        Icons.verified_rounded,
+                        size: 16,
+                        color: AppColors.green,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Disetujui ${sheet.approverName ?? '—'} · ${DateFormat('dd/MM/yyyy, HH:mm').format(approvedAt)}',
+                          style: AppTextStyles.supporting.copyWith(
+                            color: AppColors.green,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (!sheet.isDraft) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Menunggu persetujuan foreman/supervisor',
+                    style: AppTextStyles.supporting.copyWith(
+                      color: const Color(0xFF9A6A00),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: <Widget>[
@@ -325,7 +420,11 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
                     ),
                     const Spacer(),
                     if (highest != null)
-                      TemperatureBadge(highest, prefix: 'Maks '),
+                      TemperatureBadge(
+                        highest,
+                        level: sheet.worstLevel,
+                        prefix: 'Maks ',
+                      ),
                   ],
                 ),
                 const SizedBox(height: 8),

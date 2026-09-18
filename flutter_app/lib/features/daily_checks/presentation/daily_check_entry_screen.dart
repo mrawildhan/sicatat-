@@ -44,6 +44,11 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
       <String, DailyCheckUnitStatus>{};
   DailyCheckSheet? _sheet;
   String? _recordedAt;
+  Map<String, Object?>? _previousValues;
+  String? _previousLabel;
+
+  /// A rise this large since the previous check is flagged under the field.
+  static const double _bigTemperatureJump = 15;
   int _unitIndex = 0;
   bool _loading = true;
   bool _saving = false;
@@ -97,6 +102,7 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
       _error = null;
     });
     try {
+      await _repository.loadThresholds();
       final sheet = await _repository.get(widget.sheetId);
       if (!mounted) return;
       final values =
@@ -114,7 +120,14 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
         _statuses[unit.key] = _form.unitStatus(values, unit);
       }
       final recorded = values[DailyCheckForm.recordedAtKey];
+      final slots = sheet?.slots ?? const <DailyCheckSlot>[];
+      final index = slots.indexWhere((slot) => slot.key == widget.slotKey);
+      final previousSlot = index > 0 ? slots[index - 1] : null;
       setState(() {
+        _previousValues = previousSlot == null
+            ? null
+            : sheet?.readings[previousSlot.key];
+        _previousLabel = previousSlot?.label;
         _sheet = sheet;
         _recordedAt = recorded is String ? recorded : null;
         _dirty = false;
@@ -635,9 +648,17 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
     final value = _number(key);
     final isTemperature = field.kind == DailyCheckValueKind.temperature;
     final color = isTemperature && value != null
-        ? temperatureColor(value)
+        ? temperatureColor(_form.levelOf(field, value))
         : AppColors.green;
     final showColor = isTemperature && value != null;
+    // The same point at the previous check, so a typo (550 instead of 55) or a
+    // sudden rise is visible while typing.
+    final previous = _previousValues?[key];
+    final jump = previous is num && value != null ? value - previous : null;
+    final bigJump =
+        jump != null &&
+        field.kind == DailyCheckValueKind.temperature &&
+        jump >= _bigTemperatureJump;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextField(
@@ -658,6 +679,17 @@ class _DailyCheckEntryScreenState extends ConsumerState<DailyCheckEntryScreen> {
         decoration: InputDecoration(
           labelText: field.label,
           hintText: field.required ? null : 'Opsional',
+          helperText: previous is num
+              ? bigJump
+                    ? 'Naik ${formatReading(jump)} dari ${_previousLabel ?? 'sebelumnya'} (${formatReading(previous)})'
+                    : '${_previousLabel ?? 'Sebelumnya'}: ${formatReading(previous)}${field.unit == null ? '' : ' ${field.unit}'}'
+              : null,
+          helperStyle: bigJump
+              ? const TextStyle(
+                  color: AppColors.danger,
+                  fontWeight: FontWeight.w700,
+                )
+              : null,
           suffixText: field.unit,
           isDense: true,
           prefixIcon: Icon(

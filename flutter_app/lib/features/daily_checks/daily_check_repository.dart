@@ -23,6 +23,8 @@ class DailyCheckSheet {
     this.submitterName,
     this.submittedAt,
     this.notes,
+    this.approverName,
+    this.approvedAt,
   });
 
   final String id;
@@ -41,6 +43,11 @@ class DailyCheckSheet {
   final String? submitterName;
   final DateTime? submittedAt;
   final String? notes;
+
+  /// Foreman/supervisor who approved ("Mengetahui") the submitted sheet.
+  final String? approverName;
+  final DateTime? approvedAt;
+  bool get isApproved => approvedAt != null;
 
   DailyCheckForm get form => type.form;
 
@@ -61,6 +68,8 @@ class DailyCheckSheet {
     submitterName: submitterName,
     submittedAt: submittedAt,
     notes: value == null || value.isEmpty ? null : value,
+    approverName: approverName,
+    approvedAt: approvedAt,
   );
   List<DailyCheckSlot> get slots => form.slotsForShift(shiftCode);
   bool get isDraft => status == DailyCheckStatus.draft;
@@ -73,6 +82,8 @@ class DailyCheckSheet {
       .length;
 
   double? get highestTemperature => form.highestTemperature(readings);
+
+  DailyCheckTemperatureLevel get worstLevel => form.worstLevel(readings);
 
   String get shiftLabel => switch (shiftCode) {
     'PAGI' => 'Shift Pagi',
@@ -104,6 +115,7 @@ class DailyCheckSheet {
     }
 
     final submittedAt = json.optionalString('submitted_at');
+    final approvedAt = json.optionalString('approved_at');
     return DailyCheckSheet(
       id: json.requiredString('id'),
       type: type,
@@ -125,6 +137,10 @@ class DailyCheckSheet {
           ? null
           : DateTime.parse(submittedAt).toLocal(),
       notes: json.optionalString('notes'),
+      approverName: related('approver')?.optionalString('name'),
+      approvedAt: approvedAt == null
+          ? null
+          : DateTime.parse(approvedAt).toLocal(),
     );
   }
 }
@@ -146,10 +162,11 @@ class DailyCheckRepository {
 
   static const String _columns =
       'id,form_type,tanggal,shift_id,team_id,status,readings,notes,'
-      'created_by,created_at,submitted_at,'
+      'created_by,created_at,submitted_at,approved_at,'
       'shift:shift_id(name,code),team:team_id(name),'
       'creator:app_user!daily_check_sheet_created_by_fkey(name),'
-      'submitter:app_user!daily_check_sheet_submitted_by_fkey(name)';
+      'submitter:app_user!daily_check_sheet_submitted_by_fkey(name),'
+      'approver:app_user!daily_check_sheet_approved_by_fkey(name)';
 
   Future<List<DailyCheckSheet>> list(DailyCheckFormType type) async {
     final Object rows = await _client
@@ -160,6 +177,159 @@ class DailyCheckRepository {
         .order('created_at', ascending: false)
         .limit(200);
     return _sheets(rows);
+  }
+
+  /// Sheets in a date range, oldest first, for printing several at once.
+  Future<List<DailyCheckSheet>> listRange(
+    DailyCheckFormType type,
+    DateTime from,
+    DateTime to,
+  ) async {
+    final Object rows = await _client
+        .from('daily_check_sheet')
+        .select(_columns)
+        .eq('form_type', type.storageValue)
+        .gte('tanggal', _date(from))
+        .lte('tanggal', _date(to))
+        .order('tanggal', ascending: true)
+        .order('created_at', ascending: true)
+        .limit(400);
+    return _sheets(rows);
+  }
+
+  /// Every form's sheets from [from] onwards, for reports.
+  Future<List<DailyCheckSheet>> listSince(DateTime from) async {
+    final Object rows = await _client
+        .from('daily_check_sheet')
+        .select(_columns)
+        .gte('tanggal', _date(from))
+        .order('tanggal', ascending: false)
+        .limit(600);
+    return _sheets(rows);
+  }
+
+  Future<void> approve(String id, {bool approve = true}) async {
+    try {
+      await _client.rpc<Object?>(
+        'daily_check_approve',
+        params: <String, Object?>{'p_id': id, 'p_approve': approve},
+      );
+    } on PostgrestException catch (error) {
+      throw DailyCheckException(error.message);
+    }
+  }
+
+  /// Loads per-point limits into [DailyCheckThresholds]. A failure keeps the
+  /// limits already loaded (or the 60/70 °C default).
+  Future<void> loadThresholds() async {
+    try {
+      final Object rows = await _client
+          .from('daily_check_threshold')
+          .select('form_type,field_key,warning_from,critical_from');
+      if (rows is! List) return;
+      final limits = <String, DailyCheckLimits>{};
+      for (final raw in rows) {
+        final row = requireJsonMap(raw, source: 'threshold');
+        final type = DailyCheckFormType.fromStorage(
+          row.optionalString('form_type'),
+        );
+        if (type == null) continue;
+        limits[DailyCheckThresholds.key(
+          type,
+          row.requiredString('field_key'),
+        )] = DailyCheckLimits(
+          (row['warning_from']! as num).toDouble(),
+          (row['critical_from']! as num).toDouble(),
+        );
+      }
+      DailyCheckThresholds.replaceAll(limits);
+    } on Object {
+      // Colours fall back to the loaded or standard limits.
+    }
+  }
+
+  Future<void> saveThreshold(
+    DailyCheckFormType type,
+    String fieldKey,
+    DailyCheckLimits limits,
+  ) async {
+    try {
+      await _client.from('daily_check_threshold').upsert(<String, Object?>{
+        'form_type': type.storageValue,
+        'field_key': fieldKey,
+        'warning_from': limits.warning,
+        'critical_from': limits.critical,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }, onConflict: 'form_type,field_key');
+    } on PostgrestException catch (error) {
+      throw DailyCheckException('Batas tidak dapat disimpan: ${error.message}');
+    }
+  }
+
+  Future<void> resetThreshold(DailyCheckFormType type, String fieldKey) =>
+      _client
+          .from('daily_check_threshold')
+          .delete()
+          .eq('form_type', type.storageValue)
+          .eq('field_key', fieldKey);
+
+  Future<List<AlertRecipient>> alertRecipients() async {
+    final Object rows = await _client
+        .from('temperature_alert_recipient')
+        .select('id,email,name,is_active')
+        .order('email', ascending: true);
+    if (rows is! List) return const <AlertRecipient>[];
+    return rows
+        .map((row) => AlertRecipient.fromJson(requireJsonMap(row)))
+        .toList(growable: false);
+  }
+
+  Future<void> addAlertRecipient(String email, String? name) async {
+    try {
+      await _client.from('temperature_alert_recipient').insert(
+        <String, Object?>{
+          'email': email.trim().toLowerCase(),
+          'name': name == null || name.trim().isEmpty ? null : name.trim(),
+        },
+      );
+    } on PostgrestException catch (error) {
+      throw DailyCheckException(
+        error.code == '23505'
+            ? 'Email ini sudah terdaftar.'
+            : 'Email tidak dapat disimpan: ${error.message}',
+      );
+    }
+  }
+
+  Future<void> setAlertRecipientActive(String id, bool active) => _client
+      .from('temperature_alert_recipient')
+      .update(<String, Object?>{'is_active': active})
+      .eq('id', id);
+
+  Future<void> removeAlertRecipient(String id) =>
+      _client.from('temperature_alert_recipient').delete().eq('id', id);
+
+  /// Recent critical-temperature alerts the signed-in reviewer may see.
+  Future<List<TemperatureAlert>> recentAlerts({int days = 14}) async {
+    final Object rows = await _client
+        .from('temperature_alert')
+        .select(
+          'id,form_label,point_label,value,limit_value,sheet_date,'
+          'shift_label,occurred_at,status,team:team_id(name)',
+        )
+        .gte(
+          'occurred_at',
+          DateTime.now()
+              .toUtc()
+              .subtract(Duration(days: days))
+              .toIso8601String(),
+        )
+        .order('occurred_at', ascending: false)
+        .limit(100);
+    if (rows is! List) return const <TemperatureAlert>[];
+    return rows
+        .map((row) => TemperatureAlert.fromJson(requireJsonMap(row)))
+        .toList(growable: false);
   }
 
   Future<DailyCheckSheet?> get(String id) async {
@@ -322,4 +492,68 @@ class DailyCheckException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class AlertRecipient {
+  const AlertRecipient({
+    required this.id,
+    required this.email,
+    required this.isActive,
+    this.name,
+  });
+
+  final String id;
+  final String email;
+  final String? name;
+  final bool isActive;
+
+  factory AlertRecipient.fromJson(JsonMap json) => AlertRecipient(
+    id: json.requiredString('id'),
+    email: json.requiredString('email'),
+    name: json.optionalString('name'),
+    isActive: json.requiredBool('is_active'),
+  );
+}
+
+class TemperatureAlert {
+  const TemperatureAlert({
+    required this.id,
+    required this.formLabel,
+    required this.pointLabel,
+    required this.value,
+    required this.limit,
+    required this.occurredAt,
+    required this.status,
+    this.teamName,
+    this.shiftLabel,
+    this.sheetDate,
+  });
+
+  final String id;
+  final String formLabel;
+  final String pointLabel;
+  final double value;
+  final double limit;
+  final DateTime occurredAt;
+  final String status;
+  final String? teamName;
+  final String? shiftLabel;
+  final DateTime? sheetDate;
+
+  factory TemperatureAlert.fromJson(JsonMap json) {
+    final team = json['team'];
+    final date = json.optionalString('sheet_date');
+    return TemperatureAlert(
+      id: json.requiredString('id'),
+      formLabel: json.requiredString('form_label'),
+      pointLabel: json.requiredString('point_label'),
+      value: (json['value']! as num).toDouble(),
+      limit: (json['limit_value']! as num).toDouble(),
+      occurredAt: DateTime.parse(json.requiredString('occurred_at')).toLocal(),
+      status: json.requiredString('status'),
+      teamName: team is Map ? team['name']?.toString() : null,
+      shiftLabel: json.optionalString('shift_label'),
+      sheetDate: date == null ? null : DateTime.parse(date),
+    );
+  }
 }

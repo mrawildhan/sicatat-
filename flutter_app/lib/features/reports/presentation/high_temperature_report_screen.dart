@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../data/models/sicatat_types.dart';
+import '../../daily_checks/daily_check_forms.dart';
+import '../../daily_checks/daily_check_repository.dart';
 
 class _TeamOption {
   const _TeamOption({required this.id, required this.name});
@@ -27,6 +29,8 @@ class _HighTemperatureRow {
     required this.value,
     required this.unit,
     required this.recordedBy,
+    required this.critical,
+    this.detail,
   });
   final String date;
   final String team;
@@ -38,6 +42,11 @@ class _HighTemperatureRow {
   final double value;
   final String unit;
   final String recordedBy;
+  final bool critical;
+
+  /// Location text for the Hydraulic/Coal Valve sheets, which have no
+  /// rounds or West/East sides.
+  final String? detail;
 }
 
 class HighTemperatureReportScreen extends StatefulWidget {
@@ -264,9 +273,11 @@ class _HighTemperatureReportScreenState
             unit: point?.optionalString('unit') ?? '°C',
             recordedBy:
                 nameByUserId[reading.optionalString('recorded_by')] ?? '—',
+            critical: rawValue >= 70,
           ),
         );
       }
+      result.addAll(await _dailyCheckRows());
       result.sort((left, right) {
         final int dateCompare = right.date.compareTo(left.date);
         return dateCompare == 0
@@ -279,6 +290,51 @@ class _HighTemperatureReportScreenState
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// High readings of the Hydraulic Feeder and Coal Valve sheets, judged
+  /// against each point's own limits.
+  Future<List<_HighTemperatureRow>> _dailyCheckRows() async {
+    final repository = DailyCheckRepository();
+    await repository.loadThresholds();
+    final rows = <_HighTemperatureRow>[];
+    for (final type in DailyCheckFormType.values) {
+      final sheets = await repository.listRange(type, _from, _to);
+      for (final sheet in sheets) {
+        if (_teamId != null && sheet.teamId != _teamId) continue;
+        final form = sheet.form;
+        for (final slot in sheet.slots) {
+          final values = sheet.readings[slot.key];
+          if (values == null) continue;
+          for (final unit in form.units) {
+            for (final field in form.fields) {
+              if (field.kind != DailyCheckValueKind.temperature) continue;
+              final value = values[DailyCheckForm.valueKey(unit, field)];
+              if (value is! num) continue;
+              final level = form.levelOf(field, value.toDouble());
+              if (level == DailyCheckTemperatureLevel.normal) continue;
+              rows.add(
+                _HighTemperatureRow(
+                  date: _date(sheet.date),
+                  team: sheet.teamName ?? 'Tanpa regu',
+                  shift: sheet.shiftLabel,
+                  section: form.title,
+                  round: 0,
+                  side: unit.label,
+                  point: field.label,
+                  value: value.toDouble(),
+                  unit: '°C',
+                  recordedBy: sheet.creatorName ?? '—',
+                  critical: level == DailyCheckTemperatureLevel.critical,
+                  detail: '${slot.label} · ${unit.label} · ${field.label}',
+                ),
+              );
+            }
+          }
+        }
+      }
+    }
+    return rows;
   }
 
   String _section(String value) => value == 'gearbox_breaker'
@@ -304,7 +360,9 @@ class _HighTemperatureReportScreenState
         padding: const EdgeInsets.all(20),
         children: <Widget>[
           const Text(
-            'Semua pembacaan suhu 60 °C ke atas dari lembar yang sudah tersinkron.',
+            'Pembacaan suhu 60 °C ke atas dari ketiga lembar Suhu. Untuk '
+            'Hydraulic Feeder dan Coal Valve dipakai batas per titik yang '
+            'diatur admin.',
           ),
           const SizedBox(height: 16),
           _dateTile('Tanggal mulai', _from, () => _pick(true)),
@@ -371,7 +429,7 @@ class _HighTemperatureReportScreenState
     ),
   );
   Widget _rowTile(_HighTemperatureRow row) {
-    final bool critical = row.value >= 70;
+    final bool critical = row.critical;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Card(
@@ -388,7 +446,9 @@ class _HighTemperatureReportScreenState
             ),
           ),
           subtitle: Text(
-            '${row.date} · ${row.team} · ${row.shift}\n${row.section}, Ronde ${row.round} · ${row.side} · ${row.point}\nDicatat oleh ${row.recordedBy}',
+            row.detail == null
+                ? '${row.date} · ${row.team} · ${row.shift}\n${row.section}, Ronde ${row.round} · ${row.side} · ${row.point}\nDicatat oleh ${row.recordedBy}'
+                : '${row.date} · ${row.team} · ${row.shift}\n${row.section}\n${row.detail}',
           ),
           isThreeLine: true,
         ),

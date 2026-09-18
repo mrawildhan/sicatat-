@@ -30,27 +30,59 @@ Future<void> printDailyCheckSheet(DailyCheckSheet sheet) async {
 Future<Uint8List> buildDailyCheckPdf(
   DailyCheckSheet sheet, {
   required Uint8List background,
+}) => buildDailyCheckPdfBatch(<DailyCheckSheet>[sheet], background: background);
+
+/// One page per sheet, all of the same form, e.g. a week of Hydraulic
+/// sheets for the archive.
+Future<Uint8List> buildDailyCheckPdfBatch(
+  List<DailyCheckSheet> sheets, {
+  required Uint8List background,
 }) async {
-  final isHydraulic = sheet.type == DailyCheckFormType.hydraulicFeeder;
-  final format = isHydraulic
-      ? PdfPageFormat.letter.landscape
-      : PdfPageFormat.letter;
-  final doc = pw.Document(title: sheet.form.title, author: 'SICATAT');
-  final image = pw.MemoryImage(background);
-  doc.addPage(
-    pw.Page(
-      pageFormat: format,
-      margin: pw.EdgeInsets.zero,
-      build: (context) => pw.Stack(
-        children: <pw.Widget>[
-          pw.Positioned.fill(child: pw.Image(image, fit: pw.BoxFit.fill)),
-          ...(isHydraulic ? _hydraulic(sheet) : _coalValve(sheet)),
-          _statusFooter(sheet, format),
-        ],
-      ),
-    ),
+  final doc = pw.Document(
+    title: sheets.isEmpty ? 'SICATAT' : sheets.first.form.title,
+    author: 'SICATAT',
   );
+  final image = pw.MemoryImage(background);
+  for (final sheet in sheets) {
+    final isHydraulic = sheet.type == DailyCheckFormType.hydraulicFeeder;
+    final format = isHydraulic
+        ? PdfPageFormat.letter.landscape
+        : PdfPageFormat.letter;
+    doc.addPage(
+      pw.Page(
+        pageFormat: format,
+        margin: pw.EdgeInsets.zero,
+        build: (context) => pw.Stack(
+          children: <pw.Widget>[
+            pw.Positioned.fill(child: pw.Image(image, fit: pw.BoxFit.fill)),
+            ...(isHydraulic ? _hydraulic(sheet) : _coalValve(sheet)),
+            _statusFooter(sheet, format),
+          ],
+        ),
+      ),
+    );
+  }
   return doc.save();
+}
+
+/// Prints every sheet of [type] from [from] to [to] in one PDF.
+Future<void> printDailyCheckSheets(
+  DailyCheckFormType type,
+  List<DailyCheckSheet> sheets,
+  DateTime from,
+  DateTime to,
+) async {
+  final background = await rootBundle.load(type.form.printBackground);
+  final bytes = await buildDailyCheckPdfBatch(
+    sheets,
+    background: background.buffer.asUint8List(),
+  );
+  final range =
+      '${DateFormat('yyyy-MM-dd').format(from)}_${DateFormat('yyyy-MM-dd').format(to)}';
+  await Printing.layoutPdf(
+    onLayout: (_) async => bytes,
+    name: '${type.storageValue}-$range.pdf',
+  );
 }
 
 // --- shared helpers -------------------------------------------------------
@@ -89,15 +121,15 @@ pw.Widget _cell(
   double right,
   double bottom,
   String text, {
-  double? temperature,
+  DailyCheckTemperatureLevel? level,
   PdfColor color = PdfColors.black,
   double size = 9,
 }) {
   var fill = PdfColors.white;
   var textColor = color;
   var hasFill = false;
-  if (temperature != null) {
-    switch (temperatureLevel(temperature)) {
+  if (level != null) {
+    switch (level) {
       case DailyCheckTemperatureLevel.critical:
         fill = PdfColors.red100;
         textColor = PdfColors.red800;
@@ -281,8 +313,8 @@ List<pw.Widget> _hydraulic(DailyCheckSheet sheet) {
               right,
               rows[row + 1],
               _number(value),
-              temperature: field.kind == DailyCheckValueKind.temperature
-                  ? value.toDouble()
+              level: field.kind == DailyCheckValueKind.temperature
+                  ? form.levelOf(field, value.toDouble())
                   : null,
             ),
           );
@@ -357,8 +389,48 @@ List<pw.Widget> _hydraulic(DailyCheckSheet sheet) {
   if (sheet.notes case final String notes when notes.isNotEmpty) {
     widgets.add(_line(39, 448, 460, 12, 'Catatan: $notes', size: 8));
   }
+  // "Mengetahui, Pengawas/Foreman": the approver's name sits on the
+  // signature line, with the approval time above it.
+  if (sheet.approvedAt case final approvedAt?) {
+    widgets
+      ..add(
+        _centered(
+          522,
+          436,
+          120,
+          'Disetujui ${DateFormat('dd/MM/yyyy HH:mm').format(approvedAt)}',
+          size: 6.5,
+        ),
+      )
+      ..add(_centered(522, 449, 120, sheet.approverName ?? '-', bold: true));
+  }
   return widgets;
 }
+
+/// Text centred in a box of [width] starting at [left].
+pw.Widget _centered(
+  double left,
+  double top,
+  double width,
+  String text, {
+  double size = 9,
+  bool bold = false,
+}) => pw.Positioned(
+  left: left,
+  top: top,
+  child: pw.SizedBox(
+    width: width,
+    child: pw.Text(
+      text,
+      maxLines: 1,
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(
+        fontSize: size,
+        fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+      ),
+    ),
+  ),
+);
 
 // --- Data Temperature Coal Valve ------------------------------------------
 
@@ -434,7 +506,7 @@ List<pw.Widget> _coalValve(DailyCheckSheet sheet) {
             _coalColumns[f + 3],
             _coalRows[row + 1],
             _number(value),
-            temperature: value.toDouble(),
+            level: form.levelOf(fields[f], value.toDouble()),
             size: 10,
           ),
         );
@@ -444,11 +516,25 @@ List<pw.Widget> _coalValve(DailyCheckSheet sheet) {
       remarks.add('${time ?? slots[s].label}: $remark');
     }
   }
-  // The paper form has no remarks column; notes go under the table.
+  // The paper form has no remarks column or signature; notes and the
+  // approval go under the table.
   final notes = <String>[
     ...remarks,
     if (sheet.notes case final String text when text.isNotEmpty) text,
   ];
+  if (sheet.approvedAt case final approvedAt?) {
+    widgets.add(
+      _line(
+        _coalColumns[0],
+        366 + notes.length * 12,
+        _coalColumns.last - _coalColumns.first,
+        12,
+        'Mengetahui: ${sheet.approverName ?? '-'} '
+        '(disetujui ${DateFormat('dd/MM/yyyy HH:mm').format(approvedAt)})',
+        size: 8,
+      ),
+    );
+  }
   for (var i = 0; i < notes.length; i++) {
     widgets.add(
       _line(

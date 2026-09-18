@@ -9,6 +9,7 @@ import 'grouped_bottom_navigation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
+import '../../daily_checks/check_reminders.dart';
 
 enum MainNavigationTab {
   home,
@@ -41,7 +42,7 @@ class MainNavigationScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final canTemperature = user?.role.canCreateTemperatureSheet == true;
+    final canTemperature = user?.role.canOpenTemperature == true;
     final canReminders = user?.role.canUseReminders == true;
     final canWarehouse = user?.role.canUseWarehouse == true;
 
@@ -178,6 +179,7 @@ class MainNavigationScaffold extends ConsumerWidget {
             ),
           );
           if (confirmed != true || !context.mounted) return;
+          await CheckReminders.cancelAll();
           await Supabase.instance.client.auth.signOut();
           ref.read(currentUserProvider.notifier).state = null;
           if (context.mounted) context.go('/login');
@@ -282,7 +284,7 @@ class MainNavigationScaffold extends ConsumerWidget {
               ? null
               : GroupedBottomNavigation(
                   selected: selectedTab.name,
-                  canTemperature: user?.role.canCreateTemperatureSheet == true,
+                  canTemperature: user?.role.canOpenTemperature == true,
                   canReminders: user?.role.canUseReminders == true,
                   canWarehouse: user?.role.canUseWarehouse == true,
                 ),

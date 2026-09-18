@@ -9,6 +9,7 @@ import '../../../core/widgets/summary_filter_card.dart';
 import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
 import '../daily_check_forms.dart';
+import '../daily_check_pdf.dart';
 import '../daily_check_repository.dart';
 import 'daily_check_widgets.dart';
 
@@ -54,6 +55,7 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
       _error = null;
     });
     try {
+      await _repository.loadThresholds();
       final sheets = await _repository.list(widget.type);
       if (mounted) setState(() => _sheets = sheets);
     } on Object catch (error) {
@@ -66,9 +68,7 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
   }
 
   bool _isHigh(DailyCheckSheet sheet) {
-    final highest = sheet.highestTemperature;
-    return highest != null &&
-        temperatureLevel(highest) != DailyCheckTemperatureLevel.normal;
+    return sheet.worstLevel != DailyCheckTemperatureLevel.normal;
   }
 
   List<DailyCheckSheet> get _visible => _sheets
@@ -81,6 +81,44 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
         },
       )
       .toList(growable: false);
+
+  Future<void> _printRange() async {
+    final now = DateTime.now();
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2024),
+      lastDate: DateTime(now.year, now.month, now.day),
+      initialDateRange: DateTimeRange(
+        start: DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(const Duration(days: 6)),
+        end: DateTime(now.year, now.month, now.day),
+      ),
+      helpText: 'Cetak lembar dari tanggal',
+    );
+    if (range == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final sheets = await _repository.listRange(
+        widget.type,
+        range.start,
+        range.end,
+      );
+      if (sheets.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Tidak ada lembar pada rentang itu.')),
+        );
+        return;
+      }
+      await printDailyCheckSheets(widget.type, sheets, range.start, range.end);
+    } on Object catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('PDF tidak dapat dibuat: $error')),
+      );
+    }
+  }
 
   void _toggle(_HubFilter filter) =>
       setState(() => _filter = _filter == filter ? _HubFilter.all : filter);
@@ -99,6 +137,11 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           actions: <Widget>[
+            IconButton(
+              tooltip: 'Cetak rentang tanggal',
+              onPressed: _loading ? null : _printRange,
+              icon: const Icon(Icons.print_outlined),
+            ),
             IconButton(
               tooltip: 'Muat ulang',
               onPressed: _loading ? null : _load,
@@ -241,6 +284,17 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
+                    if (sheet.isApproved) ...<Widget>[
+                      const Tooltip(
+                        message: 'Disetujui foreman/supervisor',
+                        child: Icon(
+                          Icons.verified_rounded,
+                          size: 18,
+                          color: AppColors.green,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
                     DailyCheckStatusChip(sheet.status),
                   ],
                 ),
@@ -261,7 +315,11 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
                     ),
                     if (highest != null) ...<Widget>[
                       const SizedBox(width: 12),
-                      TemperatureBadge(highest, prefix: 'Maks '),
+                      TemperatureBadge(
+                        highest,
+                        level: sheet.worstLevel,
+                        prefix: 'Maks ',
+                      ),
                     ],
                   ],
                 ),

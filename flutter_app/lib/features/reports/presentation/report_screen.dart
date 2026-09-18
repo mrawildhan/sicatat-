@@ -14,6 +14,9 @@ import '../../../data/models/sicatat_types.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/reports/report_export_service.dart';
 import '../../auth/application/current_user_provider.dart';
+import '../../daily_checks/daily_check_forms.dart';
+import '../../daily_checks/daily_check_pdf.dart';
+import '../../daily_checks/daily_check_repository.dart';
 
 class _TeamOption {
   const _TeamOption({required this.id, required this.name});
@@ -359,10 +362,52 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             icon: const Icon(Icons.table_view_rounded),
             label: const Text('Ekspor CSV untuk Excel'),
           ),
+          const SizedBox(height: 26),
+          const Text('Lembar harian lain', style: AppTextStyles.sectionTitle),
+          const SizedBox(height: 4),
+          const Text(
+            'Cetak semua lembar pada rentang tanggal di atas dalam satu PDF, '
+            'satu halaman per lembar dengan formulir aslinya.',
+            style: AppTextStyles.supporting,
+          ),
+          const SizedBox(height: 10),
+          for (final type in DailyCheckFormType.values) ...<Widget>[
+            OutlinedButton.icon(
+              onPressed: _loading ? null : () => _printDaily(type),
+              icon: Icon(type.form.icon),
+              label: Text('Cetak ${type.form.title}'),
+            ),
+            const SizedBox(height: 8),
+          ],
         ],
       ),
     ),
   );
+
+  Future<void> _printDaily(DailyCheckFormType type) async {
+    if (_from.isAfter(_to)) {
+      _message('Tanggal mulai tidak boleh setelah tanggal akhir.');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final repository = DailyCheckRepository();
+      await repository.loadThresholds();
+      final sheets = (await repository.listRange(type, _from, _to))
+          .where((sheet) => _teamId == null || sheet.teamId == _teamId)
+          .toList(growable: false);
+      if (sheets.isEmpty) {
+        _message('Tidak ada lembar ${type.form.title} pada rentang ini.');
+        return;
+      }
+      await printDailyCheckSheets(type, sheets, _from, _to);
+    } on Object catch (error) {
+      _message('PDF tidak dapat dibuat: $error');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Widget _dateTile(String title, DateTime date, VoidCallback onTap) => Card(
     child: ListTile(
       onTap: onTap,
