@@ -67,6 +67,7 @@ Android release APKs land in `flutter_app/build/app/outputs/flutter-apk/` (only 
 - Critical alerts: edge function `dispatch-temperature-alerts` (verify_jwt false, `x-reminder-cron-secret`), cron `sicatat-dispatch-temperature-alerts` every 5 min, scans the last 6 h of `daily_check_sheet` and Feeder/Sizer `reading` rows, writes `temperature_alert` (unique `source_key`) and emails `temperature_alert_recipient` via the shared Gmail/Resend `deliverEmail()` in `_shared/reminder_email.ts`. No recipients → status `no_recipient`, nothing sent.
 - Check reminders: `check_schedule.dart` computes the 3-3-3 rotation from `roster_anchor` (Pagi team = order[block], Malam = order[(block+2)%3]); Beranda shows `CheckScheduleCard`; Android schedules notifications 10 min before each Hydraulic check for 7 days (`flutter_local_notifications`, inexact alarms, core-library desugaring enabled).
 - App locale is `id_ID` (`flutter_localizations`, `Intl.defaultLocale`).
+- APK update offer: `core/services/app_update_prompt.dart` shows "Versi baru tersedia" once per launch on the login screen (before NIK/PIN) or on Beranda after a restored session; Profil → Periksa pembaruan uses the same flow. Anon may read only the active `app_release` row and sign only its APK (migration `20260919090000`). The first phones to see it are those on 2.8.40, when a later version is published.
 
 ## Supabase deployment checklist
 

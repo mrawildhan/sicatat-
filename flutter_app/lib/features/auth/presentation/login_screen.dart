@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/services/app_update_prompt.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../application/current_user_provider.dart';
 
@@ -36,13 +37,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _restoreSession() async {
     try {
       final user = await ref.read(sicatatRepositoryProvider).restoreSession();
-      if (user == null || !mounted) return;
-      ref.read(currentUserProvider.notifier).state = user;
-      context.go('/dashboard');
+      if (user != null && mounted) {
+        ref.read(currentUserProvider.notifier).state = user;
+        context.go('/dashboard');
+        return;
+      }
     } catch (_) {
       // First-run, offline, and configuration failures should leave the crew
       // at the sign-in screen without exposing transport details.
     }
+    // Staying on the sign-in screen: offer a newer APK before NIK and PIN
+    // are entered (Android only, once per launch).
+    if (mounted) await AppUpdatePrompt.offerOnce(context);
   }
 
   @override

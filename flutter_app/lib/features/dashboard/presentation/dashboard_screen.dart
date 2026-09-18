@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/config/app_config.dart';
 import 'grouped_bottom_navigation.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/services/app_update_service.dart';
+import '../../../core/services/app_update_prompt.dart';
 import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
 import '../../daily_checks/check_reminders.dart';
@@ -31,6 +31,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     _showProfile = widget.showProfile;
+    // A restored session skips the login screen, so offer a newer APK here.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AppUpdatePrompt.offerOnce(context);
+    });
   }
 
   @override
@@ -337,153 +341,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (_checkingForUpdate) return;
     setState(() => _checkingForUpdate = true);
     try {
-      final AppUpdateCheck update = await AppUpdateService().checkForUpdate();
-      if (!mounted) return;
-      final AppRelease? release = update.release;
-      if (release == null) {
-        await _showUpdateMessage(
-          title: 'Pembaruan belum tersedia',
-          message: 'Belum ada rilis Android pada kanal pembaruan ini.',
-          icon: Icons.cloud_off_rounded,
-        );
-        return;
-      }
-      if (!update.isUpdateAvailable) {
-        await _showUpdateMessage(
-          title: 'SICATAT sudah versi terbaru',
-          message:
-              'Anda menggunakan versi ${update.currentVersion}, versi terbaru yang tersedia.',
-          icon: Icons.verified_rounded,
-        );
-        return;
-      }
-      final bool? shouldInstall = await showDialog<bool>(
-        context: context,
-        builder: (BuildContext dialogContext) => AlertDialog(
-          title: const Text('Pembaruan tersedia'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text('SICATAT ${release.versionName} siap dipasang.'),
-              if (release.releaseNotes.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.greenSurface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const Text(
-                        'Yang baru',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(release.releaseNotes),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 14),
-              const Text(
-                'Android akan meminta persetujuan pemasangan. Data dan sesi masuk SICATAT tetap tersimpan.',
-                style: TextStyle(color: AppColors.muted),
-              ),
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Nanti saja'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.system_update_alt_rounded),
-              label: const Text('Unduh pembaruan'),
-            ),
-          ],
-        ),
-      );
-      if (shouldInstall == true && mounted) {
-        await _downloadAndInstall(release);
-      }
-    } on Object catch (error) {
-      if (mounted) {
-        await _showUpdateMessage(
-          title: 'Pembaruan tidak dapat diperiksa',
-          message: '$error',
-          icon: Icons.error_outline_rounded,
-        );
-      }
+      await AppUpdatePrompt.checkManually(context);
     } finally {
       if (mounted) setState(() => _checkingForUpdate = false);
     }
   }
-
-  Future<void> _downloadAndInstall(AppRelease release) async {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: <Widget>[
-            CircularProgressIndicator(),
-            SizedBox(width: 18),
-            Expanded(child: Text('Mengunduh pembaruan…')),
-          ],
-        ),
-      ),
-    );
-    try {
-      final AppInstallerResult result = await AppUpdateService()
-          .downloadAndInstall(release);
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      if (result == AppInstallerResult.permissionRequired) {
-        await _showUpdateMessage(
-          title: 'Izinkan pemasangan aplikasi',
-          message: 'Android membuka halaman izin. Izinkan pemasangan dari SICATAT, lalu kembali dan ketuk Periksa pembaruan lagi.',
-          icon: Icons.security_rounded,
-        );
-      }
-    } on Object catch (error) {
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      await _showUpdateMessage(
-        title: 'Unduhan pembaruan gagal',
-        message: '$error',
-        icon: Icons.error_outline_rounded,
-      );
-    }
-  }
-
-  Future<void> _showUpdateMessage({
-    required String title,
-    required String message,
-    required IconData icon,
-  }) => showDialog<void>(
-    context: context,
-    builder: (BuildContext dialogContext) => AlertDialog(
-      title: Row(
-        children: <Widget>[
-          Icon(icon, color: AppColors.green),
-          const SizedBox(width: 10),
-          Expanded(child: Text(title)),
-        ],
-      ),
-      content: Text(message),
-      actions: <Widget>[
-        FilledButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Oke'),
-        ),
-      ],
-    ),
-  );
 
   Widget _profile(BuildContext context, AppUser? user) {
     final name = user?.name ?? 'Account';

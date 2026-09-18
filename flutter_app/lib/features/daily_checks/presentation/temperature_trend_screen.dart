@@ -416,11 +416,13 @@ class _TemperatureTrendScreenState extends State<TemperatureTrendScreen> {
                         getTitlesWidget: (value, meta) => Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
-                            DateFormat('dd/MM').format(
-                              DateTime.fromMillisecondsSinceEpoch(
-                                value.toInt(),
-                              ),
-                            ),
+                            // Within two days the date repeats; show the hour.
+                            DateFormat(spanX < 2 * 86400000 ? 'HH:mm' : 'dd/MM')
+                                .format(
+                                  DateTime.fromMillisecondsSinceEpoch(
+                                    value.toInt(),
+                                  ),
+                                ),
                             style: AppTextStyles.badge,
                           ),
                         ),
