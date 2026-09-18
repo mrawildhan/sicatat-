@@ -11,6 +11,7 @@ import '../../../core/services/app_update_prompt.dart';
 import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
 import '../../daily_checks/check_reminders.dart';
+import '../../daily_checks/critical_alert_watcher.dart';
 import '../../daily_checks/presentation/check_schedule_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -34,6 +35,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // A restored session skips the login screen, so offer a newer APK here.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) AppUpdatePrompt.offerOnce(context);
+      // Right after signing in, not only at the next 3-minute tick.
+      CriticalAlertWatcher.instance.check();
     });
   }
 

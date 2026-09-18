@@ -14,6 +14,7 @@ import 'features/admin/presentation/form_template_management_screen.dart';
 import 'features/admin/presentation/master_data_hub_screen.dart';
 import 'features/admin/presentation/site_management_screen.dart';
 import 'features/admin/presentation/threshold_management_screen.dart';
+import 'features/daily_checks/critical_alert_watcher.dart';
 import 'features/daily_checks/daily_check_forms.dart';
 import 'features/daily_checks/presentation/daily_check_entry_screen.dart';
 import 'features/daily_checks/presentation/daily_check_hub_screen.dart';
@@ -704,6 +705,9 @@ class _SicatatAppState extends State<SicatatApp> {
   void initState() {
     super.initState();
     _versionStatus = AppVersionService.current().check();
+    // Android: notify foremen/supervisors of new critical temperatures while
+    // the app is open (no email needed).
+    CriticalAlertWatcher.instance.start();
   }
 
   @override

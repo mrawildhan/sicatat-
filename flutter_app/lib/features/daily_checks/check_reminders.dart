@@ -34,13 +34,15 @@ abstract final class CheckReminders {
     try {
       final roster = await loadRosterForTeam(user.teamId);
       if (roster == null) return;
-      await _ensureInitialized();
+      await ensureInitialized();
       final checks = upcomingChecks(
         roster.$1,
         roster.$2,
         from: DateTime.now().add(lead),
       );
-      await _plugin.cancelAll();
+      // Only the scheduled reminders; critical-temperature notifications
+      // already on screen stay.
+      await _plugin.cancelAllPendingNotifications();
       var id = 1000;
       for (final check in checks) {
         final at = check.dueAt.subtract(lead);
@@ -80,7 +82,10 @@ abstract final class CheckReminders {
     await _plugin.cancelAll();
   }
 
-  static Future<void> _ensureInitialized() async {
+  /// The shared plugin, also used by [CriticalAlertWatcher].
+  static FlutterLocalNotificationsPlugin get plugin => _plugin;
+
+  static Future<void> ensureInitialized() async {
     if (_initialized) return;
     tz_data.initializeTimeZones();
     await _plugin.initialize(

@@ -104,7 +104,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Peringatan suhu kritis',
-        'Setiap 5 menit SICATAT memeriksa pembacaan baru dari ketiga lembar Suhu. Nilai yang mencapai batas kritis dikirim sekali lewat email ke penerima yang diatur admin, dan tampil di Pemantauan & persetujuan.',
+        'Setiap 5 menit SICATAT memeriksa pembacaan baru dari ketiga lembar Suhu. Nilai yang mencapai batas kritis muncul sebagai notifikasi di HP Android foreman (regunya) dan supervisor (lokasinya) selama aplikasi SICATAT terbuka, atau begitu aplikasi dibuka lagi. Tidak perlu email. Email hanya dikirim bila admin mengisi daftar penerima, dan semua peringatan tampil di Pemantauan & persetujuan.',
       ),
       GuideEntry(
         'Tren suhu',
