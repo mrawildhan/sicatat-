@@ -463,7 +463,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                           action.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w900),
+                          style: AppTextStyles.body,
                         ),
                         const SizedBox(height: 3),
                         Text(
@@ -507,7 +507,8 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.cardTitle.copyWith(height: 1.15),
+                      // Regular weight: the owner found bold labels heavy.
+                      style: AppTextStyles.body.copyWith(height: 1.15),
                     ),
                   ],
                 ),

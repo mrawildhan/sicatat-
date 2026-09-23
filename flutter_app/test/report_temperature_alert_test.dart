@@ -3,7 +3,7 @@ import 'package:sicatat_flutter/data/reports/report_export_service.dart';
 
 ReportRow _row({required String value, required String unit}) => ReportRow(
   date: '2026-08-20',
-  team: 'Kru A',
+  team: 'Crew A',
   shift: 'Pagi',
   section: 'Gearbox Breaker',
   round: 1,

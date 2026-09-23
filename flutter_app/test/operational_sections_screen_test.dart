@@ -140,19 +140,19 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('PM per kru & lokasi'), findsOneWidget);
+      expect(find.text('PM per crew & lokasi'), findsOneWidget);
       expect(find.text('CPP'), findsOneWidget);
       expect(find.text('PORT'), findsOneWidget);
-      expect(find.text('Kru A'), findsNWidgets(2));
-      expect(find.text('Kru B'), findsNWidgets(2));
-      expect(find.text('Kru C'), findsNWidgets(2));
+      expect(find.text('Crew A'), findsNWidgets(2));
+      expect(find.text('Crew B'), findsNWidgets(2));
+      expect(find.text('Crew C'), findsNWidgets(2));
       expect(find.text('CM CPP'), findsOneWidget);
       expect(find.text('CM PORT'), findsOneWidget);
 
-      await tester.tap(find.text('Kru A').first);
+      await tester.tap(find.text('Crew A').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('PM Kru A · CPP'), findsOneWidget);
+      expect(find.text('PM Crew A · CPP'), findsOneWidget);
       expect(
         find.text('Tidak ada PM tertunda yang sesuai pencarian.'),
         findsOneWidget,

@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/sicatat_types.dart';
 import '../../auth/application/current_user_provider.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../daily_checks/daily_check_repository.dart';
 
@@ -281,38 +282,97 @@ class _IncompleteSheetScreenState extends ConsumerState<IncompleteSheetScreen> {
       ),
     ),
   );
-  Widget _tile(_IncompleteSheet sheet) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => _openSheet(sheet),
-        child: ListTile(
-          leading: Icon(
-            sheet.status == 'submitted_incomplete'
-                ? Icons.warning_amber_rounded
-                : Icons.edit_note_rounded,
-          ),
-          title: Text(
-            sheet.date,
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-          subtitle: Text(
-            '${sheet.formTitle}\n${sheet.teamName} · ${switch (sheet.shiftCode) {
-              'PAGI' => 'Shift Pagi',
-              'MALAM' => 'Shift Malam',
-              final code => code,
-            }}',
-          ),
-          trailing: Chip(
-            label: Text(
-              '${sheet.completed}/${sheet.total} · ${sheet.status == 'submitted_incomplete' ? 'Dikirim tidak lengkap' : 'Draf'}',
+  // The status sits under the text: as a trailing chip it took most of the
+  // row on phones and squeezed the date and form name into one letter per line.
+  Widget _tile(_IncompleteSheet sheet) {
+    final bool submitted = sheet.status == 'submitted_incomplete';
+    final Color accent = submitted ? AppColors.warning : AppColors.green;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _openSheet(sheet),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(
+                  submitted
+                      ? Icons.warning_amber_rounded
+                      : Icons.edit_note_rounded,
+                  color: submitted ? AppColors.warning : AppColors.muted,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        _longDate(sheet.date),
+                        style: AppTextStyles.cardTitle,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(sheet.formTitle, style: AppTextStyles.body),
+                      Text(
+                        '${sheet.teamName} · ${switch (sheet.shiftCode) {
+                          'PAGI' => 'Shift Pagi',
+                          'MALAM' => 'Shift Malam',
+                          final code => code,
+                        }}',
+                        style: AppTextStyles.supporting,
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '${sheet.completed}/${sheet.total} terisi · ${submitted ? 'Dikirim tidak lengkap' : 'Draf'}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+              ],
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
+
+  static String _longDate(String isoDate) {
+    final DateTime? date = DateTime.tryParse(isoDate);
+    if (date == null) return isoDate;
+    const List<String> months = <String>[
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
 
   void _openSheet(_IncompleteSheet sheet) {
     if (sheet.route case final route?) {

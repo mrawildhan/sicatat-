@@ -93,7 +93,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final crewName = user?.name ?? 'Kru';
+    final crewName = user?.name ?? 'Crew';
     final bool hasTemperatureTab = user?.role.canOpenTemperature == true;
     final bool hasReminderTab = user?.role.canUseReminders == true;
     final bool hasWarehouseTab = user?.role.canUseWarehouse == true;

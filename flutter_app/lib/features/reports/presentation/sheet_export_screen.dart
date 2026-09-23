@@ -214,7 +214,7 @@ class _SheetExportScreenState extends State<SheetExportScreen> {
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: <pw.Widget>[
             _headerInfo('TANGGAL', first.date),
-            _headerInfo('KRU / SIF', '${first.team} / ${first.shift}'),
+            _headerInfo('CREW / SHIFT', '${first.team} / ${first.shift}'),
             _headerInfo('DIISI OLEH', filledBy.isEmpty ? '-' : filledBy),
           ],
         ),

@@ -74,7 +74,7 @@ class MasterDataHubScreen extends ConsumerWidget {
               context,
               Icons.groups_rounded,
               'Regu',
-              'Regu kru dan status aktifnya',
+              'Regu crew dan status aktifnya',
               '/admin/teams',
             ),
             _item(
@@ -89,7 +89,7 @@ class MasterDataHubScreen extends ConsumerWidget {
                 context,
                 Icons.manage_accounts_outlined,
                 'Pengguna',
-                'NIK, peran, regu, dan status akun kru',
+                'NIK, peran, regu, dan status akun crew',
                 '/users',
               ),
             _item(

@@ -315,7 +315,7 @@ class _SheetMonitoringScreenState extends ConsumerState<SheetMonitoringScreen> {
   }
 
   String _statusLabel(SheetStatus status) => switch (status) {
-    SheetStatus.draft => 'Draf kru',
+    SheetStatus.draft => 'Draf crew',
     SheetStatus.submitted => 'Dikirim',
     SheetStatus.submittedIncomplete => 'Dikirim tidak lengkap',
     SheetStatus.verified => 'Terverifikasi',

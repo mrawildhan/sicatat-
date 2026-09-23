@@ -92,7 +92,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     entries: <GuideEntry>[
       GuideEntry(
         'Jadwal pengecekan di Beranda',
-        'Kru dan foreman melihat jadwal Hydraulic Feeder shift yang sedang berjalan: hijau selesai, oranye segera, merah terlambat 30 menit. Di aplikasi Android, notifikasi muncul 10 menit sebelum tiap jadwal untuk regu yang bertugas menurut rotasi 3-3-3; izinkan notifikasi saat diminta.',
+        'Crew dan foreman melihat jadwal Hydraulic Feeder shift yang sedang berjalan: hijau selesai, oranye segera, merah terlambat 30 menit. Di aplikasi Android, notifikasi muncul 10 menit sebelum tiap jadwal untuk regu yang bertugas menurut rotasi 3-3-3; izinkan notifikasi saat diminta.',
       ),
       GuideEntry(
         'Nilai pengecekan sebelumnya',
@@ -200,7 +200,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'PM & CM Tertunda',
-        'Daftar pekerjaan preventif dan korektif yang belum selesai, dipisah per kru dan lokasi.',
+        'Daftar pekerjaan preventif dan korektif yang belum selesai, dipisah per crew dan lokasi.',
       ),
       GuideEntry(
         'Data PR',

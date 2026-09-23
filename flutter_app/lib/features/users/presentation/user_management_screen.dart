@@ -6,7 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/sicatat_types.dart';
 
 String _roleLabel(String role) => switch (role) {
-  'crew' => 'Kru',
+  'crew' => 'Crew',
   'foreman' => 'Foreman',
   'supervisor_cop' => 'Supervisor COP',
   'supervisor_smg' || 'supervisor' => 'Supervisor SMG',
@@ -52,12 +52,12 @@ List<_UserGroup> _groupUsers(List<_ManagedUser> users) {
     ),
     for (final team in teamNames)
       _UserGroup(
-        'Kru · $team',
+        'Crew · $team',
         Icons.groups_outlined,
         crew.where((user) => user.teamName == team).toList(),
       ),
     _UserGroup(
-      'Kru tanpa regu',
+      'Crew tanpa regu',
       Icons.person_outline_rounded,
       crew.where((user) => user.teamName == null).toList(),
     ),
@@ -308,7 +308,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       return;
     }
     if (_roleNeedsTeam && _teamId == null) {
-      _message('Regu wajib dipilih untuk pengguna kru dan foreman.');
+      _message('Regu wajib dipilih untuk pengguna crew dan foreman.');
       return;
     }
     if (_roleNeedsSite && _siteId == null) {

@@ -382,7 +382,7 @@ class _OutstandingMaintenanceScreenState
       isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => _PreventiveMaintenanceListSheet(
-        title: 'PM Kru $crew · $site',
+        title: 'PM Crew $crew · $site',
         items: items,
       ),
     );
@@ -1225,10 +1225,10 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const Text('PM per kru & lokasi', style: AppTextStyles.sectionTitle),
+        const Text('PM per crew & lokasi', style: AppTextStyles.sectionTitle),
         const SizedBox(height: 5),
         const Text(
-          'Pilih kru untuk membuka daftar PM layar penuh.',
+          'Pilih crew untuk membuka daftar PM layar penuh.',
           style: TextStyle(color: AppColors.muted, height: 1.35),
         ),
         const SizedBox(height: 12),
@@ -1249,19 +1249,19 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
                   children: <Widget>[
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Kru A',
+                      title: 'Crew A',
                       count: _countPm('A', 'CPP'),
                       onTap: () => onOpenPmSection('A', 'CPP'),
                     ),
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Kru B',
+                      title: 'Crew B',
                       count: _countPm('B', 'CPP'),
                       onTap: () => onOpenPmSection('B', 'CPP'),
                     ),
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Kru C',
+                      title: 'Crew C',
                       count: _countPm('C', 'CPP'),
                       onTap: () => onOpenPmSection('C', 'CPP'),
                     ),
@@ -1275,19 +1275,19 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
                   children: <Widget>[
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Kru A',
+                      title: 'Crew A',
                       count: _countPm('A', 'PORT'),
                       onTap: () => onOpenPmSection('A', 'PORT'),
                     ),
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Kru B',
+                      title: 'Crew B',
                       count: _countPm('B', 'PORT'),
                       onTap: () => onOpenPmSection('B', 'PORT'),
                     ),
                     _MaintenanceGroupCard(
                       icon: Icons.person_outline_rounded,
-                      title: 'Kru C',
+                      title: 'Crew C',
                       count: _countPm('C', 'PORT'),
                       onTap: () => onOpenPmSection('C', 'PORT'),
                     ),
@@ -2283,14 +2283,19 @@ class _MaintenanceGroupCard extends StatelessWidget {
                 child: Icon(icon, color: AppColors.green, size: 18),
               ),
               const SizedBox(width: 8),
+              // Half-width cards on phones leave ~60 px for the title, which
+              // cut "CM CPP" to "CM C…"; shrink it to fit instead.
               Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ),
@@ -2485,7 +2490,7 @@ class _PreventiveMaintenanceListSheetState
               textInputAction: TextInputAction.search,
               decoration: const InputDecoration(
                 hintText:
-                    'Cari perintah kerja, pekerjaan, aset, kru, atau lokasi',
+                    'Cari perintah kerja, pekerjaan, aset, crew, atau lokasi',
                 prefixIcon: Icon(Icons.search_rounded, color: AppColors.green),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(vertical: 14),
@@ -2733,7 +2738,7 @@ class _PreventiveMaintenanceTile extends StatelessWidget {
             const SizedBox(height: 4),
             _PmDetail(
               icon: Icons.location_on_outlined,
-              text: '${item.site} • Kru ${item.crew}',
+              text: '${item.site} • Crew ${item.crew}',
             ),
           ],
         ),

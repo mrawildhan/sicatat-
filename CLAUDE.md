@@ -49,7 +49,7 @@ Android release APKs land in `flutter_app/build/app/outputs/flutter-apk/` (only 
 - Incomplete fields can be skipped while drafting. The Sheet Summary card for an incomplete group is red and opens the first missing entry. Complete cards open their per-entry detail in a bottom sheet.
 - The default Sheet Summary is deliberately compact: four cards, contributor count, export icon, and sticky Submit. Audit/review/override/delete actions sit in `More options & history`.
 - Add User uses a dedicated create-mode state; it calls the `create-crew-user` edge function. If saving a new user fails after deployment, verify that function is deployed and that the signed-in caller is an active `admin`.
-- PDF displays 60–69°C orange and >=70°C red. CSV cannot encode colors, so it contains a `Peringatan Suhu` column with `TINGGI 60-69°C` or `KRITIS >=70°C` (anomalies without a high reading read `PERLU DITINJAU`). The whole UI, PDF, and CSV are Indonesian since 2026-09-17 ("lembar" for sheet, "shift" for shift — the owner rejected "sif" on 2026-09-17 — and "kru" for crew); stored database values stay in their original form.
+- PDF displays 60–69°C orange and >=70°C red. CSV cannot encode colors, so it contains a `Peringatan Suhu` column with `TINGGI 60-69°C` or `KRITIS >=70°C` (anomalies without a high reading read `PERLU DITINJAU`). The whole UI, PDF, and CSV are Indonesian since 2026-09-17 ("lembar" for sheet, "shift" for shift — the owner rejected "sif" on 2026-09-17, and "Crew" for crew — the owner replaced "kru" on 2026-09-23); stored database values stay in their original form.
 
 ## Suhu menu: three check sheets (2026-09-17)
 

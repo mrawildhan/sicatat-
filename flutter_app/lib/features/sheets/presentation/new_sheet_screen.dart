@@ -203,8 +203,8 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
     if (teamId == null) {
       setState(
         () => _errorMessage = user.role.isGlobalTemperatureManager
-            ? 'Pilih kru sebelum membuat lembar ini.'
-            : 'Akun Anda belum ditugaskan ke kru aktif. Minta admin menetapkan kru Anda sebelum membuat lembar.',
+            ? 'Pilih crew sebelum membuat lembar ini.'
+            : 'Akun Anda belum ditugaskan ke crew aktif. Minta admin menetapkan crew Anda sebelum membuat lembar.',
       );
       return;
     }
@@ -265,7 +265,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
         setState(() {
           _occupiedShiftIds = <String>{..._occupiedShiftIds, shift.id};
           _selectedShift = _initialShift(_shifts);
-          _errorMessage = 'Kru lain sudah membuka tanggal dan shift ini. Hanya shift yang tersisa yang dapat dibuat.';
+          _errorMessage = 'Crew lain sudah membuka tanggal dan shift ini. Hanya shift yang tersisa yang dapat dibuat.';
         });
         return;
       }
@@ -361,7 +361,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
             const SizedBox(height: 22),
             if (user?.role.isGlobalTemperatureManager == true) ...<Widget>[
               const Text(
-                'Catat untuk kru',
+                'Catat untuk crew',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 9),
@@ -439,7 +439,7 @@ class _NewSheetScreenState extends ConsumerState<NewSheetScreen> {
             ],
             const SizedBox(height: 34),
             const Text(
-              'Kru yang ditugaskan',
+              'Crew yang ditugaskan',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 9),
