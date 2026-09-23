@@ -28,12 +28,18 @@ Future<void> _build(DailyCheckSheet sheet, String name) async {
   final background = File(sheet.form.printBackground).readAsBytesSync();
   final bytes = await buildDailyCheckPdf(sheet, background: background);
   expect(bytes.length, greaterThan(background.length));
+  // Values are written in the app font, not the PDF standard Helvetica.
+  final String raw = String.fromCharCodes(bytes);
+  expect(raw, contains('LiberationSans'));
+  expect(raw, isNot(contains('/Helvetica')));
   // Set DAILY_CHECK_PDF_DIR to keep the files for a visual check.
   final outputDir = Platform.environment['DAILY_CHECK_PDF_DIR'];
   if (outputDir != null) File('$outputDir/$name').writeAsBytesSync(bytes);
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('hydraulic feeder PDF fills the paper form', () async {
     final form = DailyCheckFormType.hydraulicFeeder.form;
     final fields = form.fields.toList();

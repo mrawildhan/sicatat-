@@ -46,7 +46,17 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # One typeface for the app and every PDF: Liberation Sans (Arial metrics,
+  # SIL OFL 1.1). Without a bundled file, "Arial" fell back to Roboto on the
+  # web and on Android. See lib/core/pdf/pdf_theme.dart.
+  fonts:
+    - family: LiberationSans
+      fonts:
+        - asset: assets/fonts/LiberationSans-Regular.ttf
+        - asset: assets/fonts/LiberationSans-Bold.ttf
+          weight: 700
   assets:
+    - assets/fonts/
     - assets/images/
     - assets/forms/
     - assets/documents/cost_code_user_guide_2014_r01.pdf

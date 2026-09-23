@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../core/pdf/pdf_fonts.dart';
 import 'daily_check_forms.dart';
 import 'daily_check_repository.dart';
 
@@ -39,6 +40,7 @@ Future<Uint8List> buildDailyCheckPdfBatch(
   required Uint8List background,
 }) async {
   final doc = pw.Document(
+    theme: await loadPdfTheme(),
     title: sheets.isEmpty ? 'SICATAT' : sheets.first.form.title,
     author: 'SICATAT',
   );

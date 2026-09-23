@@ -1,17 +1,19 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/pdf/pdf_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../data/models/sicatat_types.dart';
 import '../../../data/models/app_user.dart';
+import '../../../data/reports/period_report_pdf.dart';
 import '../../../data/reports/report_export_service.dart';
 import '../../auth/application/current_user_provider.dart';
 import '../../daily_checks/daily_check_forms.dart';
@@ -55,9 +57,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   String _date(DateTime value) =>
       '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 
-  /// Dates people read (the query and file name keep [_date]).
-  String _shownDate(DateTime value) =>
-      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
   Future<void> _loadTeams() async {
     try {
       final Object response = await Supabase.instance.client
@@ -116,7 +115,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         _message('Tidak ada data pembacaan pada periode ini.');
         return;
       }
-      final pw.Document pdf = pw.Document();
       final String teamName = _teamId == null
           ? 'Semua regu'
           : _teams
@@ -124,42 +122,15 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                     .map((team) => team.name)
                     .firstOrNull ??
                 'Regu terpilih';
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4.landscape,
-          margin: const pw.EdgeInsets.all(22),
-          header: (pw.Context context) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: <pw.Widget>[
-              pw.Text(
-                'LAPORAN SUHU LAPANGAN SICATAT',
-                style: const pw.TextStyle(
-                  fontSize: 15,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Text(
-                // Count sheets that appear in the rows (empty sheets are skipped).
-                // Team is part of the key because older data has two teams on the
-                // same date and shift. Rows include unit status lines.
-                'Periode: ${_shownDate(_from)} s.d. ${_shownDate(_to)} - Regu: $teamName - ${result.rows.map((row) => '${row.date}|${row.team}|${row.shift}').toSet().length} lembar berisi data, ${result.rows.length} baris',
-                style: const pw.TextStyle(fontSize: 8),
-              ),
-              pw.SizedBox(height: 8),
-            ],
-          ),
-          footer: (pw.Context context) => pw.Align(
-            alignment: pw.Alignment.centerRight,
-            child: pw.Text(
-              'Halaman ${context.pageNumber} dari ${context.pagesCount}',
-              style: const pw.TextStyle(fontSize: 8),
-            ),
-          ),
-          build: (pw.Context context) => <pw.Widget>[_reportTable(result.rows)],
-        ),
+      final Uint8List bytes = await PeriodReportPdf.build(
+        result: result,
+        from: _from,
+        to: _to,
+        teamName: teamName,
+        theme: await loadPdfTheme(),
       );
       await Printing.layoutPdf(
-        onLayout: (PdfPageFormat _) async => pdf.save(),
+        onLayout: (PdfPageFormat _) async => bytes,
         name: 'sicatat-report-${_date(_from)}_${_date(_to)}.pdf',
       );
     } on Object catch (error) {
@@ -167,90 +138,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  pw.Widget _reportTable(List<ReportRow> rows) => pw.Table(
-    border: pw.TableBorder.all(color: PdfColors.grey400, width: .35),
-    columnWidths: const <int, pw.TableColumnWidth>{
-      0: pw.FixedColumnWidth(48),
-      1: pw.FixedColumnWidth(68),
-      2: pw.FixedColumnWidth(88),
-      3: pw.FixedColumnWidth(62),
-      4: pw.FlexColumnWidth(1.4),
-      5: pw.FixedColumnWidth(62),
-      6: pw.FixedColumnWidth(70),
-      7: pw.FixedColumnWidth(62),
-    },
-    children: <pw.TableRow>[
-      pw.TableRow(
-        decoration: const pw.BoxDecoration(color: PdfColors.green700),
-        children: <pw.Widget>[
-          _reportCell('Tanggal', header: true),
-          _reportCell('Regu / shift', header: true),
-          _reportCell('Bagian / ronde / jam', header: true),
-          _reportCell('Sisi / status', header: true),
-          _reportCell('Peralatan / titik ukur', header: true),
-          _reportCell('Nilai / peringatan', header: true),
-          _reportCell('Dicatat oleh', header: true),
-          _reportCell('Status lembar', header: true),
-        ],
-      ),
-      ...rows.map(
-        (ReportRow row) => pw.TableRow(
-          children: <pw.Widget>[
-            _reportCell(row.date),
-            _reportCell('${row.team}\n${row.shift}'),
-            _reportCell('${row.section}\nRonde ${row.round} - ${row.time}'),
-            _reportCell('${row.side}\n${row.unitStatus}'),
-            _reportCell(
-              '${row.equipment.isEmpty ? '' : '${row.equipment} - '}${row.point}',
-            ),
-            _reportCell(
-              '${row.value} ${row.unit}${row.alertLabel.isEmpty ? '' : '\n${row.alertLabel}'}',
-              alert: row.alertLabel,
-            ),
-            _reportCell(row.recordedBy),
-            _reportCell(row.sheetStatus),
-          ],
-        ),
-      ),
-    ],
-  );
-
-  pw.Widget _reportCell(
-    String value, {
-    bool header = false,
-    String alert = '',
-  }) {
-    final bool critical = alert.startsWith('KRITIS');
-    final bool high = alert.startsWith('TINGGI');
-    final bool review = alert.isNotEmpty && !critical && !high;
-    final PdfColor background = header
-        ? PdfColors.green700
-        : critical
-        ? PdfColors.red600
-        : high
-        ? PdfColors.orange300
-        : review
-        ? PdfColors.amber100
-        : PdfColors.white;
-    final PdfColor foreground = header || critical
-        ? PdfColors.white
-        : PdfColors.black;
-    return pw.Container(
-      color: background,
-      padding: const pw.EdgeInsets.all(3),
-      child: pw.Text(
-        value,
-        style: pw.TextStyle(
-          fontSize: header ? 7 : 6,
-          color: foreground,
-          fontWeight: header || alert.isNotEmpty
-              ? pw.FontWeight.bold
-              : pw.FontWeight.normal,
-        ),
-      ),
-    );
   }
 
   Future<void> _exportCsv() async {

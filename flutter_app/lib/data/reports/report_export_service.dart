@@ -3,6 +3,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/sicatat_types.dart';
 import '../models/master_data_models.dart';
 
+/// 2026-08-19 → 19/08/2026 for PDFs people read.  CSV keeps the ISO date so
+/// Excel sorts it correctly.
+String shownReportDate(String isoDate) {
+  final DateTime? date = DateTime.tryParse(isoDate);
+  if (date == null) return isoDate;
+  return '${date.day.toString().padLeft(2, '0')}/'
+      '${date.month.toString().padLeft(2, '0')}/${date.year}';
+}
+
 class ReportRow {
   const ReportRow({
     required this.date,

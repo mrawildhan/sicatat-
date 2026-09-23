@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/pdf/pdf_fonts.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../guide_content.dart';
 
@@ -27,7 +28,9 @@ class CrewGuideScreen extends StatelessWidget {
   const CrewGuideScreen({super.key});
 
   Future<void> _downloadIndonesianPdf() async {
-    final Uint8List bytes = await buildGuidePdfBytes();
+    final Uint8List bytes = await buildGuidePdfBytes(
+      theme: await loadPdfTheme(),
+    );
     await Printing.sharePdf(bytes: bytes, filename: 'Panduan-SICATAT.pdf');
   }
 

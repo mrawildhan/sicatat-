@@ -7,10 +7,18 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:sicatat_flutter/core/pdf/pdf_theme.dart';
 import 'package:sicatat_flutter/features/guide/guide_content.dart';
 
 Future<void> main() async {
-  final Uint8List bytes = await buildGuidePdfBytes();
+  ByteData font(String asset) =>
+      ByteData.sublistView(File(asset).readAsBytesSync());
+  final Uint8List bytes = await buildGuidePdfBytes(
+    theme: pdfThemeFromFontBytes(
+      regular: font(appFontRegularAsset),
+      bold: font(appFontBoldAsset),
+    ),
+  );
   final File output = File('docs/Panduan-Pengguna-SICATAT.pdf');
   await output.writeAsBytes(bytes);
   stdout.writeln(

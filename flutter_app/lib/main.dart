@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
+import 'core/pdf/pdf_fonts.dart';
 import 'core/platform/local_database_setup.dart';
 import 'data/sync/sync_coordinator.dart';
 import 'data/sync/sync_service.dart';
@@ -17,6 +18,7 @@ SyncCoordinator? _syncCoordinator;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  registerAppFontLicense();
   // Month and day names ("17 Sep", "Kamis") are written in Indonesian.
   Intl.defaultLocale = 'id_ID';
   await initializeDateFormatting('id_ID');

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../pdf/pdf_theme.dart';
+
 class AppColors {
   // SICATAT brand palette: green is intentionally dominant across the app.
   static const green = Color(0xFF176B4D);
@@ -73,7 +75,7 @@ class AppTheme {
         surface: AppColors.surface,
       ),
       scaffoldBackgroundColor: AppColors.surface,
-      fontFamily: 'Arial',
+      fontFamily: appFontFamily,
       textTheme: const TextTheme(
         displaySmall: AppTextStyles.pageTitle,
         headlineSmall: AppTextStyles.pageTitle,

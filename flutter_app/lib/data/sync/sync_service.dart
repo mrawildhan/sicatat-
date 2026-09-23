@@ -63,6 +63,22 @@ class SyncService {
             conflicted += 1;
             continue;
           }
+          if (error.code == '23505' &&
+              item.operation == SyncOperation.insert &&
+              (item.entityType == SyncEntityType.round ||
+                  item.entityType == SyncEntityType.unitStatus)) {
+            // Another device created this round or unit first. Pulling the
+            // sheet gives the local row the server's identity, which rewrites
+            // this queued insert into an update that succeeds next time.
+            final String? sheetId = await _database.sheetIdForQueuedRow(item);
+            if (sheetId != null) {
+              try {
+                await pullSheetDetail(sheetId);
+              } on Object {
+                // Keep the failure below; the next sync retries.
+              }
+            }
+          }
           await _database.markSyncFailure(item, error.message);
           failed += 1;
           continue;
@@ -76,6 +92,57 @@ class SyncService {
     } finally {
       _isSyncing = false;
     }
+  }
+
+  /// Copies a sheet's rounds, unit statuses, and readings from Supabase to
+  /// this device (see [LocalDatabase.mergeRemoteSheetDetail]).  Forms and
+  /// summaries call it before reading local data.
+  Future<void> pullSheetDetail(String sheetId) async {
+    List<Map<String, Object?>> rows(Object response, String source) =>
+        response is List
+        ? <Map<String, Object?>>[
+            for (final Object? row in response)
+              Map<String, Object?>.from(row! as Map<Object?, Object?>),
+          ]
+        : throw FormatException('Data $source tidak valid.');
+    final rounds = rows(
+      await _client
+          .from('round')
+          .select('id,client_uuid,sheet_id,section,round_number,jam')
+          .eq('sheet_id', sheetId),
+      'ronde',
+    );
+    final roundIds = <String>[
+      for (final round in rounds)
+        if (round['id'] case final String id) id,
+    ];
+    final unitStatuses = roundIds.isEmpty
+        ? <Map<String, Object?>>[]
+        : rows(
+            await _client
+                .from('unit_status')
+                .select(
+                  'id,client_uuid,round_id,unit_code,equipment_id,status,reason,answered_at',
+                )
+                .inFilter('round_id', roundIds),
+            'status unit',
+          );
+    final readings = roundIds.isEmpty
+        ? <Map<String, Object?>>[]
+        : rows(
+            await _client
+                .from('reading')
+                .select(
+                  'id,client_uuid,round_id,unit_status_id,measurement_point_id,value_numeric,value_boolean,value_text,measured_at,recorded_by,is_anomaly,anomaly_note',
+                )
+                .inFilter('round_id', roundIds),
+            'pembacaan',
+          );
+    await _database.mergeRemoteSheetDetail(
+      rounds: rounds,
+      unitStatuses: unitStatuses,
+      readings: readings,
+    );
   }
 
   Future<void> _send(SyncQueueItem item) async {

@@ -67,8 +67,15 @@ Dokumen ini adalah pegangan singkat bagi pengembang berikutnya. Baca juga
 
 ## Sistem tampilan: ikuti Beranda
 
-Beranda adalah acuan visual. Font aplikasi adalah Arial yang ditetapkan secara
-global di `AppTheme`; jangan menetapkan `fontFamily` berbeda pada halaman baru.
+Beranda adalah acuan visual. Font aplikasi adalah Liberation Sans (bentuk dan
+ukuran huruf sama dengan Arial, lisensi SIL OFL, file di `flutter_app/assets/fonts/`),
+ditetapkan sekali di `AppTheme` lewat `appFontFamily`; jangan menetapkan
+`fontFamily` berbeda pada halaman baru. Setiap PDF wajib memakai
+`pw.Document(theme: await loadPdfTheme())` (atau `pdfThemeFromFontBytes` di luar
+Flutter) agar font PDF sama dengan aplikasi; `test/export_pdf_font_test.dart`
+menjaganya. Ekspor Excel tetap menulis "Arial" karena Excel selalu memilikinya.
+(Sebelum 2026-09-23 "Arial" tidak dibundel, sehingga web/Android jatuh ke Roboto
+dan PDF memakai Helvetica.)
 
 Gunakan token pada `flutter_app/lib/core/theme/app_theme.dart`:
 

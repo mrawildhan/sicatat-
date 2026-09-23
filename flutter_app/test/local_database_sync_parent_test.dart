@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sicatat_flutter/data/local/local_database.dart';
 import 'package:sicatat_flutter/data/models/field_entry_models.dart';
@@ -106,4 +108,98 @@ void main() {
       );
     },
   );
+
+  test('a draft continued on a second device adopts the server rows', () async {
+    final db = LocalDatabase.instance;
+    final sheet = await db.insertSheet(
+      CreateSheetCommand(
+        date: DateTime(2035, 1, 2),
+        shiftId: 'shift-pagi',
+        teamId: 'team-a',
+        moduleId: 'module-temperature',
+        templateVersion: '2.0.0',
+        createdBy: 'user-a',
+      ),
+    );
+    for (final item in await db.getPendingSyncItems()) {
+      await db.markSyncSuccess(item);
+    }
+
+    // This device opens the draft before knowing the round exists remotely,
+    // then saves a reading on its own copy of round 1.
+    final local = await db.getOrCreateRound(
+      sheetId: sheet.id,
+      section: InspectionSection.gearboxBreaker,
+      roundNumber: 1,
+    );
+    await db.saveReading(
+      ReadingCommand(
+        roundId: local.id,
+        measurementPointId: 'motor-de',
+        recordedBy: 'user-b',
+        valueNumeric: 41,
+      ),
+    );
+
+    await db.mergeRemoteSheetDetail(
+      rounds: <Map<String, Object?>>[
+        <String, Object?>{
+          'id': 'server-round',
+          'client_uuid': 'server-round-uuid',
+          'sheet_id': sheet.id,
+          'section': 'gearbox_breaker',
+          'round_number': 1,
+          'jam': '2035-01-02T00:30:00Z',
+        },
+      ],
+      unitStatuses: const <Map<String, Object?>>[],
+      readings: <Map<String, Object?>>[
+        <String, Object?>{
+          'id': 'server-reading',
+          'client_uuid': 'server-reading-uuid',
+          'round_id': 'server-round',
+          'unit_status_id': null,
+          'measurement_point_id': 'motor-nde',
+          'value_numeric': 38,
+          'value_boolean': null,
+          'value_text': null,
+          'measured_at': '2035-01-02T00:31:00Z',
+          'recorded_by': 'user-a',
+          'is_anomaly': false,
+          'anomaly_note': null,
+        },
+      ],
+    );
+
+    // The form now finds the server round, with both readings on it.
+    final round = await db.getRound(
+      sheetId: sheet.id,
+      section: InspectionSection.gearboxBreaker,
+      roundNumber: 1,
+    );
+    expect(round?.id, 'server-round');
+    final values = await db.getReadingValues(
+      roundId: 'server-round',
+      unitStatusId: null,
+    );
+    expect(values['motor-de']?.numeric, 41);
+    expect(values['motor-nde']?.numeric, 38);
+
+    // Queued changes now target the server row instead of a duplicate.
+    final queued = await db.getPendingSyncItems();
+    final roundInsert = queued.singleWhere(
+      (item) => item.entityType == SyncEntityType.round,
+    );
+    expect(roundInsert.clientUuid, 'server-round-uuid');
+    expect(roundInsert.payload['id'], 'server-round');
+    expect(roundInsert.payload.containsKey('jam'), isFalse);
+    final readingInsert = queued.singleWhere(
+      (item) => item.entityType == SyncEntityType.reading,
+    );
+    expect(readingInsert.payload['round_id'], 'server-round');
+    expect(
+      jsonEncode(queued.map((item) => item.payload).toList()),
+      isNot(contains(local.id)),
+    );
+  });
 }

@@ -11,6 +11,7 @@ import '../../../data/models/field_entry_models.dart';
 import '../../../data/models/master_data_models.dart';
 import '../../../data/models/sheet_model.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../data/sync/sync_service.dart';
 import '../../auth/application/current_user_provider.dart';
 
 class SheetSummaryScreen extends ConsumerStatefulWidget {
@@ -78,6 +79,10 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
       _errorMessage = null;
     });
     try {
+      // Rounds and readings saved on another device live only on Supabase;
+      // bring them here first so the page shows them and no duplicate round
+      // is created.
+      await SyncService(Supabase.instance.client).pullSheetDetail(sheetId);
       final results = await Future.wait<Object?>(<Future<Object?>>[
         LocalDatabase.instance.getSheet(sheetId),
         LocalDatabase.instance.getContributorCount(sheetId),

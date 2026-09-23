@@ -508,6 +508,216 @@ class LocalDatabase {
     });
   }
 
+  /// Brings one sheet's rounds, unit statuses, and readings from Supabase into
+  /// this device before its form or summary opens.
+  ///
+  /// Only sheet headers used to be cached, so a draft continued on a second
+  /// phone or browser showed empty fields, and opening it created a local
+  /// round that Supabase rejected forever (unique sheet + section + round),
+  /// leaving every reading saved on it unsent.  Rows still waiting to be sent
+  /// from this device are newer and are kept.  A local row that duplicates a
+  /// server row by its natural key takes over the server row's id and
+  /// client_uuid, and its queued changes are rewritten to match, so they
+  /// update the server row instead of conflicting with it.
+  Future<void> mergeRemoteSheetDetail({
+    required List<Map<String, Object?>> rounds,
+    required List<Map<String, Object?>> unitStatuses,
+    required List<Map<String, Object?>> readings,
+  }) async {
+    final db = await database;
+    await db.transaction((transaction) async {
+      for (final server in rounds) {
+        await _mergeRemoteRow(
+          transaction,
+          table: 'round',
+          server: server,
+          naturalWhere: 'sheet_id = ? AND section = ? AND round_number = ?',
+          naturalArgs: <Object?>[
+            server['sheet_id'],
+            server['section'],
+            server['round_number'],
+          ],
+        );
+      }
+      for (final server in unitStatuses) {
+        await _mergeRemoteRow(
+          transaction,
+          table: 'unit_status',
+          server: server,
+          naturalWhere: "round_id = ? AND IFNULL(unit_code, '') = ? AND IFNULL(equipment_id, '') = ?",
+          naturalArgs: <Object?>[
+            server['round_id'],
+            server['unit_code'] ?? '',
+            server['equipment_id'] ?? '',
+          ],
+        );
+      }
+      for (final server in readings) {
+        await _mergeRemoteRow(
+          transaction,
+          table: 'reading',
+          server: server,
+          naturalWhere: "round_id = ? AND measurement_point_id = ? AND IFNULL(unit_status_id, '') = ?",
+          naturalArgs: <Object?>[
+            server['round_id'],
+            server['measurement_point_id'],
+            server['unit_status_id'] ?? '',
+          ],
+        );
+      }
+    });
+  }
+
+  Future<void> _mergeRemoteRow(
+    Transaction transaction, {
+    required String table,
+    required Map<String, Object?> server,
+    required String naturalWhere,
+    required List<Object?> naturalArgs,
+  }) async {
+    final Object? serverId = server['id'];
+    final Object? serverUuid = server['client_uuid'];
+    if (serverId is! String || serverUuid is! String) return;
+    final row = _sqliteValues(<String, Object?>{
+      ...server,
+      'sync_status': 'synced',
+    });
+    final byId = await transaction.query(
+      table,
+      columns: const <String>['sync_status'],
+      where: 'id = ?',
+      whereArgs: <Object?>[serverId],
+      limit: 1,
+    );
+    if (byId.isNotEmpty) {
+      if (byId.single['sync_status'] == 'pending') return;
+      await transaction.update(
+        table,
+        row,
+        where: 'id = ?',
+        whereArgs: <Object?>[serverId],
+      );
+      return;
+    }
+    final duplicate = await transaction.query(
+      table,
+      columns: const <String>['id', 'client_uuid'],
+      where: naturalWhere,
+      whereArgs: naturalArgs,
+      limit: 1,
+    );
+    if (duplicate.isEmpty) {
+      await transaction.insert(table, row);
+      return;
+    }
+    final Object? localId = duplicate.single['id'];
+    final Object? localUuid = duplicate.single['client_uuid'];
+    if (localId is! String || localUuid is! String) return;
+    await _adoptServerIdentity(
+      transaction,
+      table: table,
+      localId: localId,
+      localUuid: localUuid,
+      serverId: serverId,
+      serverUuid: serverUuid,
+    );
+  }
+
+  Future<void> _adoptServerIdentity(
+    Transaction transaction, {
+    required String table,
+    required String localId,
+    required String localUuid,
+    required String serverId,
+    required String serverUuid,
+  }) async {
+    await transaction.update(
+      table,
+      <String, Object?>{'id': serverId, 'client_uuid': serverUuid},
+      where: 'id = ?',
+      whereArgs: <Object?>[localId],
+    );
+    if (table == 'round') {
+      for (final child in const <String>['unit_status', 'reading']) {
+        await transaction.update(
+          child,
+          <String, Object?>{'round_id': serverId},
+          where: 'round_id = ?',
+          whereArgs: <Object?>[localId],
+        );
+      }
+    } else if (table == 'unit_status') {
+      await transaction.update(
+        'reading',
+        <String, Object?>{'unit_status_id': serverId},
+        where: 'unit_status_id = ?',
+        whereArgs: <Object?>[localId],
+      );
+    }
+    final queued = await transaction.query(
+      'sync_queue',
+      columns: const <String>['id', 'client_uuid', 'operation', 'payload_json'],
+      where: 'client_uuid = ? OR payload_json LIKE ?',
+      whereArgs: <Object?>[localUuid, '%$localId%'],
+    );
+    for (final item in queued) {
+      final Object? queueId = item['id'];
+      final Object? encoded = item['payload_json'];
+      if (queueId is! int || encoded is! String) continue;
+      final payload = requireJsonMap(
+        jsonDecode(encoded),
+        source: 'queued $table change',
+      );
+      final rewritten = <String, Object?>{
+        for (final entry in payload.entries)
+          entry.key: entry.value == localId
+              ? serverId
+              : entry.value == localUuid
+              ? serverUuid
+              : entry.value,
+      };
+      // The local insert now updates the server row; an empty round time
+      // must not erase the time already stored there.
+      if (table == 'round' &&
+          item['client_uuid'] == localUuid &&
+          rewritten['jam'] == null) {
+        rewritten.remove('jam');
+      }
+      await transaction.update(
+        'sync_queue',
+        <String, Object?>{
+          'client_uuid': item['client_uuid'] == localUuid
+              ? serverUuid
+              : item['client_uuid'],
+          'payload_json': jsonEncode(rewritten),
+          'attempt_count': 0,
+          'last_error': null,
+        },
+        where: 'id = ?',
+        whereArgs: <Object?>[queueId],
+      );
+    }
+  }
+
+  /// The sheet a queued round or unit status belongs to, for recovery after
+  /// Supabase rejects it as a duplicate.
+  Future<String?> sheetIdForQueuedRow(SyncQueueItem item) async {
+    final Object? sheetId = item.payload['sheet_id'];
+    if (sheetId is String) return sheetId;
+    final Object? roundId = item.payload['round_id'];
+    if (roundId is! String) return null;
+    final db = await database;
+    final rows = await db.query(
+      'round',
+      columns: const <String>['sheet_id'],
+      where: 'id = ?',
+      whereArgs: <Object?>[roundId],
+      limit: 1,
+    );
+    final Object? found = rows.isEmpty ? null : rows.single['sheet_id'];
+    return found is String ? found : null;
+  }
+
   /// Returns an on-device summary for one calendar day.
   ///
   /// A queued operation means the device has data that still needs to be sent

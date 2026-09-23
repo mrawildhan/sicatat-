@@ -54,11 +54,11 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Warna suhu',
-        'Hijau di bawah 60 derajat C. Kuning 60 sampai 69 derajat C dan perlu perhatian. Merah 70 derajat C atau lebih, laporkan segera sesuai prosedur.',
+        'Hijau di bawah 60 °C. Kuning 60 sampai 69 °C dan perlu perhatian. Merah 70 °C atau lebih, laporkan segera sesuai prosedur.',
       ),
       GuideEntry(
         'Nilai tidak wajar',
-        'Nilai di luar -50 sampai 250 derajat C harus dikonfirmasi dan diberi catatan. Catatan itu hanya menempel pada angka yang tidak wajar, bukan pada seluruh ronde.',
+        'Nilai di luar -50 sampai 250 °C harus dikonfirmasi dan diberi catatan. Catatan itu hanya menempel pada angka yang tidak wajar, bukan pada seluruh ronde.',
       ),
       GuideEntry(
         'Ringkasan dan kirim',
@@ -83,7 +83,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Menyimpan, mengirim, dan mencetak',
-        'Anggota regu yang sama dapat mengisi lembar yang sama. Kartu merah berarti masih ada nilai kosong. Kirim lembar membuat lembar final; lembar masih dapat dibuka lewat Buka kembali untuk revisi. Ikon PDF mencetak nilai langsung di atas formulir kertas aslinya (termasuk logo), dengan warna oranye untuk 60 sampai 69 derajat C dan merah untuk 70 derajat C ke atas.',
+        'Anggota regu yang sama dapat mengisi lembar yang sama. Kartu merah berarti masih ada nilai kosong. Kirim lembar membuat lembar final; lembar masih dapat dibuka lewat Buka kembali untuk revisi. Ikon PDF mencetak nilai langsung di atas formulir kertas aslinya (termasuk logo), dengan warna oranye untuk 60 sampai 69 °C dan merah untuk 70 °C ke atas.',
       ),
     ],
   ),
@@ -116,7 +116,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Batas suhu per titik (admin)',
-        'Data master > Batas & peringatan suhu mengatur batas waspada dan kritis setiap titik Hydraulic dan Coal Valve, misalnya sesuai manual OEM, serta daftar email penerima peringatan. Titik tanpa pengaturan memakai 60/70 derajat C.',
+        'Data master > Batas & peringatan suhu mengatur batas waspada dan kritis setiap titik Hydraulic dan Coal Valve, misalnya sesuai manual OEM, serta daftar email penerima peringatan. Titik tanpa pengaturan memakai 60/70 °C.',
       ),
     ],
   ),
@@ -133,7 +133,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Suhu tinggi',
-        'Menampilkan pembacaan 60 derajat C ke atas dari seluruh lembar, supaya yang berisiko ditangani lebih dulu.',
+        'Menampilkan pembacaan 60 °C ke atas dari seluruh lembar, supaya yang berisiko ditangani lebih dulu.',
       ),
       GuideEntry(
         'Lembar belum lengkap',
@@ -291,10 +291,10 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
 ///
 /// Deliberately free of Flutter imports so `dart run tool/generate_guide_pdf.dart`
 /// can regenerate `docs/Panduan-Pengguna-SICATAT.pdf` from the same content the
-/// app shows. Text avoids characters outside the built-in font, which is why
-/// the temperature entries read "derajat C".
-Future<Uint8List> buildGuidePdfBytes() async {
-  final pw.Document document = pw.Document();
+/// app shows. [theme] carries the app font (see `core/pdf/pdf_theme.dart`), so
+/// the text can use "°C" like the rest of the app.
+Future<Uint8List> buildGuidePdfBytes({required pw.ThemeData theme}) async {
+  final pw.Document document = pw.Document(theme: theme);
   document.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
