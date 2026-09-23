@@ -233,5 +233,8 @@ void main() {
       contains('<c r="C19" s="6" t="inlineStr"><is><t>Ganti seal<'),
     );
     expect(sheetXml, isNot(contains('A19:A')));
+    // Plans without photos show a dash, like an empty due date.
+    expect(sheetXml, contains('<c r="D16" s="7" t="inlineStr"><is><t>–<'));
+    expect(sheetXml, isNot(contains('Tanpa foto')));
   });
 }

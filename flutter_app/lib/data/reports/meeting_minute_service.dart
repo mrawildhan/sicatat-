@@ -394,7 +394,7 @@ class MeetingMinuteExcelService {
           height: actionHeight,
         );
         if (actionPhotos.isEmpty) {
-          sheet.cell(3, actionRow, 'Tanpa foto', 7);
+          sheet.cell(3, actionRow, '–', 7);
         } else {
           sheet.cell(3, actionRow, '', 7);
           for (
