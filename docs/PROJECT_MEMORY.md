@@ -67,15 +67,17 @@ Dokumen ini adalah pegangan singkat bagi pengembang berikutnya. Baca juga
 
 ## Sistem tampilan: ikuti Beranda
 
-Beranda adalah acuan visual. Font aplikasi adalah Poppins (pilihan pemilik
-2026-09-23, lisensi SIL OFL, file Regular/Medium/SemiBold/Bold di
-`flutter_app/assets/fonts/`), ditetapkan sekali di `AppTheme` lewat
+Beranda adalah acuan visual. Font aplikasi adalah Figtree (pilihan pemilik
+2026-09-23 sebagai pengganti gratis Aptos, lisensi SIL OFL, file
+Regular/Medium/SemiBold/Bold di `flutter_app/assets/fonts/`). Aptos sendiri
+milik Microsoft dan hanya boleh dipakai di dalam Office, jadi jangan membundel
+file Aptos ke aplikasi atau PDF. Font ditetapkan sekali di `AppTheme` lewat
 `appFontFamily`; jangan menetapkan `fontFamily` berbeda pada halaman baru.
 ExtraBold sengaja tidak dibundel agar judul w800/w900 memakai Bold. Setiap PDF
 wajib memakai `pw.Document(theme: await loadPdfTheme())` (atau
 `pdfThemeFromFontBytes` di luar Flutter); `test/export_pdf_font_test.dart`
-menjaganya. Ekspor Excel juga menulis "Poppins" (pilihan pemilik); komputer
-tanpa Poppins akan memakai font pengganti Excel.
+menjaganya. Ekspor Excel notulen menulis "Aptos" (font bawaan Office terbaru,
+pilihan pemilik); Excel tidak membawa file font.
 
 Gunakan token pada `flutter_app/lib/core/theme/app_theme.dart`:
 

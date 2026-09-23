@@ -2,6 +2,10 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Font diganti ke Figtree, Excel ke Aptos — 2026-09-23
+
+- Pemilik menilai Poppins jelek dan meminta Aptos. Lisensi Aptos (Microsoft, font cloud Office) hanya mengizinkan pemakaian di dalam produk Microsoft, jadi file Aptos tidak boleh dibundel ke website/APK/PDF. Pemilik memilih Figtree (SIL OFL, file statis Regular/Medium/SemiBold/Bold dari repo resmi `erikdkennedy/figtree`) untuk aplikasi dan semua PDF. Excel notulen menulis "Aptos" (tanpa file font); perkiraan tinggi baris Excel kembali ke angka Arial karena lebar Aptos setara Arial. Bagian Poppins di bawah hanya riwayat.
+
 ## Font diganti ke Poppins — 2026-09-23
 
 - Pemilik menilai Liberation Sans "gepeng" dan meminta Poppins. Poppins Regular/Medium/SemiBold/Bold (Google Fonts, SIL OFL; `assets/fonts/` + `OFL.txt`) kini dipakai aplikasi, semua PDF (disematkan), dan Excel notulen (atas pilihan pemilik, walau komputer tanpa Poppins memakai font pengganti). ExtraBold tidak dibundel agar judul w800/w900 tetap setebal Bold seperti saat Arial. Perkiraan tinggi baris Excel disesuaikan (~12% lebih sedikit karakter per baris). Panduan PDF dibuat ulang; layar Beranda, Suhu, PM & CM, Lembar belum selesai, dan form Hydraulic dicek di ukuran HP tanpa teks meluber.

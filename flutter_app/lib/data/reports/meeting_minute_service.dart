@@ -368,7 +368,7 @@ class MeetingMinuteExcelService {
       ];
       // The finding text spans all of its plans, so the rows together must
       // be tall enough to show it.
-      final double issueHeight = _textHeight(_issueText(finding.first), 30);
+      final double issueHeight = _textHeight(_issueText(finding.first), 34);
       final double total = heights.fold<double>(
         0,
         (double sum, double height) => sum + height,
@@ -434,7 +434,7 @@ class MeetingMinuteExcelService {
     }
     final int noteRow = row + 1;
     final String note = minute.note.trim().isEmpty ? '—' : minute.note.trim();
-    sheet.cell(0, noteRow, 'Catatan', 8, height: _textHeight(note, 150, 24));
+    sheet.cell(0, noteRow, 'Catatan', 8, height: _textHeight(note, 170, 24));
     sheet.spanColumns(noteRow, 1, 7, note, 9);
     final Archive archive = Archive()
       ..addFile(
@@ -541,8 +541,8 @@ class MeetingMinuteExcelService {
       .toDouble();
 
   static double _actionHeight(MeetingMinuteAction action) {
-    final double plan = _textHeight(action.subjectDiscussion, 37);
-    final double progress = _textHeight(action.progressRemark, 19);
+    final double plan = _textHeight(action.subjectDiscussion, 42);
+    final double progress = _textHeight(action.progressRemark, 22);
     return plan > progress ? plan : progress;
   }
 
@@ -591,7 +591,7 @@ class MeetingMinuteExcelService {
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>''';
   static const String _styles =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="4"><font><sz val="11"/><name val="Poppins"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="22"/><name val="Poppins"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Poppins"/></font><font><b/><color rgb="FF0B3D2E"/><sz val="11"/><name val="Poppins"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B3D2E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F3ED"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF19735B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FF9DB8AB"/></left><right style="thin"><color rgb="FF9DB8AB"/></right><top style="thin"><color rgb="FF9DB8AB"/></top><bottom style="thin"><color rgb="FF9DB8AB"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="10"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1" indent="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1" indent="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1" indent="1"/></xf></cellXfs></styleSheet>''';
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="4"><font><sz val="11"/><name val="Aptos"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="22"/><name val="Aptos"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Aptos"/></font><font><b/><color rgb="FF0B3D2E"/><sz val="11"/><name val="Aptos"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B3D2E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F3ED"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF19735B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FF9DB8AB"/></left><right style="thin"><color rgb="FF9DB8AB"/></right><top style="thin"><color rgb="FF9DB8AB"/></top><bottom style="thin"><color rgb="FF9DB8AB"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="10"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1" indent="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1" indent="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1" indent="1"/></xf></cellXfs></styleSheet>''';
 
   static const String _sheetRelationships =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -723,7 +723,7 @@ class _XlsxSheet {
       row,
       label,
       8,
-      height: MeetingMinuteExcelService._textHeight(text, 150, 24),
+      height: MeetingMinuteExcelService._textHeight(text, 170, 24),
     );
     spanColumns(row, 1, 7, text, 9);
   }
