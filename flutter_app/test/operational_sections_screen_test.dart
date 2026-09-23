@@ -141,13 +141,12 @@ void main() {
       await tester.pump();
 
       expect(find.text('PM per crew & lokasi'), findsOneWidget);
-      expect(find.text('CPP'), findsOneWidget);
-      expect(find.text('PORT'), findsOneWidget);
       expect(find.text('Crew A'), findsNWidgets(2));
       expect(find.text('Crew B'), findsNWidgets(2));
       expect(find.text('Crew C'), findsNWidgets(2));
-      expect(find.text('CM CPP'), findsOneWidget);
-      expect(find.text('CM PORT'), findsOneWidget);
+      // PM column header + CM card.
+      expect(find.text('CPP'), findsNWidgets(2));
+      expect(find.text('PORT'), findsNWidgets(2));
 
       await tester.tap(find.text('Crew A').first);
       await tester.pumpAndSettle();

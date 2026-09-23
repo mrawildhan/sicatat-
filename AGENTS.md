@@ -6,7 +6,7 @@
 
 - Semua teks UI "kru"/"Kru"/"KRU" menjadi "crew"/"Crew"/"CREW" (permintaan pemilik); label PDF lembar "KRU / SIF" menjadi "CREW / SHIFT". Nilai database tidak berubah.
 - `/incomplete`: status tidak lagi berupa chip di kanan (di HP teks terjepit satu huruf per baris); kini badge di bawah teks, tanggal "24 Agustus 2026", dan "n/8 terisi".
-- Kartu aktivitas Suhu (`sheet_list_screen.dart`) memakai huruf biasa, bukan tebal. Kartu PM/CM mengecilkan judul agar "CM CPP"/"CM PORT" tidak terpotong.
+- Kartu aktivitas Suhu (`sheet_list_screen.dart`) memakai huruf biasa, bukan tebal. Kartu CM kini berjudul "CPP"/"PORT" di bawah "CM per lokasi" (dengan "CM PORT" hurufnya mengecil karena kartu setengah lebar; pemilik menilainya tidak rapi).
 - Catatan cache: `{{flutter_service_worker_version}}` kini selalu `121553952` (service worker Flutter deprecated), jadi `main.dart.js?v=` tidak berubah antar deploy. Pengguna tetap mendapat versi baru karena `_headers` memberi `Cache-Control: no-cache` (revalidasi ETag). Setelah deploy, tunggu beberapa detik sebelum memuat ulang; pane sempat memuat versi lama saat edge belum terbarui.
 
 ## Notulen: satu temuan, banyak rencana tindakan — 2026-09-23

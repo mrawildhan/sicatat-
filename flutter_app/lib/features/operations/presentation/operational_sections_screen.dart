@@ -1304,7 +1304,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
               Expanded(
                 child: _MaintenanceGroupCard(
                   icon: Icons.build_circle_outlined,
-                  title: 'CM CPP',
+                  title: 'CPP',
                   count: _countCm('CPP'),
                   onTap: () => onOpenCmSection('CPP'),
                 ),
@@ -1313,7 +1313,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
               Expanded(
                 child: _MaintenanceGroupCard(
                   icon: Icons.build_circle_outlined,
-                  title: 'CM PORT',
+                  title: 'PORT',
                   count: _countCm('PORT'),
                   onTap: () => onOpenCmSection('PORT'),
                 ),
