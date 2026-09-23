@@ -26,7 +26,7 @@ void _expectAppFontOnly(Uint8List bytes, String name) {
       .toSet();
   expect(fonts, isNotEmpty, reason: name);
   for (final String font in fonts) {
-    expect(font, contains('LiberationSans'), reason: '$name uses $font');
+    expect(font, contains('Poppins'), reason: '$name uses $font');
   }
   // Set EXPORT_PDF_DIR to keep the files for a visual check.
   final String? dir = Platform.environment['EXPORT_PDF_DIR'];

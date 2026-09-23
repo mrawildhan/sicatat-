@@ -46,14 +46,19 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # One typeface for the app and every PDF: Liberation Sans (Arial metrics,
-  # SIL OFL 1.1). Without a bundled file, "Arial" fell back to Roboto on the
-  # web and on Android. See lib/core/pdf/pdf_theme.dart.
+  # One typeface for the app, every PDF, and the Excel export: Poppins (SIL
+  # OFL 1.1, owner's choice). Bold is the heaviest file on purpose, so the
+  # theme's w800/w900 titles stay as heavy as they were with Arial Bold.
+  # See lib/core/pdf/pdf_theme.dart.
   fonts:
-    - family: LiberationSans
+    - family: Poppins
       fonts:
-        - asset: assets/fonts/LiberationSans-Regular.ttf
-        - asset: assets/fonts/LiberationSans-Bold.ttf
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
           weight: 700
   assets:
     - assets/fonts/

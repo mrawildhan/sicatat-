@@ -1,8 +1,7 @@
-Liberation Sans 2.1.5 (assets/fonts/LiberationSans-Regular.ttf, LiberationSans-Bold.ttf)
+Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)
 
-Digitized data copyright (c) 2010 Google Corporation.
-Copyright (c) 2012 Red Hat, Inc., with Reserved Font Name Liberation.
-
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
 http://scripts.sil.org/OFL
 
 

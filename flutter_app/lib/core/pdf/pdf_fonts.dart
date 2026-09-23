@@ -21,7 +21,7 @@ Future<pw.ThemeData> loadPdfTheme() async {
 void registerAppFontLicense() {
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(<String>[
-      'Liberation Sans',
+      'Poppins',
     ], await rootBundle.loadString('assets/fonts/OFL.txt'));
   });
 }

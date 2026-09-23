@@ -2,6 +2,10 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Font diganti ke Poppins — 2026-09-23
+
+- Pemilik menilai Liberation Sans "gepeng" dan meminta Poppins. Poppins Regular/Medium/SemiBold/Bold (Google Fonts, SIL OFL; `assets/fonts/` + `OFL.txt`) kini dipakai aplikasi, semua PDF (disematkan), dan Excel notulen (atas pilihan pemilik, walau komputer tanpa Poppins memakai font pengganti). ExtraBold tidak dibundel agar judul w800/w900 tetap setebal Bold seperti saat Arial. Perkiraan tinggi baris Excel disesuaikan (~12% lebih sedikit karakter per baris). Panduan PDF dibuat ulang; layar Beranda, Suhu, PM & CM, Lembar belum selesai, dan form Hydraulic dicek di ukuran HP tanpa teks meluber.
+
 ## Audit database, fitur, ekspor, dan font — 2026-09-23
 
 - **Font satu untuk semua:** "Arial" di `AppTheme` tidak pernah dibundel, jadi web/Android sebenarnya menampilkan Roboto, sedangkan PDF memakai Helvetica. Kini Liberation Sans 2.1.5 (metrik Arial, SIL OFL 1.1; `flutter_app/assets/fonts/` + `OFL.txt`, lisensi terdaftar di halaman lisensi) dipakai aplikasi (`appFontFamily`) dan disematkan di semua PDF (`core/pdf/pdf_fonts.dart` `loadPdfTheme()`, `core/pdf/pdf_theme.dart` untuk tool non-Flutter). Excel MOM tetap "Arial". Panduan kini menulis "°C" dan `flutter_app/docs/Panduan-Pengguna-SICATAT.pdf` dibuat ulang.
