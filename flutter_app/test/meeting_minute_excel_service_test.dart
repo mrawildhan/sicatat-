@@ -221,16 +221,16 @@ void main() {
     expect(sheetXml, contains('<mergeCell ref="E16:E18"/>'));
     expect(
       sheetXml,
-      contains('<c r="C16" s="6" t="inlineStr"><is><t>1. Splice belt<'),
+      contains('<c r="C16" s="6" t="inlineStr"><is><t>1.1 Splice belt<'),
     );
     expect(
       sheetXml,
-      contains('<c r="C18" s="6" t="inlineStr"><is><t>3. Cek alignment<'),
+      contains('<c r="C18" s="6" t="inlineStr"><is><t>1.3 Cek alignment<'),
     );
     expect(sheetXml, contains('<c r="A19" s="7" t="inlineStr"><is><t>2<'));
     expect(
       sheetXml,
-      contains('<c r="C19" s="6" t="inlineStr"><is><t>Ganti seal<'),
+      contains('<c r="C19" s="6" t="inlineStr"><is><t>2.1 Ganti seal<'),
     );
     expect(sheetXml, isNot(contains('A19:A')));
     // Plans without photos show a dash, like an empty due date.

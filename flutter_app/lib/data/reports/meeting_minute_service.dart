@@ -387,9 +387,9 @@ class MeetingMinuteExcelService {
         sheet.cell(
           2,
           actionRow,
-          finding.length == 1
-              ? _displayValue(action.subjectDiscussion)
-              : '${planIndex + 1}. ${_displayValue(action.subjectDiscussion)}',
+          // Numbered like the form: plan 2 of finding 1 is "1.2".
+          '${findingIndex + 1}.${planIndex + 1} '
+          '${_displayValue(action.subjectDiscussion)}',
           6,
           height: actionHeight,
         );

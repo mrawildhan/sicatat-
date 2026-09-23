@@ -139,7 +139,7 @@ Sumber URL/ID spreadsheet yang aktif berada di masing-masing Edge Function
 - Tenggat opsional; kosong dan rencana tanpa foto ditampilkan `–`.
 - Satu temuan dapat memiliki banyak rencana tindakan: baris berurutan dengan
   uraian dan tanggal temuan sama digabung (No., Uraian Temuan, Tanggal Temuan
-  di-merge; rencana diberi nomor 1., 2., ...). Cetak A4 landscape, muat satu
+  di-merge; rencana diberi nomor temuan.rencana: 1.1, 1.2, 2.1, ...). Cetak A4 landscape, muat satu
   halaman lebar.
 - Kolom A, D, E, F, G, H rata tengah; B/C rata kiri. Foto dipusatkan
   horizontal dan vertikal dalam tinggi barisnya.
