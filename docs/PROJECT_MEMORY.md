@@ -131,9 +131,14 @@ Sumber URL/ID spreadsheet yang aktif berada di masing-masing Edge Function
 
 ### Ekspor Excel MOM
 
-- Modul Meeting Minutes menggunakan label/pesan Inggris termasuk metadata
-  Excel. Isi bebas pengguna tidak diterjemahkan otomatis.
-- Due date opsional saat menyelesaikan MOM; kosong ditampilkan `Not set`.
+- Sejak 2026-09-23 form dan Excel notulen berbahasa Indonesia (DETAIL RAPAT,
+  RENCANA TINDAKAN, Uraian Temuan, Tenggat, ...). Isi bebas pengguna tidak
+  diterjemahkan otomatis.
+- Tenggat opsional; kosong dan rencana tanpa foto ditampilkan `–`.
+- Satu temuan dapat memiliki banyak rencana tindakan: baris berurutan dengan
+  uraian dan tanggal temuan sama digabung (No., Uraian Temuan, Tanggal Temuan
+  di-merge; rencana diberi nomor 1., 2., ...). Cetak A4 landscape, muat satu
+  halaman lebar.
 - Kolom A, D, E, F, G, H rata tengah; B/C rata kiri. Foto dipusatkan
   horizontal dan vertikal dalam tinggi barisnya.
 
@@ -142,7 +147,7 @@ Sumber URL/ID spreadsheet yang aktif berada di masing-masing Edge Function
 - Sel harus diserialisasi berurutan A sampai H; urutan pembuatan sel di kode
   dapat berbeda. Urutan XML yang salah membuat nomor/isu tidak terbaca Excel.
 - Foto memakai ukuran proporsional dalam kolom D, maksimal dua foto sejajar.
-  Baris foto 126 pt, judul 60 pt. Uji regresi memeriksa tinggi dan urutan sel.
+  Baris foto minimal 126 pt, judul 60 pt; data mulai baris 16. Uji regresi memeriksa tinggi dan urutan sel.
 
 1. Periksa `git status` dan versi aplikasi; jangan menyentuh perubahan atau
    folder lokal milik pengguna.
