@@ -3275,7 +3275,6 @@ class _MeetingMinuteEditorScreenState
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       helpText: main ? 'Pilih tanggal rapat' : 'Pilih tanggal temuan',
-      locale: const Locale('en'),
     );
     if (picked == null || !mounted) return;
     setState(() {
@@ -3295,7 +3294,6 @@ class _MeetingMinuteEditorScreenState
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       helpText: 'Pilih tenggat',
-      locale: const Locale('en'),
     );
     if (picked != null && mounted) setState(() => action.dueDate = picked);
   }
@@ -3339,15 +3337,15 @@ class _MeetingMinuteEditorScreenState
     for (int index = 0; index < _actions.length; index++) {
       final _ActionDraft action = _actions[index];
       if (action.subject.text.trim().isEmpty) continue;
-      final String label = 'Action plan ${index + 1}';
+      final String label = 'Rencana tindakan ${index + 1}';
       if (action.issue.text.trim().isEmpty) {
-        return '$label requires an issue description.';
+        return '$label wajib memiliki uraian temuan.';
       }
       if (action.itemDate == null) {
         return '$label wajib memiliki tanggal temuan.';
       }
       if (action.assignedTo.text.trim().isEmpty) {
-        return '$label requires a responsible person.';
+        return '$label wajib memiliki penanggung jawab.';
       }
     }
     return null;
@@ -4053,7 +4051,7 @@ class _ActionEditor extends StatelessWidget {
       Row(
         children: <Widget>[
           Text(
-            'Action plan ${index + 1}',
+            'Rencana tindakan ${index + 1}',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const Spacer(),
@@ -4120,7 +4118,7 @@ class _ActionEditor extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Action plan photos (${action.photos.length}/2)',
+              'Foto rencana tindakan (${action.photos.length}/2)',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),

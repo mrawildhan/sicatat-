@@ -2,6 +2,12 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Notulen (MOM) sepenuhnya berbahasa Indonesia — 2026-09-23
+
+- Ekspor Excel notulen: label Lokasi, Peserta, Berhalangan hadir, Notulis, RENCANA TINDAKAN, Uraian Temuan, Rencana Tindakan, Foto, Tenggat, Penanggung Jawab, Progres / Catatan, CATATAN. Tanggal kosong dicetak "–" (dulu "Belum diisi").
+- Form notulen: "Rencana tindakan N", "Foto rencana tindakan (n/2)", pesan validasi berbahasa Indonesia; pemilih tanggal rapat/temuan/tenggat tidak lagi memaksa `Locale('en')`.
+- Website saja (cache suffix `2.8.41-mom-id`, versi tetap). Diverifikasi live: ekspor ulang notulen contoh "DATA DUMMY - Inspeksi Area CPP (Review Output MOM)" (5 temuan, 7 foto) berisi label baru dan 7 gambar.
+
 ## Urutan data Supabase & uji live Data master — 2026-09-14
 
 - `postgrest-dart` mengurutkan **menurun** bila `ascending` tidak ditulis (berbeda dengan SQL dan postgrest-js; tertulis di dokumentasi paketnya). 34 pemanggilan `.order(...)` tanpa arah membuat Lokasi kerja, regu, pengguna, dan email tampil Z→A; Pengingat menampilkan jatuh tempo terjauh paling atas (yang terlambat di bawah); Gudang memakai `.order(...).limit(100)` sehingga tanpa kata kunci yang tampil justru 100 baris terakhir menurut abjad. Semua kini `ascending: true`. `test/order_direction_test.dart` gagal bila ada `.order('kolom')` baru tanpa arah. Form suhu, Anggaran, dan PM/CM tidak terdampak karena mengurutkan ulang di aplikasi.

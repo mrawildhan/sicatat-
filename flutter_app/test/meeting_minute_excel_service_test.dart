@@ -125,10 +125,10 @@ void main() {
       );
       expect(sheetXml, contains('Kirim permintaan resmi pelatihan via email.'));
       expect(sheetXml, contains('Pelatihan penggantian ban telah dilakukan.'));
-      expect(sheetXml, contains('Issues Description'));
-      expect(sheetXml, contains('Action Plan'));
-      expect(sheetXml, contains('Photos'));
-      expect(sheetXml, contains('Progress /\nRemark'));
+      expect(sheetXml, contains('Uraian Temuan'));
+      expect(sheetXml, contains('Rencana Tindakan'));
+      expect(sheetXml, contains('Foto'));
+      expect(sheetXml, contains('Progres /\nCatatan'));
       expect(sheetXml, contains('Tindak lanjut dari'));
       expect(
         sheetXml,

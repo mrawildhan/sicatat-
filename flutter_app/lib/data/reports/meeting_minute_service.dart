@@ -324,24 +324,24 @@ class MeetingMinuteExcelService {
       60,
     );
     sheet.metadata(3, 'Tanggal & jam', _meetingTime(minute));
-    sheet.metadata(4, 'Location', minute.location);
-    sheet.metadata(5, 'Attendees', minute.attendees);
-    sheet.metadata(6, 'Apologies', minute.apologies);
-    sheet.metadata(7, 'Minute taker', minute.minuteTaker);
+    sheet.metadata(4, 'Lokasi', minute.location);
+    sheet.metadata(5, 'Peserta', minute.attendees);
+    sheet.metadata(6, 'Berhalangan hadir', minute.apologies);
+    sheet.metadata(7, 'Notulis', minute.minuteTaker);
     sheet.metadata(8, 'Distribusi', minute.distributionList);
     sheet.metadata(9, 'Pembahasan baru', minute.newBusinessAgenda);
     sheet.metadata(10, 'Diusulkan oleh', minute.proposedBy);
     sheet.metadata(11, 'Tindak lanjut dari', _followUpText(minute));
-    sheet.merge('A13:H13', 'ACTION PLAN', 4, 22);
+    sheet.merge('A13:H13', 'RENCANA TINDAKAN', 4, 22);
     const List<String> headers = <String>[
       'No.',
-      'Issues Description',
-      'Action Plan',
-      'Photos',
+      'Uraian Temuan',
+      'Rencana Tindakan',
+      'Foto',
       'Tanggal\nTemuan',
-      'Due\nDate',
-      'Resp.\nPerson',
-      'Progress /\nRemark',
+      'Tenggat',
+      'Penanggung\nJawab',
+      'Progres /\nCatatan',
     ];
     for (int column = 0; column < headers.length; column++) {
       sheet.cell(column, 14, headers[column], 5, height: 36);
@@ -399,18 +399,8 @@ class MeetingMinuteExcelService {
       }
       sheet.cell(0, actionRow, '${actionIndex + 1}', 7);
       sheet.cell(1, actionRow, _issueText(action), 6);
-      sheet.cell(
-        4,
-        actionRow,
-        _date(action.itemDate, fallback: 'Belum diisi'),
-        7,
-      );
-      sheet.cell(
-        5,
-        actionRow,
-        _date(action.dueDate, fallback: 'Belum diisi'),
-        7,
-      );
+      sheet.cell(4, actionRow, _date(action.itemDate, fallback: '–'), 7);
+      sheet.cell(5, actionRow, _date(action.dueDate, fallback: '–'), 7);
       sheet.cell(6, actionRow, _displayValue(action.assignedTo), 7);
       sheet.cell(7, actionRow, _displayValue(action.progressRemark), 7);
       row = actionRow + 1;
@@ -418,7 +408,9 @@ class MeetingMinuteExcelService {
     final int noteRow = row + 1;
     sheet.merge(
       'A$noteRow:H$noteRow',
-      minute.note.trim().isEmpty ? 'NOTES: —' : 'NOTES: ${minute.note.trim()}',
+      minute.note.trim().isEmpty
+          ? 'CATATAN: —'
+          : 'CATATAN: ${minute.note.trim()}',
       3,
       42,
     );
