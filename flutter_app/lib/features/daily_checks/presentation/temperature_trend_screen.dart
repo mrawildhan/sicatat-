@@ -15,7 +15,11 @@ import 'daily_check_widgets.dart';
 /// Temperature of one measurement point over time, so a slow rise is seen
 /// before it becomes a breakdown. Covers all three Suhu sheets.
 class TemperatureTrendScreen extends StatefulWidget {
-  const TemperatureTrendScreen({super.key});
+  const TemperatureTrendScreen({this.initialForm, super.key});
+
+  /// `feeder_sizer` or a [DailyCheckFormType.storageValue]; opens the chart on
+  /// that sheet when the trend is started from the sheet's own page.
+  final String? initialForm;
 
   @override
   State<TemperatureTrendScreen> createState() => _TemperatureTrendScreenState();
@@ -48,6 +52,11 @@ class _TemperatureTrendScreenState extends State<TemperatureTrendScreen> {
   String? _unitKey;
   int _days = 30;
   List<_Series> _series = const <_Series>[];
+
+  /// Readings outside the physical range (-50 to 250 °C) are left out of the
+  /// chart: one mistyped 6363 otherwise stretches the axis until every real
+  /// reading is a flat line at the bottom.
+  int _hiddenOutOfRange = 0;
   bool _loading = false;
   String? _error;
 
@@ -62,6 +71,14 @@ class _TemperatureTrendScreenState extends State<TemperatureTrendScreen> {
   void initState() {
     super.initState();
     _unitKey = DailyCheckFormType.hydraulicFeeder.form.units.first.key;
+    final initial = DailyCheckFormType.fromStorage(widget.initialForm);
+    if (widget.initialForm == 'feeder_sizer') {
+      _source = null;
+    } else if (initial != null) {
+      _source = initial;
+      _fieldKey = _temperatureFields(initial).first.key;
+      _unitKey = initial.form.units.first.key;
+    }
     _init();
   }
 
@@ -84,11 +101,11 @@ class _TemperatureTrendScreenState extends State<TemperatureTrendScreen> {
               final equipmentName = equipment is Map
                   ? equipment['name']?.toString()
                   : null;
+              // Gearbox points have no equipment row; name them so "Low
+              // Speed" is not mistaken for another unit's reading.
               return _FeederPoint(
                 row.requiredString('id'),
-                equipmentName == null
-                    ? row.requiredString('label')
-                    : '$equipmentName · ${row.requiredString('label')}',
+                '${equipmentName ?? 'Gearbox'} · ${row.requiredString('label')}',
               );
             })
             .toList(growable: false);
@@ -106,6 +123,8 @@ class _TemperatureTrendScreenState extends State<TemperatureTrendScreen> {
       .where((field) => field.kind == DailyCheckValueKind.temperature)
       .toList(growable: false);
 
+  static bool _plausible(double value) => value >= -50 && value <= 250;
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -114,10 +133,27 @@ class _TemperatureTrendScreenState extends State<TemperatureTrendScreen> {
     final since = DateTime.now().subtract(Duration(days: _days));
     try {
       final type = _source;
-      final series = type == null
+      final raw = type == null
           ? await _feederSeries(since)
           : await _dailySeries(type, since);
-      if (mounted) setState(() => _series = series);
+      final hidden = raw.fold<int>(
+        0,
+        (sum, s) => sum + s.points.where((p) => !_plausible(p.$2)).length,
+      );
+      final series = <_Series>[
+        for (final s in raw)
+          _Series(
+            s.label,
+            s.color,
+            s.points.where((p) => _plausible(p.$2)).toList(growable: false),
+          ),
+      ];
+      if (mounted) {
+        setState(() {
+          _series = series;
+          _hiddenOutOfRange = hidden;
+        });
+      }
     } on Object catch (error) {
       if (mounted) setState(() => _error = 'Data tidak dapat dimuat: $error');
     } finally {
@@ -240,6 +276,14 @@ class _TemperatureTrendScreenState extends State<TemperatureTrendScreen> {
             )
           else ...<Widget>[
             _chart(),
+            if (_hiddenOutOfRange > 0) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(
+                '$_hiddenOutOfRange pembacaan di luar -50 sampai 250 °C '
+                'tidak digambar agar skala grafik tetap terbaca.',
+                style: AppTextStyles.supporting,
+              ),
+            ],
             const SizedBox(height: 16),
             ..._series.where((s) => s.points.isNotEmpty).map(_stats),
           ],

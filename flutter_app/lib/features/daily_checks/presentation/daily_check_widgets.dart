@@ -1,8 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../daily_check_forms.dart';
 import '../daily_check_repository.dart';
+
+/// For pages with child routes (hub → sheet → entry).  GoRouter keeps such a
+/// page alive underneath its child and returns to the same state, so without
+/// a reload it kept showing values from before the child saved something.
+/// [onReturnToPage] runs once the location is back at [ownPath].
+mixin ReloadOnReturn<T extends StatefulWidget> on State<T> {
+  GoRouter? _reloadRouter;
+  bool _awayFromPage = false;
+
+  String get ownPath;
+
+  void onReturnToPage();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final GoRouter router = GoRouter.of(context);
+    if (!identical(router, _reloadRouter)) {
+      _reloadRouter?.routerDelegate.removeListener(_onRouteChanged);
+      _reloadRouter = router..routerDelegate.addListener(_onRouteChanged);
+    }
+  }
+
+  void _onRouteChanged() {
+    final String? path =
+        _reloadRouter?.routerDelegate.currentConfiguration.uri.path;
+    if (path != ownPath) {
+      _awayFromPage = true;
+    } else if (_awayFromPage) {
+      _awayFromPage = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) onReturnToPage();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _reloadRouter?.routerDelegate.removeListener(_onRouteChanged);
+    super.dispose();
+  }
+}
 
 /// In-app temperature colours, matching the Feeder/Sizer form.
 Color temperatureColor(DailyCheckTemperatureLevel level) => switch (level) {

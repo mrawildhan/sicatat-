@@ -54,6 +54,10 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
   String _date(DateTime value) =>
       '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
+  /// Dates people read (the query and file name keep [_date]).
+  String _shownDate(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
   Future<void> _loadTeams() async {
     try {
       final Object response = await Supabase.instance.client
@@ -138,7 +142,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                 // Count sheets that appear in the rows (empty sheets are skipped).
                 // Team is part of the key because older data has two teams on the
                 // same date and shift. Rows include unit status lines.
-                'Period: ${_date(_from)} to ${_date(_to)} - Team: $teamName - ${result.rows.map((row) => '${row.date}|${row.team}|${row.shift}').toSet().length} sheet(s) with data, ${result.rows.length} row(s)',
+                'Periode: ${_shownDate(_from)} s.d. ${_shownDate(_to)} - Regu: $teamName - ${result.rows.map((row) => '${row.date}|${row.team}|${row.shift}').toSet().length} lembar berisi data, ${result.rows.length} baris',
                 style: const pw.TextStyle(fontSize: 8),
               ),
               pw.SizedBox(height: 8),

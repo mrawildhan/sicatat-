@@ -639,7 +639,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
               'Diisi oleh',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
-            subtitle: Text('$_contributors person(s)'),
+            subtitle: Text('$_contributors orang'),
           ),
         ),
         IconButton(
@@ -747,7 +747,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'Override incomplete sheet (${user.role.name})',
+            'Kirim walau belum lengkap (${user.role.label})',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
@@ -758,7 +758,7 @@ class _SheetSummaryScreenState extends ConsumerState<SheetSummaryScreen> {
             enabled: !_isSubmitting,
             maxLines: 2,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(labelText: 'Override reason'),
+            decoration: const InputDecoration(labelText: 'Alasan'),
           ),
           const SizedBox(height: 12),
           ElevatedButton.icon(

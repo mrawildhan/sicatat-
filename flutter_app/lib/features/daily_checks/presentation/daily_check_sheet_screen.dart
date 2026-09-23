@@ -29,7 +29,8 @@ class DailyCheckSheetScreen extends ConsumerStatefulWidget {
       _DailyCheckSheetScreenState();
 }
 
-class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
+class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen>
+    with ReloadOnReturn<DailyCheckSheetScreen> {
   final DailyCheckRepository _repository = DailyCheckRepository();
   final TextEditingController _notes = TextEditingController();
   DailyCheckSheet? _sheet;
@@ -44,6 +45,13 @@ class _DailyCheckSheetScreenState extends ConsumerState<DailyCheckSheetScreen> {
     super.initState();
     _load();
   }
+
+  @override
+  String get ownPath => '$_hubRoute/sheet/${widget.sheetId}';
+
+  /// Back from the entry form: show what it just saved.
+  @override
+  void onReturnToPage() => _load();
 
   @override
   void dispose() {

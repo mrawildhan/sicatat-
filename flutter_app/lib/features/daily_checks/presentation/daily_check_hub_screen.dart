@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../core/widgets/menu_choice_card.dart';
 import '../../../core/widgets/summary_filter_card.dart';
 import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
@@ -25,7 +26,8 @@ class DailyCheckHubScreen extends ConsumerStatefulWidget {
       _DailyCheckHubScreenState();
 }
 
-class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
+class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen>
+    with ReloadOnReturn<DailyCheckHubScreen> {
   final DailyCheckRepository _repository = DailyCheckRepository();
   List<DailyCheckSheet> _sheets = const <DailyCheckSheet>[];
   bool _loading = true;
@@ -39,6 +41,13 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
     super.initState();
     _load();
   }
+
+  @override
+  String get ownPath => '/daily-checks/${widget.type.storageValue}';
+
+  /// Back from a new, submitted, or deleted sheet: refresh the list.
+  @override
+  void onReturnToPage() => _load();
 
   @override
   void didUpdateWidget(DailyCheckHubScreen oldWidget) {
@@ -201,6 +210,8 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
           ],
         ),
         const SizedBox(height: 20),
+        _activities(),
+        const SizedBox(height: 20),
         Row(
           children: <Widget>[
             Expanded(
@@ -225,6 +236,64 @@ class _DailyCheckHubScreenState extends ConsumerState<DailyCheckHubScreen> {
           _empty()
         else
           ...visible.map(_sheetCard),
+      ],
+    );
+  }
+
+  /// The same activity cards as Daily Temperature Feeder Sizer, limited to
+  /// what applies here: these sheets save online, so there is no sync queue,
+  /// and their report is the printed Excel form.
+  Widget _activities() {
+    final bool canReview =
+        ref.watch(currentUserProvider)?.role.canReviewTemperature == true;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text('Aktivitas suhu', style: AppTextStyles.sectionTitle),
+        const SizedBox(height: 4),
+        const Text(
+          'Cetak, tren, pemantauan, dan laporan suhu.',
+          style: AppTextStyles.supporting,
+        ),
+        const SizedBox(height: 12),
+        MenuChoiceList(
+          cards: <MenuChoiceCard>[
+            MenuChoiceCard(
+              icon: Icons.print_outlined,
+              title: 'Cetak lembar',
+              subtitle: 'PDF form Excel untuk rentang tanggal',
+              onTap: _loading ? null : _printRange,
+            ),
+            MenuChoiceCard(
+              icon: Icons.show_chart_rounded,
+              title: 'Tren suhu',
+              subtitle: 'Grafik suhu per titik ukur',
+              onTap: () => context.go(
+                '/temperature-trend?form=${widget.type.storageValue}',
+              ),
+            ),
+            if (canReview) ...<MenuChoiceCard>[
+              MenuChoiceCard(
+                icon: Icons.assignment_late_outlined,
+                title: 'Belum lengkap',
+                subtitle: 'Lembar yang perlu dilengkapi',
+                onTap: () => context.go('/incomplete'),
+              ),
+              MenuChoiceCard(
+                icon: Icons.monitor_heart_outlined,
+                title: 'Pemantauan & persetujuan',
+                subtitle: 'Suhu kritis dan lembar yang perlu disetujui',
+                onTap: () => context.go('/monitoring'),
+              ),
+              MenuChoiceCard(
+                icon: Icons.thermostat_auto_rounded,
+                title: 'Laporan suhu tinggi',
+                subtitle: 'Pembacaan 60 °C ke atas',
+                onTap: () => context.go('/high-temperature'),
+              ),
+            ],
+          ],
+        ),
       ],
     );
   }

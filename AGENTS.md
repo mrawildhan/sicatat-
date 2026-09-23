@@ -2,6 +2,15 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Uji menyeluruh fitur Suhu & kartu Aktivitas bersama — 2026-09-23
+
+- Aktivitas suhu kini kartu baris `MenuChoiceCard`/`MenuChoiceList` (`core/widgets/menu_choice_card.dart`, sama dengan menu Suhu) di Feeder Sizer, Hydraulic Feeder, dan Coal Valve (pilihan pemilik). Hydraulic/Coal Valve: Cetak lembar, Tren suhu, dan untuk reviewer Belum lengkap, Pemantauan & persetujuan, Laporan suhu tinggi (tanpa Sinkronisasi karena langsung online).
+- `/temperature-trend?form=feeder_sizer|hydraulic_feeder|coal_valve` membuka tren lembar itu. Grafik tidak menggambar nilai di luar -50..250 °C (dummy 6363 dulu membuat skala 6.4K) dan menyebut jumlahnya; titik gearbox tanpa peralatan diberi label "Gearbox · …".
+- Bug diperbaiki: halaman lembar dan daftar Hydraulic/Coal Valve adalah rute induk, jadi GoRouter mengembalikan state lama setelah form isian menyimpan (jumlah kosong, suhu maks, dan PDF cetak memakai data lama). Mixin `ReloadOnReturn` (`daily_check_widgets.dart`) memuat ulang saat lokasi kembali ke halaman itu; dijaga `test/reload_on_return_test.dart`.
+- Teks: "1 person(s)" → "1 orang"; kartu admin "Override incomplete sheet" → "Kirim walau belum lengkap (Admin)"; kepala PDF laporan periode kini "Periode … s.d. … - Regu … lembar berisi data, … baris"; tanggal di Laporan suhu tinggi dd/mm/yyyy.
+- Diuji live (lembar uji dihapus setelahnya): buat Feeder Sizer 31/12/2039, ambang 45/62/71, dialog anomali, status unit, ringkasan kartu merah, duplikat ditolak di UI dan server (409), sinkronisasi, hapus; Hydraulic & Coal Valve 01/01/2025: buat, isi, kirim tidak lengkap, edit ditolak server, persetujuan + PDF (penyetuju tercetak), batalkan, buka kembali, hapus; approved_by tidak bisa dipalsukan; Belum lengkap, Pemantauan, Laporan suhu tinggi, Laporan periode (CSV 163 baris/8 lembar, PDF 7 halaman), cetak rentang.
+- PENTING untuk uji berikutnya: nilai ≥70 °C di data uji langsung memicu `temperature_alert` (cron 5 menit) dan notifikasi HP reviewer Android. Pakai nilai <70, atau hapus lembar dan alert segera.
+
 ## Perapian UI: "Crew", kartu lembar belum selesai, label Suhu — 2026-09-23
 
 - Semua teks UI "kru"/"Kru"/"KRU" menjadi "crew"/"Crew"/"CREW" (permintaan pemilik); label PDF lembar "KRU / SIF" menjadi "CREW / SHIFT". Nilai database tidak berubah.

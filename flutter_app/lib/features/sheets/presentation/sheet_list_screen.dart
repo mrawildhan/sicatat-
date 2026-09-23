@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../core/widgets/menu_choice_card.dart';
 import '../../../core/widgets/summary_filter_card.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../../data/local/local_database.dart';
@@ -336,86 +337,68 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
   }
 
   Widget _temperatureOverview() {
-    final user = ref.watch(currentUserProvider);
+    final bool canReview =
+        ref.watch(currentUserProvider)?.role.canReviewTemperature == true;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         _temperatureSummary(),
         const SizedBox(height: 20),
-        const Text(
-          'Aktivitas suhu',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-        ),
+        const Text('Aktivitas suhu', style: AppTextStyles.sectionTitle),
         const SizedBox(height: 4),
         const Text(
           'Pencatatan, sinkronisasi, pemantauan, dan laporan suhu.',
-          style: TextStyle(color: AppColors.muted, fontSize: 12),
+          style: AppTextStyles.supporting,
         ),
-        const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final bool useCompactDesktopCards = constraints.maxWidth >= 700;
-            // Three small cards per row on phones so every Suhu action fits
-            // on one screen without scrolling.
-            const int columns = 3;
-            final actions = <_TemperatureAction>[
-              _TemperatureAction(
-                icon: Icons.description_rounded,
-                title: 'Lembar saya',
-                subtitle: 'Lihat lembar inspeksi',
-                onTap: () => context.go('/sheets/list'),
+        const SizedBox(height: 12),
+        // Same row cards as the Suhu menu and the two daily check sheets.
+        MenuChoiceList(
+          cards: <MenuChoiceCard>[
+            MenuChoiceCard(
+              icon: Icons.description_rounded,
+              title: 'Lembar saya',
+              subtitle: 'Lihat dan lanjutkan lembar inspeksi',
+              onTap: () => context.go('/sheets/list'),
+            ),
+            MenuChoiceCard(
+              icon: Icons.sync_rounded,
+              title: _syncing ? 'Memeriksa…' : 'Sinkronisasi',
+              subtitle: 'Kirim data yang masih tertahan di perangkat',
+              onTap: _syncing ? null : _syncPending,
+            ),
+            MenuChoiceCard(
+              icon: Icons.show_chart_rounded,
+              title: 'Tren suhu',
+              subtitle: 'Grafik suhu per titik ukur',
+              onTap: () => context.go('/temperature-trend?form=feeder_sizer'),
+            ),
+            if (canReview) ...<MenuChoiceCard>[
+              MenuChoiceCard(
+                icon: Icons.assignment_late_outlined,
+                title: 'Belum lengkap',
+                subtitle: 'Lembar yang perlu dilengkapi',
+                onTap: () => context.go('/incomplete'),
               ),
-              _TemperatureAction(
-                icon: Icons.sync_rounded,
-                title: _syncing ? 'Memeriksa…' : 'Sinkronisasi',
-                subtitle: 'Periksa antrian data',
-                onTap: _syncing ? null : _syncPending,
+              MenuChoiceCard(
+                icon: Icons.monitor_heart_outlined,
+                title: 'Pemantauan & persetujuan',
+                subtitle: 'Suhu kritis dan lembar semua regu',
+                onTap: () => context.go('/monitoring'),
               ),
-              if (user?.role.canReviewTemperature == true)
-                _TemperatureAction(
-                  icon: Icons.assignment_late_outlined,
-                  title: 'Belum lengkap',
-                  subtitle: 'Lembar perlu dilengkapi',
-                  onTap: () => context.go('/incomplete'),
-                ),
-              if (user?.role.canReviewTemperature == true)
-                _TemperatureAction(
-                  icon: Icons.monitor_heart_outlined,
-                  title: 'Pemantauan',
-                  subtitle: 'Pantau lembar regu',
-                  onTap: () => context.go('/monitoring'),
-                ),
-              if (user?.role.canReviewTemperature == true)
-                _TemperatureAction(
-                  icon: Icons.thermostat_auto_rounded,
-                  title: 'Suhu tinggi',
-                  subtitle: 'Laporan temperatur tinggi',
-                  onTap: () => context.go('/high-temperature'),
-                ),
-              if (user?.role.canReviewTemperature == true)
-                _TemperatureAction(
-                  icon: Icons.picture_as_pdf_outlined,
-                  title: 'Laporan periode',
-                  subtitle: 'Ekspor laporan suhu',
-                  onTap: () => context.go('/reports'),
-                ),
-            ];
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: useCompactDesktopCards ? 3.4 : 1.05,
+              MenuChoiceCard(
+                icon: Icons.thermostat_auto_rounded,
+                title: 'Laporan suhu tinggi',
+                subtitle: 'Pembacaan 60 °C ke atas',
+                onTap: () => context.go('/high-temperature'),
               ),
-              itemCount: actions.length,
-              itemBuilder: (_, index) => _temperatureActionCard(
-                actions[index],
-                compact: useCompactDesktopCards,
+              MenuChoiceCard(
+                icon: Icons.picture_as_pdf_outlined,
+                title: 'Laporan periode',
+                subtitle: 'Ekspor PDF/CSV per rentang tanggal',
+                onTap: () => context.go('/reports'),
               ),
-            );
-          },
+            ],
+          ],
         ),
       ],
     );
@@ -435,87 +418,6 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       if (mounted) setState(() => _syncing = false);
     }
   }
-
-  Widget _temperatureActionCard(
-    _TemperatureAction action, {
-    required bool compact,
-  }) => Card(
-    margin: EdgeInsets.zero,
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap: action.onTap,
-      child: compact
-          ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: <Widget>[
-                  CircleAvatar(
-                    backgroundColor: AppColors.mint,
-                    child: Icon(action.icon, color: AppColors.green),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          action.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.body,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          action.subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.muted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.muted,
-                  ),
-                ],
-              ),
-            )
-          : Tooltip(
-              message: action.subtitle,
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    CircleAvatar(
-                      radius: 17,
-                      backgroundColor: AppColors.mint,
-                      child: Icon(
-                        action.icon,
-                        color: AppColors.green,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      action.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      // Regular weight: the owner found bold labels heavy.
-                      style: AppTextStyles.body.copyWith(height: 1.15),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-    ),
-  );
 
   bool get _hasFilter =>
       _fromDate != null ||
@@ -777,20 +679,6 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
       ),
     );
   }
-}
-
-class _TemperatureAction {
-  const _TemperatureAction({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
 }
 
 enum _SheetListStatusFilter { all, draft, submitted }

@@ -202,11 +202,13 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/temperature-trend',
-      builder: (_, __) => const RoleGuard(
+      builder: (_, state) => RoleGuard(
         allowed: _temperatureRoles,
         child: MainNavigationScaffold(
           selectedTab: MainNavigationTab.temperature,
-          child: TemperatureTrendScreen(),
+          child: TemperatureTrendScreen(
+            initialForm: state.uri.queryParameters['form'],
+          ),
         ),
       ),
     ),

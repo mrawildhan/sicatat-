@@ -98,6 +98,15 @@ class _HighTemperatureReportScreenState
 
   String _date(DateTime value) =>
       '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
+  /// Dates people read; queries keep the ISO form from [_date].
+  static String _shownDate(String iso) {
+    final DateTime? value = DateTime.tryParse(iso);
+    return value == null
+        ? iso
+        : '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+  }
+
   Future<void> _pick(bool isFrom) async {
     final DateTime? date = await showDatePicker(
       context: context,
@@ -425,7 +434,7 @@ class _HighTemperatureReportScreenState
       onTap: onTap,
       leading: const Icon(Icons.calendar_month_rounded, color: AppColors.green),
       title: Text(title),
-      subtitle: Text(_date(date)),
+      subtitle: Text(_shownDate(_date(date))),
     ),
   );
   Widget _rowTile(_HighTemperatureRow row) {
@@ -447,8 +456,8 @@ class _HighTemperatureReportScreenState
           ),
           subtitle: Text(
             row.detail == null
-                ? '${row.date} · ${row.team} · ${row.shift}\n${row.section}, Ronde ${row.round} · ${row.side} · ${row.point}\nDicatat oleh ${row.recordedBy}'
-                : '${row.date} · ${row.team} · ${row.shift}\n${row.section}\n${row.detail}',
+                ? '${_shownDate(row.date)} · ${row.team} · ${row.shift}\n${row.section}, Ronde ${row.round} · ${row.side} · ${row.point}\nDicatat oleh ${row.recordedBy}'
+                : '${_shownDate(row.date)} · ${row.team} · ${row.shift}\n${row.section}\n${row.detail}',
           ),
           isThreeLine: true,
         ),

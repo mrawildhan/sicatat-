@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../core/widgets/menu_choice_card.dart';
 import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
 import '../daily_check_forms.dart';
@@ -90,41 +91,11 @@ class TemperatureFormsScreen extends ConsumerWidget {
 
   Widget _card(BuildContext context, _FormChoice choice) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
-    child: Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.go(choice.route),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
-          child: Row(
-            children: <Widget>[
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.mint,
-                child: Icon(choice.icon, color: AppColors.green),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      choice.title,
-                      style: AppTextStyles.cardTitle.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(choice.subtitle, style: AppTextStyles.supporting),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
-            ],
-          ),
-        ),
-      ),
+    child: MenuChoiceCard(
+      icon: choice.icon,
+      title: choice.title,
+      subtitle: choice.subtitle,
+      onTap: () => context.go(choice.route),
     ),
   );
 }
