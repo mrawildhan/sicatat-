@@ -46,19 +46,18 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # One typeface for the app and every PDF: Figtree (SIL OFL 1.1), the free
-  # look-alike of Aptos, which the owner wanted but may not be bundled. Bold is
-  # the heaviest file on purpose, so the theme's w800/w900 titles stay as heavy
-  # as they were with Arial Bold. See lib/core/pdf/pdf_theme.dart.
+  # One typeface for the app and every PDF: Roboto 3.016 (SIL OFL 1.1, the
+  # Android system font, owner's choice), cut down to Latin and common symbols
+  # to keep the web download small. Roboto has no SemiBold, so w600 renders
+  # Bold; Bold is the heaviest file on purpose, so w800/w900 titles stay Bold.
+  # See lib/core/pdf/pdf_theme.dart.
   fonts:
-    - family: Figtree
+    - family: Roboto
       fonts:
-        - asset: assets/fonts/Figtree-Regular.ttf
-        - asset: assets/fonts/Figtree-Medium.ttf
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Medium.ttf
           weight: 500
-        - asset: assets/fonts/Figtree-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Figtree-Bold.ttf
+        - asset: assets/fonts/Roboto-Bold.ttf
           weight: 700
   assets:
     - assets/fonts/

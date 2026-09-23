@@ -2,6 +2,10 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Font diganti ke Roboto — 2026-09-23
+
+- Setelah melihat daftar font terpopuler, pemilik memilih Roboto untuk aplikasi dan semua PDF (menggantikan Figtree). File dari rilis resmi `googlefonts/roboto-3-classic` v3.016 (unhinted, SIL OFL), dipangkas dengan `pyftsubset` ke Latin/Latin Extended/Vietnam + tanda baca, mata uang, panah, simbol matematika, dan bentuk umum (U+0000-024F, 1E00-1EFF, 2000-22FF, 25A0-26FF, ...) sehingga tiap file ~165 KB, bukan ~400 KB. Hanya Regular/Medium/Bold; w600 tampil Bold. Excel notulen tetap menulis "Aptos". Bagian Figtree dan Poppins di bawah hanya riwayat.
+
 ## Font diganti ke Figtree, Excel ke Aptos — 2026-09-23
 
 - Pemilik menilai Poppins jelek dan meminta Aptos. Lisensi Aptos (Microsoft, font cloud Office) hanya mengizinkan pemakaian di dalam produk Microsoft, jadi file Aptos tidak boleh dibundel ke website/APK/PDF. Pemilik memilih Figtree (SIL OFL, file statis Regular/Medium/SemiBold/Bold dari repo resmi `erikdkennedy/figtree`) untuk aplikasi dan semua PDF. Excel notulen menulis "Aptos" (tanpa file font); perkiraan tinggi baris Excel kembali ke angka Arial karena lebar Aptos setara Arial. Bagian Poppins di bawah hanya riwayat.

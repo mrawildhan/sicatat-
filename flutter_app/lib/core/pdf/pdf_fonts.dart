@@ -21,7 +21,7 @@ Future<pw.ThemeData> loadPdfTheme() async {
 void registerAppFontLicense() {
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(<String>[
-      'Figtree',
+      'Roboto',
     ], await rootBundle.loadString('assets/fonts/OFL.txt'));
   });
 }

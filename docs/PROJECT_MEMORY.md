@@ -67,9 +67,10 @@ Dokumen ini adalah pegangan singkat bagi pengembang berikutnya. Baca juga
 
 ## Sistem tampilan: ikuti Beranda
 
-Beranda adalah acuan visual. Font aplikasi adalah Figtree (pilihan pemilik
-2026-09-23 sebagai pengganti gratis Aptos, lisensi SIL OFL, file
-Regular/Medium/SemiBold/Bold di `flutter_app/assets/fonts/`). Aptos sendiri
+Beranda adalah acuan visual. Font aplikasi adalah Roboto 3.016 (pilihan
+pemilik 2026-09-23 setelah menolak Liberation Sans, Poppins, dan Figtree;
+lisensi SIL OFL; file Regular/Medium/Bold di `flutter_app/assets/fonts/`,
+dipangkas ke huruf Latin dan simbol umum agar unduhan web kecil). Aptos
 milik Microsoft dan hanya boleh dipakai di dalam Office, jadi jangan membundel
 file Aptos ke aplikasi atau PDF. Font ditetapkan sekali di `AppTheme` lewat
 `appFontFamily`; jangan menetapkan `fontFamily` berbeda pada halaman baru.
