@@ -2,6 +2,14 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Notulen: satu temuan, banyak rencana tindakan — 2026-09-23
+
+- Tanpa perubahan database: baris `meeting_minute_action` berurutan dengan uraian temuan dan tanggal temuan yang sama dianggap satu temuan (`groupMeetingMinuteFindings` di `meeting_minute_models.dart`). Notulen contoh "Ban Bocor" sudah memakai pola ini.
+- Form: "Temuan N" (uraian + tanggal diisi sekali) berisi "Rencana tindakan N.k", tombol "Tambah rencana tindakan untuk temuan N" menyisipkan tepat di bawah temuannya; uraian/tanggal disalin ke semua rencananya saat simpan. Menghapus rencana pertama memindahkan temuan ke rencana berikutnya.
+- Excel: No., Uraian Temuan, dan Tanggal Temuan di-merge per temuan; rencana diberi nomor 1., 2., …; bagian DETAIL RAPAT berbingkai dengan label tebal; judul DETAIL RAPAT/RENCANA TINDAKAN rata tengah; Catatan jadi baris berlabel; cetak A4 landscape, muat 1 halaman lebar. Baris mulai 16 (header 15).
+- Bug diperbaiki: setelah menyimpan notulen yang sudah ada, layar tidak mengambil id rencana baru sehingga foto tidak bisa ditambah sebelum halaman dimuat ulang; tambah/hapus foto juga tidak lagi membuang ketikan yang belum disimpan.
+- Diuji live (cache suffix `2.8.41-mom-findings`): notulen dummy kini temuan 1 = 3 rencana, temuan 2 = 5 rencana (11 baris, 8 foto); ekspor ulang berisi merge A16:A18 dan A19:A23.
+
 ## Notulen (MOM) sepenuhnya berbahasa Indonesia — 2026-09-23
 
 - Ekspor Excel notulen: label Lokasi, Peserta, Berhalangan hadir, Notulis, RENCANA TINDAKAN, Uraian Temuan, Rencana Tindakan, Foto, Tenggat, Penanggung Jawab, Progres / Catatan, CATATAN. Tanggal kosong dicetak "–" (dulu "Belum diisi").

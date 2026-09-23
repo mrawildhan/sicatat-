@@ -137,20 +137,25 @@ void main() {
       expect(sheetXml, isNot(contains('panel-lvmdp.png')));
       expect(sheetXml, isNot(contains('screenshot-email.png')));
       expect(sheetXml, isNot(contains('bukti-pelatihan.png')));
-      expect(sheetXml, contains('<c r="A15" s="7"'));
+      // Different finding dates keep the two plans as separate findings.
+      expect(sheetXml, contains('<c r="A16" s="7" t="inlineStr"><is><t>1<'));
+      expect(sheetXml, contains('<c r="A17" s="7" t="inlineStr"><is><t>2<'));
       expect(sheetXml, contains('<row r="1" ht="60.0" customHeight="1">'));
-      expect(sheetXml, contains('<row r="15" ht="126.0" customHeight="1">'));
+      expect(sheetXml, contains('<row r="16" ht="126.0" customHeight="1">'));
       expect(sheetXml, isNot(contains(' height="')));
       expect(
-        sheetXml.indexOf('<c r="A15"'),
-        lessThan(sheetXml.indexOf('<c r="C15"')),
+        sheetXml.indexOf('<c r="A16"'),
+        lessThan(sheetXml.indexOf('<c r="C16"')),
       );
-      expect(sheetXml, contains('<c r="B15" s="6"'));
-      expect(sheetXml, contains('<c r="A16" s="7"'));
       expect(sheetXml, contains('<c r="B16" s="6"'));
+      expect(sheetXml, contains('<c r="B17" s="6"'));
       expect(sheetXml, isNot(contains('<mergeCell ref="A16:A17"/>')));
       expect(sheetXml, isNot(contains('<mergeCell ref="B16:B17"/>')));
-      expect(sheetXml, contains('width="18"'));
+      expect(sheetXml, contains('<mergeCell ref="A3:H3"/>'));
+      expect(sheetXml, contains('<c r="A5" s="8"'));
+      expect(sheetXml, contains('<c r="H5" s="9"'));
+      expect(sheetXml, contains('<mergeCell ref="B5:H5"/>'));
+      expect(sheetXml, contains('width="20"'));
       expect(
         utf8.decode(files['xl/drawings/drawing1.xml']!.content),
         allOf(<Matcher>[
@@ -158,9 +163,9 @@ void main() {
           contains('Foto pembahasan 2'),
           contains('<xdr:oneCellAnchor>'),
           contains('<xdr:col>3</xdr:col>'),
-          contains('<xdr:row>14</xdr:row>'),
           contains('<xdr:row>15</xdr:row>'),
-          isNot(contains('<xdr:row>16</xdr:row>')),
+          contains('<xdr:row>16</xdr:row>'),
+          isNot(contains('<xdr:row>17</xdr:row>')),
           contains('<xdr:ext cx="'),
           isNot(contains('<a:ext cx="0" cy="0"/>')),
         ]),
@@ -175,4 +180,58 @@ void main() {
       );
     },
   );
+
+  test('rencana tindakan untuk temuan yang sama digabung dalam satu nomor', () {
+    MeetingMinuteAction plan(String issue, String subject, int position) =>
+        MeetingMinuteAction(
+          id: 'plan-$position',
+          itemDate: DateTime(2026, 9, 23),
+          issueDescription: issue,
+          subjectDiscussion: subject,
+          assignedTo: 'Crew A',
+          position: position,
+        );
+    final MeetingMinute minute = MeetingMinute(
+      id: 'mom-2',
+      title: 'Inspeksi',
+      status: MeetingMinuteStatus.draft,
+      createdBy: 'user-1',
+      updatedAt: DateTime(2026, 9, 23),
+      meetingDate: DateTime(2026, 9, 23),
+      actions: <MeetingMinuteAction>[
+        plan('Belt robek', 'Splice belt', 0),
+        plan('Belt robek ', 'Pasang pengaman', 1),
+        plan('Belt robek', 'Cek alignment', 2),
+        plan('Oli rembes', 'Ganti seal', 3),
+      ],
+    );
+
+    expect(
+      groupMeetingMinuteFindings(minute.actions).map((g) => g.length),
+      <int>[3, 1],
+    );
+    final Archive archive = ZipDecoder().decodeBytes(
+      MeetingMinuteExcelService().create(minute),
+    );
+    final String sheetXml = utf8.decode(
+      archive.findFile('xl/worksheets/sheet1.xml')!.content,
+    );
+    expect(sheetXml, contains('<mergeCell ref="A16:A18"/>'));
+    expect(sheetXml, contains('<mergeCell ref="B16:B18"/>'));
+    expect(sheetXml, contains('<mergeCell ref="E16:E18"/>'));
+    expect(
+      sheetXml,
+      contains('<c r="C16" s="6" t="inlineStr"><is><t>1. Splice belt<'),
+    );
+    expect(
+      sheetXml,
+      contains('<c r="C18" s="6" t="inlineStr"><is><t>3. Cek alignment<'),
+    );
+    expect(sheetXml, contains('<c r="A19" s="7" t="inlineStr"><is><t>2<'));
+    expect(
+      sheetXml,
+      contains('<c r="C19" s="6" t="inlineStr"><is><t>Ganti seal<'),
+    );
+    expect(sheetXml, isNot(contains('A19:A')));
+  });
 }

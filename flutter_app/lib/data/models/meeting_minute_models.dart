@@ -94,6 +94,44 @@ class MeetingMinuteAction {
   }
 }
 
+/// One finding can have several action plans.  The database keeps one row per
+/// action plan, so consecutive rows with the same issue text and finding date
+/// belong to one finding (the form writes both onto each of its plans).
+bool continuesMeetingMinuteFinding({
+  required String previousIssue,
+  required DateTime? previousDate,
+  required String issue,
+  required DateTime? date,
+}) {
+  final String trimmed = issue.trim();
+  final bool sameDate =
+      previousDate?.year == date?.year &&
+      previousDate?.month == date?.month &&
+      previousDate?.day == date?.day;
+  return trimmed.isNotEmpty && trimmed == previousIssue.trim() && sameDate;
+}
+
+List<List<MeetingMinuteAction>> groupMeetingMinuteFindings(
+  List<MeetingMinuteAction> actions,
+) {
+  final List<List<MeetingMinuteAction>> findings =
+      <List<MeetingMinuteAction>>[];
+  for (final MeetingMinuteAction action in actions) {
+    if (findings.isNotEmpty &&
+        continuesMeetingMinuteFinding(
+          previousIssue: findings.last.first.issueDescription,
+          previousDate: findings.last.first.itemDate,
+          issue: action.issueDescription,
+          date: action.itemDate,
+        )) {
+      findings.last.add(action);
+    } else {
+      findings.add(<MeetingMinuteAction>[action]);
+    }
+  }
+  return findings;
+}
+
 class MeetingMinuteActionPhoto {
   const MeetingMinuteActionPhoto({
     required this.id,

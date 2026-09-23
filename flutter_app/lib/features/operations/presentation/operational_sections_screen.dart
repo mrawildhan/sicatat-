@@ -3227,6 +3227,7 @@ class _MeetingMinuteEditorScreenState
           _minuteTaker.text = ref.read(currentUserProvider)?.name ?? '';
         }
         if (_actions.isEmpty) _actions.add(_ActionDraft(itemDate: _date));
+        _markFindings();
       } else {
         final MeetingMinute minute = await _service.loadOne(widget.meetingId!);
         _minute = minute;
@@ -3244,6 +3245,7 @@ class _MeetingMinuteEditorScreenState
         _note.text = minute.note;
         _actions.addAll(minute.actions.map(_ActionDraft.fromModel));
         if (_actions.isEmpty) _actions.add(_ActionDraft(itemDate: _date));
+        _markFindings();
       }
     } on Object catch (error) {
       _error = 'Notulen tidak dapat dibuka. $error';
@@ -3334,25 +3336,110 @@ class _MeetingMinuteEditorScreenState
     if (!hasActionPlan) {
       return 'Tambahkan minimal satu rencana tindakan sebelum menyelesaikan notulen.';
     }
-    for (int index = 0; index < _actions.length; index++) {
-      final _ActionDraft action = _actions[index];
-      if (action.subject.text.trim().isEmpty) continue;
-      final String label = 'Rencana tindakan ${index + 1}';
-      if (action.issue.text.trim().isEmpty) {
-        return '$label wajib memiliki uraian temuan.';
+    final List<List<int>> findings = _findingGroups();
+    for (int finding = 0; finding < findings.length; finding++) {
+      final List<int> plans = findings[finding];
+      final _ActionDraft head = _actions[plans.first];
+      final bool hasPlan = plans.any(
+        (int index) => _actions[index].subject.text.trim().isNotEmpty,
+      );
+      if (!hasPlan) continue;
+      if (head.issue.text.trim().isEmpty) {
+        return 'Temuan ${finding + 1} wajib memiliki uraian temuan.';
       }
-      if (action.itemDate == null) {
-        return '$label wajib memiliki tanggal temuan.';
+      if (head.itemDate == null) {
+        return 'Temuan ${finding + 1} wajib memiliki tanggal temuan.';
       }
-      if (action.assignedTo.text.trim().isEmpty) {
-        return '$label wajib memiliki penanggung jawab.';
+      for (int plan = 0; plan < plans.length; plan++) {
+        final _ActionDraft action = _actions[plans[plan]];
+        if (action.subject.text.trim().isEmpty) continue;
+        if (action.assignedTo.text.trim().isEmpty) {
+          return 'Rencana tindakan ${finding + 1}.${plan + 1} wajib memiliki penanggung jawab.';
+        }
       }
     }
     return null;
   }
 
+  /// Indexes of [_actions] per finding: a finding starts with a plan that
+  /// does not continue the previous one.
+  List<List<int>> _findingGroups() {
+    final List<List<int>> groups = <List<int>>[];
+    for (int index = 0; index < _actions.length; index++) {
+      if (groups.isNotEmpty && _actions[index].continuesFinding) {
+        groups.last.add(index);
+      } else {
+        groups.add(<int>[index]);
+      }
+    }
+    return groups;
+  }
+
+  /// Marks plans that belong to the finding above them, as stored rows only
+  /// carry the finding text and date on every plan.
+  void _markFindings() {
+    for (int index = 0; index < _actions.length; index++) {
+      final _ActionDraft action = _actions[index];
+      action.continuesFinding =
+          index > 0 &&
+          continuesMeetingMinuteFinding(
+            previousIssue: _actions[index - 1].issue.text,
+            previousDate: _actions[index - 1].itemDate,
+            issue: action.issue.text,
+            date: action.itemDate,
+          );
+    }
+  }
+
+  /// The finding text and date are edited once, on the first plan; copy them
+  /// to the finding's other plans before saving.
+  void _syncFindings() {
+    _ActionDraft? head;
+    for (final _ActionDraft action in _actions) {
+      if (head != null && action.continuesFinding) {
+        action.issue.text = head.issue.text;
+        action.itemDate = head.itemDate;
+      } else {
+        action.continuesFinding = false;
+        head = action;
+      }
+    }
+  }
+
+  void _addPlan(List<int> finding) {
+    final _ActionDraft head = _actions[finding.first];
+    setState(
+      () => _actions.insert(
+        finding.last + 1,
+        _ActionDraft(
+          continuesFinding: true,
+          itemDate: head.itemDate,
+          issueDescription: head.issue.text,
+        ),
+      ),
+    );
+  }
+
+  void _removePlan(int index) {
+    setState(() {
+      final _ActionDraft removed = _actions[index];
+      final bool hasNext =
+          index + 1 < _actions.length && _actions[index + 1].continuesFinding;
+      if (!removed.continuesFinding && hasNext) {
+        // The next plan takes over the finding text and date.
+        final _ActionDraft next = _actions[index + 1]
+          ..continuesFinding = false
+          ..itemDate = removed.itemDate;
+        next.issue.text = removed.issue.text;
+      }
+      _actions.removeAt(index);
+      removed.dispose();
+    });
+  }
+
   Future<void> _save(MeetingMinuteStatus status) async {
     if (_saving) return;
+    _syncFindings();
     final String? validation = status == MeetingMinuteStatus.completed
         ? _completeValidation()
         : null;
@@ -3395,6 +3482,9 @@ class _MeetingMinuteEditorScreenState
         ],
       );
       if (!mounted) return;
+      // Saving an existing minute keeps this screen, so take the saved rows
+      // (with the ids of newly added plans) or photos could not be added.
+      setState(() => _applyMinute(saved));
       _message(
         status == MeetingMinuteStatus.draft
             ? 'Draf disimpan.'
@@ -3477,7 +3567,7 @@ class _MeetingMinuteEditorScreenState
       );
       final MeetingMinute updated = await _service.loadOne(minute.id);
       if (!mounted) return;
-      _applyMinute(updated);
+      _applyPhotos(updated);
       _message('Foto dikompres dan ditambahkan.');
     } on Object catch (error) {
       if (mounted) _message('Foto tidak dapat ditambahkan. $error');
@@ -3494,7 +3584,7 @@ class _MeetingMinuteEditorScreenState
       await _service.deleteActionPhoto(photo);
       final MeetingMinute updated = await _service.loadOne(minute.id);
       if (!mounted) return;
-      _applyMinute(updated);
+      _applyPhotos(updated);
       _message('Foto dihapus.');
     } on Object catch (error) {
       if (mounted) _message('Foto tidak dapat dihapus. $error');
@@ -3512,6 +3602,20 @@ class _MeetingMinuteEditorScreenState
       ..addAll(minute.actions.map(_ActionDraft.fromModel));
     if (_actions.isEmpty) {
       _actions.add(_ActionDraft(itemDate: minute.meetingDate));
+    }
+    _markFindings();
+    _minute = minute;
+  }
+
+  /// Takes only the photo lists from [minute], so text typed since the last
+  /// save survives adding or deleting a photo.
+  void _applyPhotos(MeetingMinute minute) {
+    for (final _ActionDraft action in _actions) {
+      for (final MeetingMinuteAction saved in minute.actions) {
+        if (saved.id != null && saved.id == action.id) {
+          action.photos = saved.photos;
+        }
+      }
     }
     _minute = minute;
   }
@@ -3552,6 +3656,7 @@ class _MeetingMinuteEditorScreenState
   Widget build(BuildContext context) {
     final bool desktop = kIsWeb && MediaQuery.sizeOf(context).width >= 920;
     final String pageTitle = _isNew ? 'Buat Notulen' : 'Ubah Notulen';
+    final List<List<int>> findings = _findingGroups();
     final MeetingMinuteReference? linkedSource =
         _minute?.followUpSource ??
         (_followUpSource == null
@@ -3751,49 +3856,52 @@ class _MeetingMinuteEditorScreenState
                     title: 'Temuan dan rencana tindakan',
                     icon: Icons.checklist_rounded,
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
                         for (
-                          int index = 0;
-                          index < _actions.length;
-                          index++
+                          int finding = 0;
+                          finding < findings.length;
+                          finding++
                         ) ...<Widget>[
-                          _ActionEditor(
-                            index: index,
-                            action: _actions[index],
-                            onItemDate: () =>
-                                _pickDate(main: false, actionIndex: index),
-                            onDueDate: () => _pickDueDate(index),
-                            onAddPhoto: _saving ? null : () => _addPhoto(index),
-                            onDeletePhoto: _saving ? null : _deletePhoto,
-                            photoUrl: _service.photoUrl,
-                            onRemove: _actions.length == 1
-                                ? null
-                                : () => setState(() {
-                                    final _ActionDraft removed = _actions
-                                        .removeAt(index);
-                                    removed.dispose();
-                                  }),
-                          ),
-                          if (index < _actions.length - 1)
-                            const Divider(height: 28),
-                        ],
-                        const SizedBox(height: 4),
-                        OutlinedButton.icon(
-                          onPressed: () => setState(
-                            () => _actions.add(
-                              _ActionDraft(
-                                itemDate: _date,
-                                issueDescription: _actions.isEmpty
-                                    ? ''
-                                    : _actions.last.issue.text,
-                              ),
+                          _FindingEditor(
+                            number: finding + 1,
+                            head: _actions[findings[finding].first],
+                            onItemDate: () => _pickDate(
+                              main: false,
+                              actionIndex: findings[finding].first,
                             ),
+                            onAddPlan: () => _addPlan(findings[finding]),
+                            plans: <Widget>[
+                              for (
+                                int plan = 0;
+                                plan < findings[finding].length;
+                                plan++
+                              )
+                                _ActionEditor(
+                                  label:
+                                      'Rencana tindakan ${finding + 1}.${plan + 1}',
+                                  action: _actions[findings[finding][plan]],
+                                  onDueDate: () =>
+                                      _pickDueDate(findings[finding][plan]),
+                                  onAddPhoto: _saving
+                                      ? null
+                                      : () =>
+                                            _addPhoto(findings[finding][plan]),
+                                  onDeletePhoto: _saving ? null : _deletePhoto,
+                                  photoUrl: _service.photoUrl,
+                                  onRemove: _actions.length == 1
+                                      ? null
+                                      : () => _removePlan(
+                                          findings[finding][plan],
+                                        ),
+                                ),
+                            ],
                           ),
-                          icon: const Icon(Icons.add_rounded),
-                          label: const Text('Tambah rencana tindakan'),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton.icon(
+                          if (finding < findings.length - 1)
+                            const Divider(height: 32),
+                        ],
+                        const SizedBox(height: 12),
+                        FilledButton.tonalIcon(
                           onPressed: () => setState(
                             () => _actions.add(_ActionDraft(itemDate: _date)),
                           ),
@@ -4023,11 +4131,83 @@ class _PickerField extends StatelessWidget {
   );
 }
 
+/// A finding (issue text and date, edited once) with its action plans below.
+class _FindingEditor extends StatelessWidget {
+  const _FindingEditor({
+    required this.number,
+    required this.head,
+    required this.onItemDate,
+    required this.onAddPlan,
+    required this.plans,
+  });
+
+  final int number;
+  final _ActionDraft head;
+  final VoidCallback onItemDate;
+  final VoidCallback onAddPlan;
+  final List<Widget> plans;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      Text(
+        'Temuan $number',
+        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+      ),
+      const SizedBox(height: 8),
+      TextField(
+        controller: head.issue,
+        minLines: 3,
+        maxLines: 8,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: const InputDecoration(labelText: 'Uraian temuan'),
+      ),
+      const SizedBox(height: 12),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: _PickerField(
+          label: 'Tanggal temuan',
+          value: head.itemDate == null
+              ? 'Pilih tanggal'
+              : _momShortDate(head.itemDate!),
+          icon: Icons.event_note_outlined,
+          onTap: onItemDate,
+        ),
+      ),
+      const SizedBox(height: 14),
+      Container(
+        padding: const EdgeInsets.only(left: 12),
+        decoration: const BoxDecoration(
+          border: Border(left: BorderSide(color: AppColors.mint, width: 3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            for (int index = 0; index < plans.length; index++) ...<Widget>[
+              plans[index],
+              if (index < plans.length - 1) const Divider(height: 24),
+            ],
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: onAddPlan,
+                icon: const Icon(Icons.add_rounded),
+                label: Text('Tambah rencana tindakan untuk temuan $number'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
 class _ActionEditor extends StatelessWidget {
   const _ActionEditor({
-    required this.index,
+    required this.label,
     required this.action,
-    required this.onItemDate,
     required this.onDueDate,
     required this.onAddPhoto,
     required this.onDeletePhoto,
@@ -4035,9 +4215,8 @@ class _ActionEditor extends StatelessWidget {
     this.onRemove,
   });
 
-  final int index;
+  final String label;
   final _ActionDraft action;
-  final VoidCallback onItemDate;
   final VoidCallback onDueDate;
   final VoidCallback? onAddPhoto;
   final ValueChanged<MeetingMinuteActionPhoto>? onDeletePhoto;
@@ -4050,10 +4229,7 @@ class _ActionEditor extends StatelessWidget {
     children: <Widget>[
       Row(
         children: <Widget>[
-          Text(
-            'Rencana tindakan ${index + 1}',
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
           const Spacer(),
           if (onRemove != null)
             IconButton(
@@ -4068,14 +4244,6 @@ class _ActionEditor extends StatelessWidget {
       ),
       const SizedBox(height: 6),
       TextField(
-        controller: action.issue,
-        minLines: 3,
-        maxLines: 8,
-        textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(labelText: 'Uraian temuan'),
-      ),
-      const SizedBox(height: 12),
-      TextField(
         controller: action.subject,
         minLines: 3,
         maxLines: 8,
@@ -4089,27 +4257,13 @@ class _ActionEditor extends StatelessWidget {
         decoration: const InputDecoration(labelText: 'Penanggung jawab'),
       ),
       const SizedBox(height: 12),
-      Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: <Widget>[
-          _PickerField(
-            label: 'Tanggal temuan',
-            value: action.itemDate == null
-                ? 'Pilih tanggal'
-                : _momShortDate(action.itemDate!),
-            icon: Icons.event_note_outlined,
-            onTap: onItemDate,
-          ),
-          _PickerField(
-            label: 'Tenggat (opsional)',
-            value: action.dueDate == null
-                ? 'Belum diisi'
-                : _momShortDate(action.dueDate!),
-            icon: Icons.event_available_outlined,
-            onTap: onDueDate,
-          ),
-        ],
+      _PickerField(
+        label: 'Tenggat (opsional)',
+        value: action.dueDate == null
+            ? 'Belum diisi'
+            : _momShortDate(action.dueDate!),
+        icon: Icons.event_available_outlined,
+        onTap: onDueDate,
       ),
       const SizedBox(height: 12),
       Row(
@@ -4251,6 +4405,7 @@ class _ActionDraft {
     String assignedTo = '',
     String progressRemark = '',
     this.photos = const <MeetingMinuteActionPhoto>[],
+    this.continuesFinding = false,
   }) : issue = TextEditingController(text: issueDescription),
        subject = TextEditingController(text: subject),
        assignedTo = TextEditingController(text: assignedTo),
@@ -4270,7 +4425,10 @@ class _ActionDraft {
   final String? id;
   DateTime? itemDate;
   DateTime? dueDate;
-  final List<MeetingMinuteActionPhoto> photos;
+  List<MeetingMinuteActionPhoto> photos;
+
+  /// True when this plan belongs to the finding of the plan above it.
+  bool continuesFinding;
   final TextEditingController issue;
   final TextEditingController subject;
   final TextEditingController assignedTo;

@@ -323,16 +323,17 @@ class MeetingMinuteExcelService {
       1,
       60,
     );
-    sheet.metadata(3, 'Tanggal & jam', _meetingTime(minute));
-    sheet.metadata(4, 'Lokasi', minute.location);
-    sheet.metadata(5, 'Peserta', minute.attendees);
-    sheet.metadata(6, 'Berhalangan hadir', minute.apologies);
-    sheet.metadata(7, 'Notulis', minute.minuteTaker);
-    sheet.metadata(8, 'Distribusi', minute.distributionList);
-    sheet.metadata(9, 'Pembahasan baru', minute.newBusinessAgenda);
-    sheet.metadata(10, 'Diusulkan oleh', minute.proposedBy);
-    sheet.metadata(11, 'Tindak lanjut dari', _followUpText(minute));
-    sheet.merge('A13:H13', 'RENCANA TINDAKAN', 4, 22);
+    sheet.merge('A3:H3', 'DETAIL RAPAT', 4, 22);
+    sheet.metadata(4, 'Tanggal & jam', _meetingTime(minute));
+    sheet.metadata(5, 'Lokasi', minute.location);
+    sheet.metadata(6, 'Peserta', minute.attendees);
+    sheet.metadata(7, 'Berhalangan hadir', minute.apologies);
+    sheet.metadata(8, 'Notulis', minute.minuteTaker);
+    sheet.metadata(9, 'Distribusi', minute.distributionList);
+    sheet.metadata(10, 'Pembahasan baru', minute.newBusinessAgenda);
+    sheet.metadata(11, 'Diusulkan oleh', minute.proposedBy);
+    sheet.metadata(12, 'Tindak lanjut dari', _followUpText(minute));
+    sheet.merge('A14:H14', 'RENCANA TINDAKAN', 4, 22);
     const List<String> headers = <String>[
       'No.',
       'Uraian Temuan',
@@ -344,76 +345,97 @@ class MeetingMinuteExcelService {
       'Progres /\nCatatan',
     ];
     for (int column = 0; column < headers.length; column++) {
-      sheet.cell(column, 14, headers[column], 5, height: 36);
+      sheet.cell(column, 15, headers[column], 5, height: 36);
     }
     final List<_XlsxPhoto> workbookPhotos = <_XlsxPhoto>[];
-    int row = 15;
-    for (int actionIndex = 0; actionIndex < actions.length; actionIndex++) {
-      final MeetingMinuteAction action = actions[actionIndex];
-      final List<MeetingMinuteExportPhoto> actionPhotos = action.id == null
-          ? const <MeetingMinuteExportPhoto>[]
-          : (photosByActionId[action.id!] ??
-                const <MeetingMinuteExportPhoto>[]);
-      final int actionRow = row;
+    int row = 16;
+    final List<List<MeetingMinuteAction>> findings = groupMeetingMinuteFindings(
+      actions,
+    );
+    for (int findingIndex = 0; findingIndex < findings.length; findingIndex++) {
+      final List<MeetingMinuteAction> finding = findings[findingIndex];
+      final int firstRow = row;
+      final int lastRow = row + finding.length - 1;
       // Keep an action as one complete visual row.  Repeating a row per photo
       // made the surrounding information look detached and caused tall,
       // uneven galleries in Excel.  A single image is centred; two or more
       // images share the same frame side-by-side.
-      final double actionHeight = actionPhotos.isEmpty
-          ? _actionHeight(action)
-          : _actionHeight(action) < 126
-          ? 126
-          : _actionHeight(action);
-      sheet.cell(
-        2,
-        actionRow,
-        _displayValue(action.subjectDiscussion),
-        6,
-        height: actionHeight,
+      final List<double> heights = <double>[
+        for (final MeetingMinuteAction action in finding)
+          _hasPhotos(action, photosByActionId) && _actionHeight(action) < 126
+              ? 126
+              : _actionHeight(action),
+      ];
+      // The finding text spans all of its plans, so the rows together must
+      // be tall enough to show it.
+      final double issueHeight = _textHeight(_issueText(finding.first), 34);
+      final double total = heights.fold<double>(
+        0,
+        (double sum, double height) => sum + height,
       );
-      if (actionPhotos.isEmpty) {
-        sheet.cell(3, actionRow, 'Tanpa foto', 7);
-      } else {
-        for (
-          int photoIndex = 0;
-          photoIndex < actionPhotos.length;
-          photoIndex++
-        ) {
-          if (photoIndex == 0) {
-            sheet.cell(3, actionRow, '', 7);
-          }
-          workbookPhotos.add(
-            _XlsxPhoto.fromBytes(
-              row: actionRow - 1,
-              column: 3,
-              slotIndex: photoIndex,
-              slotCount: actionPhotos.length,
-              rowHeight: actionHeight,
-              extension: actionPhotos[photoIndex].mimeType == 'image/png'
-                  ? 'png'
-                  : 'jpg',
-              bytes: actionPhotos[photoIndex].bytes,
-            ),
-          );
-        }
+      if (total < issueHeight) {
+        heights[heights.length - 1] += issueHeight - total;
       }
-      sheet.cell(0, actionRow, '${actionIndex + 1}', 7);
-      sheet.cell(1, actionRow, _issueText(action), 6);
-      sheet.cell(4, actionRow, _date(action.itemDate, fallback: '–'), 7);
-      sheet.cell(5, actionRow, _date(action.dueDate, fallback: '–'), 7);
-      sheet.cell(6, actionRow, _displayValue(action.assignedTo), 7);
-      sheet.cell(7, actionRow, _displayValue(action.progressRemark), 7);
-      row = actionRow + 1;
+      for (int planIndex = 0; planIndex < finding.length; planIndex++) {
+        final MeetingMinuteAction action = finding[planIndex];
+        final int actionRow = firstRow + planIndex;
+        final double actionHeight = heights[planIndex];
+        final List<MeetingMinuteExportPhoto> actionPhotos = action.id == null
+            ? const <MeetingMinuteExportPhoto>[]
+            : (photosByActionId[action.id!] ??
+                  const <MeetingMinuteExportPhoto>[]);
+        sheet.cell(
+          2,
+          actionRow,
+          finding.length == 1
+              ? _displayValue(action.subjectDiscussion)
+              : '${planIndex + 1}. ${_displayValue(action.subjectDiscussion)}',
+          6,
+          height: actionHeight,
+        );
+        if (actionPhotos.isEmpty) {
+          sheet.cell(3, actionRow, 'Tanpa foto', 7);
+        } else {
+          sheet.cell(3, actionRow, '', 7);
+          for (
+            int photoIndex = 0;
+            photoIndex < actionPhotos.length;
+            photoIndex++
+          ) {
+            workbookPhotos.add(
+              _XlsxPhoto.fromBytes(
+                row: actionRow - 1,
+                column: 3,
+                slotIndex: photoIndex,
+                slotCount: actionPhotos.length,
+                rowHeight: actionHeight,
+                extension: actionPhotos[photoIndex].mimeType == 'image/png'
+                    ? 'png'
+                    : 'jpg',
+                bytes: actionPhotos[photoIndex].bytes,
+              ),
+            );
+          }
+        }
+        sheet.cell(5, actionRow, _date(action.dueDate, fallback: '–'), 7);
+        sheet.cell(6, actionRow, _displayValue(action.assignedTo), 7);
+        sheet.cell(7, actionRow, _displayValue(action.progressRemark), 7);
+      }
+      sheet.spanRows(0, firstRow, lastRow, '${findingIndex + 1}', 7);
+      sheet.spanRows(1, firstRow, lastRow, _issueText(finding.first), 6);
+      sheet.spanRows(
+        4,
+        firstRow,
+        lastRow,
+        _date(finding.first.itemDate, fallback: '–'),
+        7,
+      );
+      row = lastRow + 1;
     }
     final int noteRow = row + 1;
-    sheet.merge(
-      'A$noteRow:H$noteRow',
-      minute.note.trim().isEmpty
-          ? 'CATATAN: —'
-          : 'CATATAN: ${minute.note.trim()}',
-      3,
-      42,
-    );
+    final String note = minute.note.trim().isEmpty ? '—' : minute.note.trim();
+    sheet.cell(0, noteRow, 'Catatan', 8, height: _textHeight(note, 170, 24));
+    sheet.spanColumns(noteRow, 1, 7, note, 9);
     final Archive archive = Archive()
       ..addFile(
         ArchiveFile.string(
@@ -499,16 +521,29 @@ class MeetingMinuteExcelService {
   static String _displayValue(String value) =>
       value.trim().isEmpty ? 'Tidak disebutkan' : value.trim();
 
+  static bool _hasPhotos(
+    MeetingMinuteAction action,
+    Map<String, List<MeetingMinuteExportPhoto>> photosByActionId,
+  ) => action.id != null && (photosByActionId[action.id!]?.isNotEmpty ?? false);
+
+  static int _estimatedLines(String text, int charactersPerLine) =>
+      text.split('\n').fold<int>(0, (int total, String line) {
+        final int characters = line.trim().isEmpty ? 1 : line.trim().length;
+        return total + (characters / charactersPerLine).ceil().clamp(1, 50);
+      });
+
+  static double _textHeight(
+    String text,
+    int charactersPerLine, [
+    double minimum = 52,
+  ]) => (_estimatedLines(text, charactersPerLine) * 15 + 12)
+      .clamp(minimum, 520)
+      .toDouble();
+
   static double _actionHeight(MeetingMinuteAction action) {
-    int estimatedLines(String text, int charactersPerLine) =>
-        text.split('\n').fold<int>(0, (int total, String line) {
-          final int characters = line.trim().isEmpty ? 1 : line.trim().length;
-          return total + (characters / charactersPerLine).ceil().clamp(1, 50);
-        });
-    final int planLines = estimatedLines(action.subjectDiscussion, 42);
-    final int progressLines = estimatedLines(action.progressRemark, 22);
-    final int lines = planLines > progressLines ? planLines : progressLines;
-    return (lines * 15 + 12).clamp(52, 520).toDouble();
+    final double plan = _textHeight(action.subjectDiscussion, 42);
+    final double progress = _textHeight(action.progressRemark, 22);
+    return plan > progress ? plan : progress;
   }
 
   static String _date(
@@ -556,7 +591,7 @@ class MeetingMinuteExcelService {
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>''';
   static const String _styles =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="22"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Arial"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B3D2E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F3ED"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF19735B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="8"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf></cellXfs></styleSheet>''';
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="4"><font><sz val="11"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="22"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Arial"/></font><font><b/><color rgb="FF0B3D2E"/><sz val="11"/><name val="Arial"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B3D2E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F3ED"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF19735B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FF9DB8AB"/></left><right style="thin"><color rgb="FF9DB8AB"/></right><top style="thin"><color rgb="FF9DB8AB"/></top><bottom style="thin"><color rgb="FF9DB8AB"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="10"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1" indent="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1" indent="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1" indent="1"/></xf></cellXfs></styleSheet>''';
 
   static const String _sheetRelationships =
       '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -679,9 +714,47 @@ class _XlsxSheet {
     _merges.add(range);
   }
 
+  /// A labelled row with a full border, so the meeting details read as one
+  /// tidy table instead of loose text.
   void metadata(int row, String label, String value) {
-    cell(0, row, label, 2, height: 24);
-    merge('B$row:H$row', value.isEmpty ? '—' : value, 3);
+    final String text = value.trim().isEmpty ? '—' : value.trim();
+    cell(
+      0,
+      row,
+      label,
+      8,
+      height: MeetingMinuteExcelService._textHeight(text, 170, 24),
+    );
+    spanColumns(row, 1, 7, text, 9);
+  }
+
+  /// Merges columns [first]..[last] of [row].  Every covered cell gets the
+  /// style too, otherwise Excel leaves gaps in the merged border.
+  void spanColumns(int row, int first, int last, String value, int style) {
+    for (int column = first; column <= last; column++) {
+      cell(column, row, column == first ? value : '', style);
+    }
+    _merges.add(
+      '${String.fromCharCode(65 + first)}$row:${String.fromCharCode(65 + last)}$row',
+    );
+  }
+
+  /// Writes [value] once and, when the finding has several plans, merges it
+  /// down over rows [firstRow]..[lastRow].
+  void spanRows(
+    int column,
+    int firstRow,
+    int lastRow,
+    String value,
+    int style,
+  ) {
+    for (int row = firstRow; row <= lastRow; row++) {
+      cell(column, row, row == firstRow ? value : '', style);
+    }
+    if (lastRow > firstRow) {
+      final String letter = String.fromCharCode(65 + column);
+      _merges.add('$letter$firstRow:$letter$lastRow');
+    }
   }
 
   void _add(int row, String content, double? height) {
@@ -710,7 +783,7 @@ class _XlsxSheet {
     }
     final int lastRow = keys.isEmpty ? 1 : keys.last;
     return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:H$lastRow"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="36" customWidth="1"/><col min="3" max="3" width="46" customWidth="1"/><col min="4" max="4" width="40" customWidth="1"/><col min="5" max="5" width="14" customWidth="1"/><col min="6" max="6" width="14" customWidth="1"/><col min="7" max="7" width="18" customWidth="1"/><col min="8" max="8" width="26" customWidth="1"/></cols><sheetData>$rows</sheetData><mergeCells count="${_merges.length}">${_merges.map((String range) => '<mergeCell ref="$range"/>').join()}</mergeCells>${hasPhotos ? '<drawing r:id="rId1"/>' : ''}</worksheet>''';
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:H$lastRow"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="20" customWidth="1"/><col min="2" max="2" width="36" customWidth="1"/><col min="3" max="3" width="46" customWidth="1"/><col min="4" max="4" width="40" customWidth="1"/><col min="5" max="5" width="14" customWidth="1"/><col min="6" max="6" width="14" customWidth="1"/><col min="7" max="7" width="18" customWidth="1"/><col min="8" max="8" width="26" customWidth="1"/></cols><sheetData>$rows</sheetData><mergeCells count="${_merges.length}">${_merges.map((String range) => '<mergeCell ref="$range"/>').join()}</mergeCells><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>${hasPhotos ? '<drawing r:id="rId1"/>' : ''}</worksheet>''';
   }
 
   static String _escape(String value) => value
