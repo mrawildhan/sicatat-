@@ -415,6 +415,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 if (!_isFormOpen && _users.isNotEmpty) ...<Widget>[
                   const Text(
                     'Tekan pengguna untuk mengubah peran, regu, nomor telepon, atau status aktifnya.',
+                    style: AppTextStyles.supporting,
                   ),
                   for (final group in _groupUsers(_users)) ...<Widget>[
                     const SizedBox(height: 18),
@@ -478,10 +479,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             backgroundColor: user.isActive ? AppColors.mint : AppColors.line,
             child: Text(user.name.substring(0, 1).toUpperCase()),
           ),
-          title: Text(
-            user.name,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
+          title: Text(user.name),
           subtitle: Text(details.join(' · ')),
           trailing: const Icon(Icons.chevron_right_rounded),
         ),

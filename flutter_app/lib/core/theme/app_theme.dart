@@ -65,7 +65,7 @@ class AppTheme {
       brightness: Brightness.light,
       surface: AppColors.surface,
     );
-    return ThemeData(
+    final ThemeData theme = ThemeData(
       useMaterial3: true,
       colorScheme: scheme.copyWith(
         primary: AppColors.green,
@@ -148,6 +148,20 @@ class AppTheme {
           ),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
+      ),
+    );
+    // ListTile does not read the text theme's body styles the way Text does:
+    // by default its title is bodyLarge with wide Material letter spacing and
+    // its subtitle is 14, so list rows looked larger than the cards on
+    // Beranda and Suhu.  Give them the same card title and supporting text.
+    final TextStyle base = theme.textTheme.bodyMedium!;
+    return theme.copyWith(
+      listTileTheme: ListTileThemeData(
+        titleTextStyle: base
+            .merge(AppTextStyles.cardTitle)
+            .copyWith(color: AppColors.ink),
+        subtitleTextStyle: base.merge(AppTextStyles.supporting),
+        leadingAndTrailingTextStyle: base.merge(AppTextStyles.supporting),
       ),
     );
   }

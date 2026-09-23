@@ -491,14 +491,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _profileRow(IconData icon, String label, String value) => ListTile(
     leading: Icon(icon, color: AppColors.green),
-    title: Text(label),
+    // A label beside its value, not a card title.
+    title: Text(label, style: AppTextStyles.body),
     trailing: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 170),
       child: Text(
         value,
         textAlign: TextAlign.end,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontWeight: FontWeight.w700),
+        style: AppTextStyles.body.copyWith(
+          color: AppColors.ink,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     ),
   );
