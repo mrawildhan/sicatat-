@@ -45,6 +45,7 @@ void main() {
   ) async {
     await _pumpHub(tester, UserRole.crew);
     expect(find.text('Cari barang'), findsOneWidget);
+    expect(find.text('Barang dipesan'), findsOneWidget);
     expect(find.text('Pengambilan Barang'), findsNothing);
     expect(find.byType(TextField), findsNothing);
 

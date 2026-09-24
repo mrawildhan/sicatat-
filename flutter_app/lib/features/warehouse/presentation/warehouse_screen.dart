@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../core/widgets/source_update_card.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/sicatat_types.dart';
 import '../../auth/application/current_user_provider.dart';
@@ -27,12 +28,21 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
   List<_WarehouseStock> _items = const <_WarehouseStock>[];
   List<_WarehouseTool> _tools = const <_WarehouseTool>[];
   Set<String> _toolsOnLoan = const <String>{};
-  String? _warehouseCode;
+  String? _siteLabel;
   bool _showTools = false;
   bool _hasSearched = false;
   bool _loading = false;
   bool _syncing = false;
-  String? _spreadsheetUpdatedOn;
+  Map<WarehouseDriveSource, WarehouseDriveStatus> _drive =
+      const <WarehouseDriveSource, WarehouseDriveStatus>{};
+  bool _checkingDrive = false;
+  DateTime? _driveCheckedAt;
+
+  static const String _stockColumns =
+      'item_code,description,warehouse_code,warehouse_name,site_label,uoi,'
+      'bin_code,unit_price,stock_on_hand,source_updated_on,synced_at,'
+      'stock_source,part_no,part_no_2,stock_class,expense_element,'
+      'last_received_on,last_issued_on';
 
   /// Rows shown per search. One extra row is requested to know whether the
   /// keyword matches more than this, so the list can say so.
@@ -46,7 +56,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
   void initState() {
     super.initState();
     _search.addListener(_onSearchChanged);
-    _loadSpreadsheetUpdateDate();
+    _refreshDrive();
   }
 
   @override
@@ -121,24 +131,44 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
                   .toSet()
             : const <String>{};
       } else {
-        dynamic request = _client
-            .from('warehouse_stock')
-            .select(
-              'item_code,description,warehouse_code,site_label,uoi,bin_code,unit_price,stock_on_hand,source_updated_on,synced_at',
-            );
-        if (_warehouseCode != null) {
-          request = request.eq('warehouse_code', _warehouseCode!);
+        dynamic request = _client.from('warehouse_stock').select(_stockColumns);
+        if (_siteLabel != null) {
+          request = request.eq('site_label', _siteLabel!);
         }
         if (query.length >= 2) {
           request = request.or(
-            'item_code.ilike.%$query%,description.ilike.%$query%,bin_code.ilike.%$query%',
+            'item_code.ilike.%${normalizeStockCode(query)}%,description.ilike.%$query%,'
+            'bin_code.ilike.%$query%,part_no.ilike.%$query%',
           );
         }
-        stockResponse =
+        final Object found =
             (await request
                     .order('description', ascending: true)
                     .limit(_pageSize + 1))
                 as Object;
+        // A typed stock code lists its own item first, not somewhere among
+        // every code that merely contains those digits.
+        final String code = normalizeStockCode(query);
+        if (found is List && RegExp(r'^\d+$').hasMatch(code)) {
+          dynamic exact = _client
+              .from('warehouse_stock')
+              .select(_stockColumns)
+              .eq('item_code', code);
+          if (_siteLabel != null) exact = exact.eq('site_label', _siteLabel!);
+          final Object exactRows =
+              (await exact.order('site_label', ascending: true)) as Object;
+          final List<Object?> first = exactRows is List
+              ? exactRows.cast<Object?>()
+              : const <Object?>[];
+          stockResponse = <Object?>[
+            ...first,
+            ...found.where(
+              (Object? row) => requireJsonMap(row)['item_code'] != code,
+            ),
+          ];
+        } else {
+          stockResponse = found;
+        }
       }
       if (stockResponse is! List) {
         throw const FormatException('Warehouse returned an invalid response.');
@@ -192,7 +222,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
         );
       }
       await _load();
-      await _loadSpreadsheetUpdateDate();
+      await _loadDriveStatus();
       if (mounted) {
         _message(
           data['changed'] == false
@@ -211,21 +241,75 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
     }
   }
 
-  Future<void> _loadSpreadsheetUpdateDate() async {
+  Future<void> _loadDriveStatus() async {
     try {
-      final Object response = await _client
-          .from('warehouse_stock')
-          .select('source_updated_on')
-          .order('source_updated_on', ascending: false)
-          .limit(1);
-      if (response is! List || response.isEmpty || !mounted) return;
-      final JsonMap row = requireJsonMap(response.first);
-      setState(
-        () => _spreadsheetUpdatedOn = row.optionalString('source_updated_on'),
-      );
+      final Map<WarehouseDriveSource, WarehouseDriveStatus> status =
+          await loadWarehouseDriveStatus(_client);
+      if (mounted) setState(() => _drive = status);
     } on Object {
-      // Pencarian Gudang tetap tersedia bila metadata spreadsheet gagal dimuat.
+      // Pencarian Gudang tetap tersedia bila status sumber gagal dimuat.
     }
+  }
+
+  /// Shows the stored status, then checks the Drive folder for a newer
+  /// Warehouse Inventory or LIST ORDER in the background.
+  Future<void> _refreshDrive({bool announce = false}) async {
+    await _loadDriveStatus();
+    if (_checkingDrive || !mounted) return;
+    setState(() => _checkingDrive = true);
+    try {
+      final Set<WarehouseDriveSource> changed = await checkWarehouseDrive(
+        _client,
+        const <WarehouseDriveSource>[
+          WarehouseDriveSource.inventory,
+          WarehouseDriveSource.listOrder,
+        ],
+      );
+      await _loadDriveStatus();
+      if (!mounted) return;
+      setState(() => _driveCheckedAt = DateTime.now());
+      if (changed.contains(WarehouseDriveSource.inventory) && _hasSearched) {
+        await _load();
+      }
+      if (announce && mounted) {
+        _message(
+          changed.isEmpty
+              ? 'File Gudang di Drive belum berubah.'
+              : '${changed.map((s) => s.label).join(' dan ')} diperbarui dari Drive.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _checkingDrive = false);
+    }
+  }
+
+  Widget _driveCard() {
+    final WarehouseDriveStatus? inventory =
+        _drive[WarehouseDriveSource.inventory];
+    final WarehouseDriveStatus? listOrder =
+        _drive[WarehouseDriveSource.listOrder];
+    final List<String> errors = <String>[
+      if (inventory?.error != null) 'Inventory: ${inventory!.error}',
+      if (listOrder?.error != null) 'LIST ORDER: ${listOrder!.error}',
+    ];
+    return SourceUpdateCard(
+      title: 'Pembaruan data Gudang',
+      changes: <String>[
+        inventory?.reportAt == null
+            ? 'Stok: laporan Warehouse Inventory belum terbaca'
+            : 'Stok: Warehouse Inventory per '
+                  '${sourceUpdateStamp(inventory!.reportAt!)}',
+        listOrder?.changedAt == null
+            ? 'Pengambilan: LIST ORDER belum terbaca'
+            : 'Pengambilan: LIST ORDER berubah '
+                  '${sourceUpdateStamp(listOrder!.changedAt!)}',
+      ],
+      checking: _checkingDrive,
+      checkedAt:
+          _driveCheckedAt ?? inventory?.checkedAt ?? listOrder?.checkedAt,
+      error: errors.isEmpty ? null : errors.join(' · '),
+      onRefresh: () => _refreshDrive(announce: true),
+    );
   }
 
   void _showStockDetails(_WarehouseStock item) {
@@ -281,8 +365,9 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
         body: Column(
           children: <Widget>[
             if (useDesktopHeader) _desktopHeader(canSync),
-            _WarehouseAutomaticSyncNotice(
-              sourceUpdatedOn: _spreadsheetUpdatedOn,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: _driveCard(),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -300,7 +385,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
                         ),
                   hintText: _showTools
                       ? 'Cari alat, kode registrasi, merek, atau nomor seri'
-                      : 'Cari nama item, kode SC, atau lokasi bin',
+                      : 'Cari nama item, kode SC, part no, atau lokasi bin',
                 ),
               ),
             ),
@@ -309,7 +394,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
               onChanged: (bool showTools) {
                 setState(() {
                   _showTools = showTools;
-                  _warehouseCode = null;
+                  _siteLabel = null;
                   _search.clear();
                 });
                 _load();
@@ -317,9 +402,9 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
             ),
             if (!_showTools)
               _WarehouseFilterBar(
-                selected: _warehouseCode,
+                selected: _siteLabel,
                 onSelected: (String? value) {
-                  setState(() => _warehouseCode = value);
+                  setState(() => _siteLabel = value);
                   _load();
                 },
               ),
@@ -397,55 +482,6 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
   );
 }
 
-class _WarehouseAutomaticSyncNotice extends StatelessWidget {
-  const _WarehouseAutomaticSyncNotice({required this.sourceUpdatedOn});
-
-  final String? sourceUpdatedOn;
-
-  @override
-  Widget build(BuildContext context) {
-    const Color color = AppColors.green;
-    final String status = sourceUpdatedOn == null
-        ? 'Tanggal pembaruan lembar kerja belum tersedia'
-        : 'Data lembar kerja terakhir diperbarui ${_formatSourceDate(sourceUpdatedOn!)}';
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: <Widget>[
-          const Icon(Icons.schedule_rounded, color: color),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'Pembaruan data Gudang',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 2),
-                Text(status, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _formatSourceDate(String value) {
-    final DateTime? date = DateTime.tryParse(value);
-    if (date == null) return value;
-    return '${date.day}/${date.month}/${(date.year % 100).toString().padLeft(2, '0')}';
-  }
-}
-
 class _WarehouseFilterBar extends StatelessWidget {
   const _WarehouseFilterBar({required this.selected, required this.onSelected});
   final String? selected;
@@ -463,15 +499,11 @@ class _WarehouseFilterBar extends StatelessWidget {
           onSelected: (_) => onSelected(null),
         ),
         const SizedBox(width: 8),
-        for (final (String code, String label) in <(String, String)>[
-          ('AMWH', 'Asamasam'),
-          ('KMWH', 'Kintap'),
-          ('MAIN', 'Utama'),
-        ]) ...<Widget>[
+        for (final String site in warehouseSearchSites) ...<Widget>[
           ChoiceChip(
-            label: Text(label),
-            selected: selected == code,
-            onSelected: (_) => onSelected(code),
+            label: Text(site),
+            selected: selected == site,
+            onSelected: (_) => onSelected(site),
           ),
           const SizedBox(width: 8),
         ],
@@ -593,7 +625,13 @@ class _WarehouseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'SC ${item.itemCode} · ${item.siteLabel}${item.binCode == null ? '' : ' · ${item.binCode}'}',
+                    <String>[
+                      'SC ${item.itemCode}',
+                      item.warehouseCode == null
+                          ? item.siteLabel
+                          : '${item.siteLabel} (${item.warehouseCode})',
+                      if (item.binCode != null) item.binCode!,
+                    ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -631,17 +669,53 @@ class _WarehouseCard extends StatelessWidget {
   );
 }
 
-class _WarehouseStockDetails extends StatelessWidget {
+class _WarehouseStockDetails extends StatefulWidget {
   const _WarehouseStockDetails({required this.item});
   final _WarehouseStock item;
 
   @override
+  State<_WarehouseStockDetails> createState() => _WarehouseStockDetailsState();
+}
+
+class _WarehouseStockDetailsState extends State<_WarehouseStockDetails> {
+  final SupabaseClient _client = Supabase.instance.client;
+  List<WarehousePickup>? _pickups;
+  List<WarehouseOutstandingPo>? _orders;
+  String? _error;
+
+  _WarehouseStock get item => widget.item;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadActivity();
+  }
+
+  Future<void> _loadActivity() async {
+    try {
+      final List<Object> results = await Future.wait<Object>(<Future<Object>>[
+        loadRecentPickups(_client, item.itemCode),
+        loadOutstandingPoFor(_client, item.itemCode),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _pickups = results[0] as List<WarehousePickup>;
+        _orders = results[1] as List<WarehouseOutstandingPo>;
+      });
+    } on Object catch (error) {
+      if (mounted) setState(() => _error = warehouseErrorText(error));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) => SafeArea(
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 30),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(24, 14, 24, 30),
         children: <Widget>[
           Center(
             child: Container(
@@ -659,33 +733,163 @@ class _WarehouseStockDetails extends StatelessWidget {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Detail dari data Gudang di Google Sheet',
-            style: TextStyle(color: AppColors.muted),
+          Text(
+            item.fromInventory
+                ? 'Detail dari laporan Warehouse Inventory (Ellipse)'
+                : 'Detail dari data Gudang di Google Sheet',
+            style: const TextStyle(color: AppColors.muted),
           ),
           const SizedBox(height: 16),
           _detailRow('Kode SC', item.itemCode),
-          _detailRow('Site', item.siteLabel),
+          _detailRow(
+            'Gudang',
+            item.warehouseName == null
+                ? item.siteLabel
+                : '${item.warehouseName}'
+                      '${item.warehouseCode == null ? '' : ' (${item.warehouseCode})'}',
+          ),
+          if (item.partNo != null)
+            _detailRow(
+              'Part no',
+              <String>[
+                item.partNo!,
+                if (item.partNo2 != null) item.partNo2!,
+              ].join(' / '),
+            ),
           _detailRow('Lokasi bin', item.binCode ?? 'Belum tercatat'),
           _detailRow('Satuan', item.uoi ?? 'Belum tercatat'),
           _detailRow('Stok tersedia', _stockLabel(item.stockOnHand, item.uoi)),
           _detailRow('Harga unit', _priceLabel(item.unitPrice)),
+          if (item.stockClass != null)
+            _detailRow('Kelas stok', item.stockClass!),
+          if (item.expenseElement != null)
+            _detailRow('Kategori', item.expenseElement!),
+          if (item.fromInventory) ...<Widget>[
+            _detailRow(
+              'Terakhir diterima',
+              item.lastReceivedOn == null
+                  ? 'Belum pernah'
+                  : _formatDate(item.lastReceivedOn!),
+            ),
+            _detailRow(
+              'Terakhir dikeluarkan',
+              item.lastIssuedOn == null
+                  ? 'Belum pernah'
+                  : _formatDate(item.lastIssuedOn!),
+            ),
+          ],
           _detailRow(
-            'Tanggal pembaruan lembar kerja',
+            item.fromInventory
+                ? 'Tanggal laporan'
+                : 'Tanggal pembaruan lembar kerja',
             item.sourceUpdatedOn == null
                 ? 'Belum tercatat'
                 : _formatDate(item.sourceUpdatedOn!),
           ),
-          _detailRow(
-            'Terakhir tersinkron',
-            item.syncedAt == null
-                ? 'Belum tercatat'
-                : _formatDate(item.syncedAt!),
-          ),
+          const SizedBox(height: 14),
+          ..._ordersSection(),
+          const SizedBox(height: 14),
+          ..._pickupsSection(),
         ],
       ),
     ),
   );
+
+  List<Widget> _ordersSection() {
+    final List<WarehouseOutstandingPo>? orders = _orders;
+    final DateTime today = DateTime.now();
+    return <Widget>[
+      const Text('Sedang dipesan', style: AppTextStyles.sectionTitle),
+      const SizedBox(height: 6),
+      if (_error != null)
+        Text(_error!, style: const TextStyle(color: AppColors.danger))
+      else if (orders == null)
+        const LinearProgressIndicator()
+      else if (orders.isEmpty)
+        const Text(
+          'Tidak ada PO outstanding untuk kode SC ini.',
+          style: AppTextStyles.supporting,
+        )
+      else
+        for (final WarehouseOutstandingPo po in orders)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(
+              'PO ${po.poNo} · sisa '
+              '${warehouseNumber(po.qtyOutstanding ?? 0)} dari '
+              '${warehouseNumber(po.qtyOrder ?? 0)}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              <String>[
+                if (po.supplierName != null) po.supplierName!,
+                if (po.orderDate != null)
+                  'Dipesan ${warehouseDateLabel(po.orderDate!)}',
+              ].join(' · '),
+            ),
+            trailing: po.dueDate == null
+                ? null
+                : WarehouseTag(
+                    'Tempo ${warehouseDateLabel(po.dueDate!)}',
+                    color: po.isOverdue(today)
+                        ? AppColors.danger
+                        : AppColors.green,
+                  ),
+          ),
+    ];
+  }
+
+  List<Widget> _pickupsSection() {
+    final List<WarehousePickup>? pickups = _pickups;
+    return <Widget>[
+      const Text('5 pengambilan terakhir', style: AppTextStyles.sectionTitle),
+      const SizedBox(height: 6),
+      if (_error != null)
+        const SizedBox.shrink()
+      else if (pickups == null)
+        const LinearProgressIndicator()
+      else if (pickups.isEmpty)
+        const Text(
+          'Belum ada pengambilan tercatat untuk kode SC ini.',
+          style: AppTextStyles.supporting,
+        )
+      else
+        for (final WarehousePickup pickup in pickups)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(
+              pickup.userName ?? 'Pengambil tidak tercatat',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              <String>[
+                pickup.issuedOn == null
+                    ? 'Tanggal tidak tercatat'
+                    : warehouseDateLabel(pickup.issuedOn!),
+                if (pickup.group != null && pickup.group != pickup.userName)
+                  pickup.group!,
+                if (pickup.reference != null)
+                  pickup.fromSicatat
+                      ? 'Job ${pickup.reference}'
+                      // IR numbers look like "B16764"; notes such as
+                      // "Belum IR" are shown as written.
+                      : RegExp(r'^[A-Z]\d{3,}$').hasMatch(pickup.reference!)
+                      ? 'IR ${pickup.reference}'
+                      : pickup.reference!,
+              ].join(' · '),
+            ),
+            trailing: Text(
+              '${pickup.quantity ?? '-'} ${pickup.uoi ?? ''}'.trim(),
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                color: AppColors.greenDark,
+              ),
+            ),
+          ),
+    ];
+  }
 
   Widget _detailRow(String label, String value) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 9),
@@ -818,32 +1022,61 @@ class _WarehouseStock {
     required this.description,
     required this.siteLabel,
     required this.stockOnHand,
+    required this.fromInventory,
+    this.warehouseCode,
+    this.warehouseName,
     this.uoi,
     this.binCode,
     this.unitPrice,
     this.sourceUpdatedOn,
     this.syncedAt,
+    this.partNo,
+    this.partNo2,
+    this.stockClass,
+    this.expenseElement,
+    this.lastReceivedOn,
+    this.lastIssuedOn,
   });
   final String itemCode;
   final String description;
   final String siteLabel;
   final num stockOnHand;
+
+  /// From the Warehouse Inventory report rather than the old stock sheet.
+  final bool fromInventory;
+  final String? warehouseCode;
+  final String? warehouseName;
   final String? uoi;
   final String? binCode;
   final num? unitPrice;
   final String? sourceUpdatedOn;
   final String? syncedAt;
+  final String? partNo;
+  final String? partNo2;
+  final String? stockClass;
+  final String? expenseElement;
+  final String? lastReceivedOn;
+  final String? lastIssuedOn;
 
   factory _WarehouseStock.fromJson(JsonMap json) => _WarehouseStock(
     itemCode: json.requiredString('item_code'),
     description: json.requiredString('description'),
     siteLabel: json.requiredString('site_label'),
     stockOnHand: json['stock_on_hand'] as num? ?? 0,
+    fromInventory: json['stock_source'] == 'inventory',
+    warehouseCode: json.optionalString('warehouse_code'),
+    warehouseName: json.optionalString('warehouse_name'),
     uoi: json.optionalString('uoi'),
     binCode: json.optionalString('bin_code'),
     unitPrice: json['unit_price'] as num?,
     sourceUpdatedOn: json.optionalString('source_updated_on'),
     syncedAt: json.optionalString('synced_at'),
+    partNo: json.optionalString('part_no'),
+    partNo2: json.optionalString('part_no_2'),
+    stockClass: json.optionalString('stock_class'),
+    expenseElement: json.optionalString('expense_element'),
+    lastReceivedOn: json.optionalString('last_received_on'),
+    lastIssuedOn: json.optionalString('last_issued_on'),
   );
 }
 

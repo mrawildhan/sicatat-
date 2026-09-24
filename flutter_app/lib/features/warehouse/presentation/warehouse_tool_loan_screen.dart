@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../core/widgets/source_update_card.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/sicatat_types.dart';
 import '../../auth/application/current_user_provider.dart';
@@ -177,11 +178,19 @@ class _WarehouseToolLoanScreenState
   bool _loading = true;
   String? _error;
 
+  /// Loans kept in the LIST ORDER workbook (Drive), read-only here.
+  List<_SheetLoan> _sheetOpen = const <_SheetLoan>[];
+  List<_SheetLoan> _sheetReturned = const <_SheetLoan>[];
+  WarehouseDriveStatus? _sheetStatus;
+  bool _checkingSheet = false;
+  DateTime? _sheetCheckedAt;
+
   @override
   void initState() {
     super.initState();
     _search.addListener(() => setState(() {}));
     _load();
+    _checkSheet();
   }
 
   @override
@@ -219,6 +228,20 @@ class _WarehouseToolLoanScreenState
               .limit(100),
           (toolRequest.order('tool_name', ascending: true).limit(2000)
               as Future<Object?>),
+          _client
+              .from('warehouse_list_order_loan')
+              .select(_SheetLoan.columns)
+              .eq('returned', false)
+              .order('loaned_on', ascending: false, nullsFirst: false)
+              .order('row_no', ascending: false)
+              .limit(500),
+          _client
+              .from('warehouse_list_order_loan')
+              .select(_SheetLoan.columns)
+              .eq('returned', true)
+              .order('loaned_on', ascending: false, nullsFirst: false)
+              .order('row_no', ascending: false)
+              .limit(50),
         ],
       );
       for (final Object? response in responses) {
@@ -244,14 +267,61 @@ class _WarehouseToolLoanScreenState
                   WarehouseToolRecord.fromJson(requireJsonMap(row)),
             )
             .toList(growable: false);
+        _sheetOpen = (responses[3]! as List<Object?>)
+            .map((Object? row) => _SheetLoan.fromJson(requireJsonMap(row)))
+            .toList(growable: false);
+        _sheetReturned = (responses[4]! as List<Object?>)
+            .map((Object? row) => _SheetLoan.fromJson(requireJsonMap(row)))
+            .toList(growable: false);
         _loading = false;
       });
+      await _loadSheetStatus();
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
         _error = warehouseErrorText(error);
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _loadSheetStatus() async {
+    try {
+      final Map<WarehouseDriveSource, WarehouseDriveStatus> status =
+          await loadWarehouseDriveStatus(_client);
+      if (mounted) {
+        setState(() => _sheetStatus = status[WarehouseDriveSource.listOrder]);
+      }
+    } on Object {
+      // The loans still show without their source status.
+    }
+  }
+
+  /// Checks the LIST ORDER workbook in Drive; reloads when it changed.
+  Future<void> _checkSheet({bool announce = false}) async {
+    if (_checkingSheet) return;
+    setState(() => _checkingSheet = true);
+    try {
+      final Set<WarehouseDriveSource> changed = await checkWarehouseDrive(
+        _client,
+        const <WarehouseDriveSource>[WarehouseDriveSource.listOrder],
+      );
+      if (changed.isNotEmpty) {
+        await _load();
+      } else {
+        await _loadSheetStatus();
+      }
+      if (!mounted) return;
+      setState(() => _sheetCheckedAt = DateTime.now());
+      if (announce) {
+        _toast(
+          changed.isEmpty
+              ? 'File LIST ORDER di Drive belum berubah.'
+              : 'Pinjaman LIST ORDER diperbarui dari Drive.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _checkingSheet = false);
     }
   }
 
@@ -332,7 +402,7 @@ class _WarehouseToolLoanScreenState
     return AppBackScope(
       fallbackRoute: '/warehouse',
       child: DefaultTabController(
-        length: 3,
+        length: 4,
         child: Scaffold(
           appBar: AppBar(
             leading: const AppBackButton(fallbackRoute: '/warehouse'),
@@ -350,6 +420,8 @@ class _WarehouseToolLoanScreenState
               ),
             ],
             bottom: TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white70,
               indicatorColor: Colors.white,
@@ -358,6 +430,7 @@ class _WarehouseToolLoanScreenState
                 Tab(text: 'Dipinjam (${_open.length})'),
                 const Tab(text: 'Daftar alat'),
                 const Tab(text: 'Riwayat'),
+                Tab(text: 'List Order (${_sheetOpen.length})'),
               ],
             ),
           ),
@@ -426,12 +499,73 @@ class _WarehouseToolLoanScreenState
                             itemBuilder: (int index) =>
                                 _ReturnedCard(item: history[index]),
                           ),
+                          _listOrderTab(query),
                         ],
                       ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _listOrderTab(String query) {
+    bool matches(_SheetLoan loan) =>
+        query.isEmpty || loan.searchText.contains(query);
+    final List<_SheetLoan> open = _sheetOpen
+        .where(matches)
+        .toList(growable: false);
+    final List<_SheetLoan> returned = _sheetReturned
+        .where(matches)
+        .toList(growable: false);
+    final WarehouseDriveStatus? status = _sheetStatus;
+    return RefreshIndicator(
+      onRefresh: () => _checkSheet(announce: true),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
+        children: <Widget>[
+          SourceUpdateCard(
+            title: 'Pinjaman di LIST ORDER (AMWH)',
+            changes: <String>[
+              status?.changedAt == null
+                  ? 'File LIST ORDER belum terbaca'
+                  : 'File berubah ${sourceUpdateStamp(status!.changedAt!)}',
+            ],
+            checking: _checkingSheet,
+            checkedAt: _sheetCheckedAt ?? status?.checkedAt,
+            error: status?.error,
+            onRefresh: () => _checkSheet(announce: true),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Dicatat tim gudang di LIST ORDER, hanya dibaca di sini. '
+            'Kondisi akhir yang kosong berarti belum dikembalikan.',
+            style: AppTextStyles.supporting,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Belum kembali (${open.length})',
+            style: AppTextStyles.sectionTitle,
+          ),
+          const SizedBox(height: 6),
+          if (open.isEmpty)
+            const Text('Tidak ada.', style: AppTextStyles.supporting),
+          for (final _SheetLoan loan in open) ...<Widget>[
+            _SheetLoanCard(loan: loan),
+            const SizedBox(height: 8),
+          ],
+          const SizedBox(height: 14),
+          const Text(
+            'Sudah kembali (50 terakhir)',
+            style: AppTextStyles.sectionTitle,
+          ),
+          const SizedBox(height: 6),
+          for (final _SheetLoan loan in returned) ...<Widget>[
+            _SheetLoanCard(loan: loan),
+            const SizedBox(height: 8),
+          ],
+        ],
       ),
     );
   }
@@ -604,6 +738,136 @@ class _ToolCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A tool loan row of the LIST ORDER sheet "PEMINJAMAN & OUTSTANDING TOOLS".
+class _SheetLoan {
+  const _SheetLoan({
+    required this.toolName,
+    required this.returned,
+    this.loanedOn,
+    this.quantity,
+    this.numberColour,
+    this.location,
+    this.borrower,
+    this.warehouseman,
+    this.conditionStart,
+    this.conditionEnd,
+  });
+
+  static const String columns =
+      'loaned_on,tool_name,quantity,number_colour,location,borrower,'
+      'warehouseman,condition_start,condition_end,returned';
+
+  final String toolName;
+  final bool returned;
+  final DateTime? loanedOn;
+  final String? quantity;
+  final String? numberColour;
+  final String? location;
+  final String? borrower;
+  final String? warehouseman;
+  final String? conditionStart;
+  final String? conditionEnd;
+
+  String get searchText => <String?>[
+    toolName,
+    borrower,
+    location,
+    warehouseman,
+    numberColour,
+  ].whereType<String>().join(' ').toLowerCase();
+
+  factory _SheetLoan.fromJson(JsonMap json) => _SheetLoan(
+    toolName: json.requiredString('tool_name'),
+    returned: json['returned'] == true,
+    loanedOn: DateTime.tryParse(json.optionalString('loaned_on') ?? ''),
+    quantity: json.optionalString('quantity'),
+    numberColour: json.optionalString('number_colour'),
+    location: json.optionalString('location'),
+    borrower: json.optionalString('borrower'),
+    warehouseman: json.optionalString('warehouseman'),
+    conditionStart: json.optionalString('condition_start'),
+    conditionEnd: json.optionalString('condition_end'),
+  );
+}
+
+class _SheetLoanCard extends StatelessWidget {
+  const _SheetLoanCard({required this.loan});
+
+  final _SheetLoan loan;
+
+  @override
+  Widget build(BuildContext context) {
+    final int? days = loan.loanedOn == null
+        ? null
+        : warehouseLoanAgeDays(loan.loanedOn!);
+    final bool overdue =
+        !loan.returned && days != null && days > warehouseLoanOverdueDays;
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: overdue
+            ? const BorderSide(color: AppColors.danger, width: 1.2)
+            : BorderSide.none,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    loan.toolName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.greenDark,
+                    ),
+                  ),
+                ),
+                if (loan.returned)
+                  WarehouseTag(
+                    loan.conditionEnd ?? 'Kembali',
+                    color: warehouseConditionColor(
+                      loan.conditionEnd?.toLowerCase().contains('rusak') == true
+                          ? 'rusak'
+                          : null,
+                    ),
+                  )
+                else if (days != null)
+                  WarehouseTag(
+                    days == 0 ? 'Hari ini' : '$days hari',
+                    color: overdue ? AppColors.danger : AppColors.orange,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              <String>[
+                if (loan.quantity != null) 'Qty ${loan.quantity}',
+                if (loan.numberColour != null) loan.numberColour!,
+                if (loan.location != null) loan.location!,
+              ].join(' · '),
+              style: const TextStyle(fontSize: 12, color: AppColors.muted),
+            ),
+            Text(
+              <String>[
+                loan.borrower ?? 'Peminjam tidak tercatat',
+                if (loan.loanedOn != null)
+                  'dipinjam ${warehouseDateLabel(loan.loanedOn!)}',
+                if (loan.warehouseman != null) 'WH ${loan.warehouseman}',
+              ].join(' · '),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
         ),
       ),
     );

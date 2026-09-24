@@ -24,6 +24,12 @@ class WarehouseHubScreen extends ConsumerWidget {
             'Stok, harga, lokasi bin, dan daftar alat',
             '/warehouse/search',
           ),
+          (
+            Icons.local_shipping_outlined,
+            'Barang dipesan',
+            'Sudah dipesan (PO), belum datang ke gudang',
+            '/warehouse/purchase-orders',
+          ),
           if (canManage) ...<(IconData, String, String, String)>[
             (
               Icons.outbox_outlined,

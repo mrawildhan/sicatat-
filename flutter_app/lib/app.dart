@@ -36,6 +36,7 @@ import 'features/operations/presentation/operational_sections_screen.dart';
 import 'features/operations/presentation/purchase_requisition_screen.dart';
 import 'features/warehouse/presentation/warehouse_hub_screen.dart';
 import 'features/warehouse/presentation/warehouse_issue_screen.dart';
+import 'features/warehouse/presentation/warehouse_po_screen.dart';
 import 'features/warehouse/presentation/warehouse_receipt_screen.dart';
 import 'features/warehouse/presentation/warehouse_screen.dart';
 import 'features/warehouse/presentation/warehouse_tool_loan_screen.dart';
@@ -439,6 +440,24 @@ final _router = GoRouter(
         child: MainNavigationScaffold(
           selectedTab: MainNavigationTab.warehouse,
           child: WarehouseScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/warehouse/purchase-orders',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.warehouse,
+          child: WarehousePurchaseOrderScreen(),
         ),
       ),
     ),

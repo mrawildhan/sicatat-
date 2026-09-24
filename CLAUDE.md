@@ -40,7 +40,7 @@ Android release APKs land in `flutter_app/build/app/outputs/flutter-apk/` (only 
 | Admin user screen | `flutter_app/lib/features/users/presentation/user_management_screen.dart` |
 | Database schema/migrations | `supabase/schema.sql`, `supabase/migrations/` |
 | Admin account creation edge function | `supabase/functions/create-crew-user/index.ts` |
-| Gudang (search for everyone; pickups, tool loans, goods receipts for admin/SMG/warehouseman via RPC) | `flutter_app/lib/features/warehouse/`, `supabase/migrations/20260924090000_warehouse_transactions.sql`, `supabase/functions/sync-warehouse-data/` |
+| Gudang (search for everyone; pickups, tool loans, goods receipts for admin/SMG/warehouseman via RPC; stock, pickup history, loans, outstanding PO from the Drive folder "Gudang") | `flutter_app/lib/features/warehouse/`, `supabase/migrations/20260924090000_warehouse_transactions.sql`, `supabase/migrations/20260924100000_warehouse_drive_sources.sql`, `supabase/functions/sync-warehouse-drive/`, `supabase/functions/sync-warehouse-data/` |
 | Major Job (admin photo report; Cloudflare D1 + KV, not Supabase) | `flutter_app/lib/features/major_job/`, `cloudflare/major-job/` |
 | Full product/recovery specification | `docs/PRD-SICATAT-v0.5.md` |
 

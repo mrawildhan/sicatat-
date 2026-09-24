@@ -112,7 +112,7 @@ Future<WarehouseStockHit?> lookupWarehouseStockCode(
   String code, {
   String? siteName,
 }) async {
-  final String clean = code.trim();
+  final String clean = normalizeStockCode(code);
   if (clean.isEmpty || clean.contains(RegExp(r'[%_,()]'))) return null;
   final Object response = await client
       .from('warehouse_stock')
@@ -130,6 +130,309 @@ Future<WarehouseStockHit?> lookupWarehouseStockCode(
         hit.siteLabel.toLowerCase() == siteName.toLowerCase(),
     orElse: () => hits.first,
   );
+}
+
+/// Site filters of Cari barang, matching `warehouse_stock.site_label`.
+const List<String> warehouseSearchSites = <String>[
+  'Asamasam',
+  'Kintap',
+  'NPLCT',
+  'Senakin',
+  'Satui',
+];
+
+/// "000004675" and "4675" are the same stock code.
+String normalizeStockCode(String value) {
+  final String clean = value.trim().toUpperCase();
+  return RegExp(r'^\d+$').hasMatch(clean)
+      ? clean.replaceFirst(RegExp(r'^0+(?=\d)'), '')
+      : clean;
+}
+
+/// A workbook in the owner's Drive folder "Gudang", imported by the Edge
+/// Function `sync-warehouse-drive`.
+enum WarehouseDriveSource {
+  inventory('inventory', 'Warehouse Inventory'),
+  listOrder('list_order', 'LIST ORDER'),
+  outstandingPo('outstanding_po', 'Outstanding PO');
+
+  const WarehouseDriveSource(this.storage, this.label);
+
+  final String storage;
+  final String label;
+}
+
+class WarehouseDriveStatus {
+  const WarehouseDriveStatus({
+    required this.source,
+    this.fileName,
+    this.reportAt,
+    this.rowCount = 0,
+    this.changedAt,
+    this.checkedAt,
+    this.error,
+  });
+
+  final WarehouseDriveSource source;
+  final String? fileName;
+
+  /// Run time printed in the Ellipse report (inventory only).
+  final DateTime? reportAt;
+  final int rowCount;
+
+  /// First check that saw the current file content.
+  final DateTime? changedAt;
+  final DateTime? checkedAt;
+  final String? error;
+
+  factory WarehouseDriveStatus.fromJson(
+    WarehouseDriveSource source,
+    JsonMap json,
+  ) {
+    DateTime? time(String key) =>
+        DateTime.tryParse(json.optionalString(key) ?? '')?.toLocal();
+    return WarehouseDriveStatus(
+      source: source,
+      fileName: json.optionalString('file_name'),
+      reportAt: time('report_at'),
+      rowCount: (json['row_count'] as num?)?.toInt() ?? 0,
+      changedAt: time('changed_at'),
+      checkedAt: time('checked_at'),
+      error: json.optionalString('error'),
+    );
+  }
+}
+
+Future<Map<WarehouseDriveSource, WarehouseDriveStatus>>
+loadWarehouseDriveStatus(SupabaseClient client) async {
+  final Object response = await client
+      .from('warehouse_drive_source')
+      .select(
+        'source,file_name,report_at,row_count,changed_at,checked_at,error',
+      );
+  final Map<WarehouseDriveSource, WarehouseDriveStatus> result =
+      <WarehouseDriveSource, WarehouseDriveStatus>{};
+  if (response is! List) return result;
+  for (final Object? row in response) {
+    final JsonMap json = requireJsonMap(row);
+    for (final WarehouseDriveSource source in WarehouseDriveSource.values) {
+      if (source.storage == json['source']) {
+        result[source] = WarehouseDriveStatus.fromJson(source, json);
+      }
+    }
+  }
+  return result;
+}
+
+/// Checks [sources] in the Drive folder, one Edge Function call each (in
+/// parallel, so every call stays inside the CPU budget). Returns the sources
+/// whose file changed; a failed source is recorded server-side and shows up
+/// in [loadWarehouseDriveStatus].
+Future<Set<WarehouseDriveSource>> checkWarehouseDrive(
+  SupabaseClient client,
+  List<WarehouseDriveSource> sources,
+) async {
+  final List<bool> changed = await Future.wait<bool>(<Future<bool>>[
+    for (final WarehouseDriveSource source in sources)
+      client.functions
+          .invoke(
+            'sync-warehouse-drive',
+            body: <String, Object?>{'source': source.storage},
+          )
+          .then((FunctionResponse response) {
+            final Object? data = response.data;
+            return data is Map && data['ok'] == true && data['changed'] == true;
+          })
+          .catchError((Object _) => false),
+  ]);
+  return <WarehouseDriveSource>{
+    for (int i = 0; i < sources.length; i++)
+      if (changed[i]) sources[i],
+  };
+}
+
+/// One past pickup of a stock code, from LIST ORDER or from SICATAT.
+class WarehousePickup {
+  const WarehousePickup({
+    required this.fromSicatat,
+    this.issuedOn,
+    this.userName,
+    this.quantity,
+    this.uoi,
+    this.reference,
+    this.group,
+  });
+
+  final bool fromSicatat;
+  final DateTime? issuedOn;
+  final String? userName;
+  final String? quantity;
+  final String? uoi;
+
+  /// IR number (LIST ORDER) or job number (SICATAT).
+  final String? reference;
+
+  /// LIST ORDER sheet (crew or department), or "SICATAT".
+  final String? group;
+}
+
+/// The latest [limit] pickups of [itemCode], newest first. SICATAT's own
+/// pickups are only readable by warehouse managers; others see LIST ORDER.
+Future<List<WarehousePickup>> loadRecentPickups(
+  SupabaseClient client,
+  String itemCode, {
+  int limit = 5,
+}) async {
+  final String code = normalizeStockCode(itemCode);
+  final List<Object?> responses = await Future.wait<Object?>(<Future<Object?>>[
+    client
+        .from('warehouse_issue_history')
+        .select(
+          'issued_on,user_name,quantity,quantity_text,uoi,ir_no,sheet_name',
+        )
+        .eq('item_code', code)
+        .order('issued_on', ascending: false, nullsFirst: false)
+        .order('row_no', ascending: false)
+        .limit(limit),
+    client
+        .from('warehouse_issue_item')
+        .select(
+          'quantity,uoi,issue:issue_id!inner(issued_on,taken_by,job_number)',
+        )
+        .eq('item_code', code)
+        .limit(limit)
+        .then<Object?>((Object? value) => value)
+        .catchError((Object _) => const <Object?>[]),
+  ]);
+  final List<WarehousePickup> pickups = <WarehousePickup>[];
+  final Object? sheet = responses[0];
+  if (sheet is List) {
+    for (final Object? row in sheet) {
+      final JsonMap json = requireJsonMap(row);
+      final num? quantity = json['quantity'] as num?;
+      pickups.add(
+        WarehousePickup(
+          fromSicatat: false,
+          issuedOn: DateTime.tryParse(json.optionalString('issued_on') ?? ''),
+          userName: json.optionalString('user_name'),
+          quantity: quantity == null
+              ? json.optionalString('quantity_text')
+              : warehouseNumber(quantity),
+          uoi: json.optionalString('uoi'),
+          reference: json.optionalString('ir_no'),
+          group: json.optionalString('sheet_name'),
+        ),
+      );
+    }
+  }
+  final Object? own = responses[1];
+  if (own is List) {
+    for (final Object? row in own) {
+      final JsonMap json = requireJsonMap(row);
+      final JsonMap issue = requireJsonMap(json['issue']);
+      final num? quantity = json['quantity'] as num?;
+      pickups.add(
+        WarehousePickup(
+          fromSicatat: true,
+          issuedOn: DateTime.tryParse(issue.optionalString('issued_on') ?? ''),
+          userName: issue.optionalString('taken_by'),
+          quantity: quantity == null ? null : warehouseNumber(quantity),
+          uoi: json.optionalString('uoi'),
+          reference: issue.optionalString('job_number'),
+          group: 'SICATAT',
+        ),
+      );
+    }
+  }
+  pickups.sort((WarehousePickup a, WarehousePickup b) {
+    final DateTime? x = a.issuedOn;
+    final DateTime? y = b.issuedOn;
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return y.compareTo(x);
+  });
+  return pickups.take(limit).toList(growable: false);
+}
+
+/// A purchase order line that has been ordered but not fully received.
+class WarehouseOutstandingPo {
+  const WarehouseOutstandingPo({
+    required this.poNo,
+    this.poItemNo,
+    this.supplierName,
+    this.itemCode,
+    this.requestor,
+    this.description,
+    this.partNo,
+    this.qtyOrder,
+    this.qtyOutstanding,
+    this.orderDate,
+    this.dueDate,
+  });
+
+  static const String columns =
+      'po_no,po_item_no,supplier_name,item_code,requestor,description,'
+      'part_no,qty_order,qty_outstanding,order_date,due_date';
+
+  final String poNo;
+  final String? poItemNo;
+  final String? supplierName;
+  final String? itemCode;
+  final String? requestor;
+  final String? description;
+  final String? partNo;
+  final num? qtyOrder;
+  final num? qtyOutstanding;
+  final DateTime? orderDate;
+  final DateTime? dueDate;
+
+  /// Service POs are ordered with quantity 0.
+  bool get isService => (qtyOrder ?? 0) == 0;
+
+  bool isOverdue(DateTime today) =>
+      dueDate != null && dueDate!.isBefore(warehouseDateOnly(today));
+
+  String get searchText => <String?>[
+    poNo,
+    supplierName,
+    itemCode,
+    requestor,
+    description,
+    partNo,
+  ].whereType<String>().join(' ').toLowerCase();
+
+  factory WarehouseOutstandingPo.fromJson(JsonMap json) =>
+      WarehouseOutstandingPo(
+        poNo: json.requiredString('po_no'),
+        poItemNo: json.optionalString('po_item_no'),
+        supplierName: json.optionalString('supplier_name'),
+        itemCode: json.optionalString('item_code'),
+        requestor: json.optionalString('requestor'),
+        description: json.optionalString('description'),
+        partNo: json.optionalString('part_no'),
+        qtyOrder: json['qty_order'] as num?,
+        qtyOutstanding: json['qty_outstanding'] as num?,
+        orderDate: DateTime.tryParse(json.optionalString('order_date') ?? ''),
+        dueDate: DateTime.tryParse(json.optionalString('due_date') ?? ''),
+      );
+}
+
+Future<List<WarehouseOutstandingPo>> loadOutstandingPoFor(
+  SupabaseClient client,
+  String itemCode,
+) async {
+  final Object response = await client
+      .from('warehouse_outstanding_po')
+      .select(WarehouseOutstandingPo.columns)
+      .eq('item_code', normalizeStockCode(itemCode))
+      .order('due_date', ascending: true);
+  if (response is! List) return const <WarehouseOutstandingPo>[];
+  return response
+      .map(
+        (Object? row) => WarehouseOutstandingPo.fromJson(requireJsonMap(row)),
+      )
+      .toList(growable: false);
 }
 
 String warehouseErrorText(Object error) {

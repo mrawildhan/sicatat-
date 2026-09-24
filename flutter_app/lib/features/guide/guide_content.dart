@@ -221,7 +221,15 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
       ),
       GuideEntry(
         'Mencari stok',
-        'Ketik minimal dua karakter untuk mencari nama item, kode SC, atau lokasi bin. Daftar memang kosong sebelum ada pencarian.',
+        'Buka Cari barang, lalu ketik minimal dua karakter nama item, kode SC, part number, atau lokasi bin. Kode SC yang persis sama tampil paling atas. Ketuk barang untuk melihat stok per gudang, part number, tanggal terakhir diterima/dikeluarkan, PO yang sedang dipesan, dan 5 pengambilan terakhir.',
+      ),
+      GuideEntry(
+        'Barang dipesan',
+        'Daftar PO yang sudah dipesan tetapi belum datang (Outstanding PO), terbaru di atas. Pilih "Lewat jatuh tempo" untuk melihat yang terlambat.',
+      ),
+      GuideEntry(
+        'Memperbarui data dari Drive',
+        'Tim gudang cukup mengunggah file terbaru ke folder Drive "Gudang": Warehouse_inventory…, Outstanding_Purchase_Order…, dan LIST ORDER…. Nama boleh berakhiran nomor berbeda, tetapi simpan satu file per jenis. SICATAT memeriksa folder setiap halaman dibuka; kartu Pembaruan menunjukkan kapan file terakhir berubah.',
       ),
       GuideEntry(
         'Pengambilan barang',

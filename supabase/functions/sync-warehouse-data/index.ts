@@ -22,11 +22,28 @@ const source = {
     "https://docs.google.com/spreadsheets/d/1nzKdmxZFdq47ukSONUjHGo8JGHBSZRFidDlzorVjk-8/gviz/tq?tqx=out:csv&gid=0",
 };
 
+// Same labels as sync-warehouse-drive (Ellipse MAIN is the NPLCT warehouse).
 const siteLabels: Record<string, string> = {
   AMWH: "Asamasam",
   KMWH: "Kintap",
-  MAIN: "Main warehouse",
+  MAIN: "NPLCT",
 };
+
+/** Keys of stock rows that came from the Warehouse Inventory report. */
+async function inventoryKeys(admin: ReturnType<typeof createClient>): Promise<Set<string>> {
+  const keys = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await admin
+      .from("warehouse_stock")
+      .select("source_key")
+      .eq("stock_source", "inventory")
+      .order("source_key", { ascending: true })
+      .range(from, from + 999);
+    if (error) throw error;
+    for (const row of data ?? []) keys.add(row.source_key as string);
+    if (!data || data.length < 1000) return keys;
+  }
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -276,7 +293,7 @@ Deno.serve(async (req) => {
       const itemCode = valueAt(row, stock.headers, "SC");
       const warehouseCode = valueAt(row, stock.headers, "SITE").toUpperCase();
       const description = valueAt(row, stock.headers, "DESC");
-      if (!itemCode || !warehouseCode || !description) continue;
+      if (!itemCode || !warehouseCode || !description || warehouseCode === "TOTAL") continue;
       const sourceKey = itemCode + "|" + warehouseCode;
       const existing = aggregated.get(sourceKey);
       const masterItem = masterByItem.get(itemCode);
@@ -327,7 +344,12 @@ Deno.serve(async (req) => {
         synced_at: new Date().toISOString(),
       });
     }
-    const stockRows = [...aggregated.values()];
+    // The Warehouse Inventory report (sync-warehouse-drive) is the main stock
+    // source; these sheets only fill items and warehouses it does not list.
+    const fromInventory = await inventoryKeys(admin);
+    const stockRows = [...aggregated.values()]
+      .filter((row) => !fromInventory.has(row.source_key as string))
+      .map((row) => ({ ...row, stock_source: "scallsite" }));
     for (const batch of chunks(stockRows)) {
       const { error } = await admin.from("warehouse_stock").upsert(batch, { onConflict: "source_key" });
       if (error) throw error;
