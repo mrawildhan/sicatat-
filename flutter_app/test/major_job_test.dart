@@ -373,5 +373,16 @@ void main() {
     expect(find.text('2'), findsOneWidget, reason: 'nomor bersambung antar periode');
     expect(find.text('Belum ada foto, tidak ikut di PDF'), findsNWidgets(2));
     expect(find.textContaining('Penyimpanan foto 0,0 MB dari 1,0 GB'), findsOneWidget);
+
+    // Export sheet lists the weeks in date order, earliest on top.
+    await tester.tap(find.byTooltip('Export PDF'));
+    await tester.pumpAndSettle();
+    final double firstWeek = tester
+        .getTopLeft(find.text('Minggu s.d. 28 Juli – 03 Agustus 2026'))
+        .dy;
+    final double secondWeek = tester
+        .getTopLeft(find.text('Minggu s.d. 04 – 10 Agustus 2026'))
+        .dy;
+    expect(firstWeek, lessThan(secondWeek));
   });
 }

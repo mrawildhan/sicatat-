@@ -593,7 +593,8 @@ class _ExportSheet extends StatelessWidget {
             const Text('Weekly Job Report', style: AppTextStyles.cardTitle),
             const SizedBox(height: 8),
           ],
-          for (final MajorJobSection section in sections.reversed)
+          // Earliest week first, in date order (owner request 2026-09-24).
+          for (final MajorJobSection section in sections)
             _option(
               context,
               icon: Icons.date_range_rounded,
