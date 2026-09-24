@@ -35,5 +35,14 @@ void main() {
     expect(goods.isService, isFalse);
     expect(goods.isOverdue(DateTime(2026, 9, 24)), isFalse);
     expect(goods.searchText, contains('borneo'));
+    // Stock-coded lines have no requestor: they are warehouse restock.
+    expect(goods.orderedFor, 'Stok gudang');
+    expect(goods.searchText, contains('stok gudang'));
+
+    final WarehouseOutstandingPo requested = WarehouseOutstandingPo.fromJson(
+      <String, Object?>{'po_no': 'P50458', 'requestor': 'Citra Mulia Setiawan'},
+    );
+    expect(requested.orderedFor, 'Citra Mulia Setiawan');
+    expect(requested.searchText, contains('citra'));
   });
 }

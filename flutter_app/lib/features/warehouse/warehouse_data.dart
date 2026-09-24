@@ -399,11 +399,18 @@ class WarehouseOutstandingPo {
   bool isOverdue(DateTime today) =>
       dueDate != null && dueDate!.isBefore(warehouseDateOnly(today));
 
+  /// Label shown for lines without a requestor: in the Ellipse report these
+  /// are exactly the stock-coded lines, i.e. warehouse restock orders.
+  static const String restockLabel = 'Stok gudang';
+
+  /// Who the line was ordered for: the requestor, or the warehouse itself.
+  String get orderedFor => requestor ?? restockLabel;
+
   String get searchText => <String?>[
     poNo,
     supplierName,
     itemCode,
-    requestor,
+    orderedFor,
     description,
     partNo,
   ].whereType<String>().join(' ').toLowerCase();

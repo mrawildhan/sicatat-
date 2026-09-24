@@ -26,6 +26,9 @@ class _WarehousePurchaseOrderScreenState
   bool _loading = true;
   bool _checking = false;
   bool _overdueOnly = false;
+
+  /// Selected "ordered for" name; empty means every requestor.
+  String _requestor = '';
   String? _error;
 
   @override
@@ -115,14 +118,36 @@ class _WarehousePurchaseOrderScreenState
   Widget build(BuildContext context) {
     final DateTime today = DateTime.now();
     final String query = _search.text.trim().toLowerCase();
-    final List<WarehouseOutstandingPo> visible = _lines
+    final Map<String, int> requestors = <String, int>{
+      for (final WarehouseOutstandingPo line in _lines) line.orderedFor: 0,
+    };
+    for (final WarehouseOutstandingPo line in _lines) {
+      requestors[line.orderedFor] = requestors[line.orderedFor]! + 1;
+    }
+    // Keep the chosen name selectable even if a Drive refresh dropped it.
+    if (_requestor.isNotEmpty) requestors.putIfAbsent(_requestor, () => 0);
+    final List<String> names = requestors.keys.toList()
+      ..sort((String a, String b) {
+        // Warehouse restock sits last; people alphabetically.
+        if (a == WarehouseOutstandingPo.restockLabel) return 1;
+        if (b == WarehouseOutstandingPo.restockLabel) return -1;
+        return a.toLowerCase().compareTo(b.toLowerCase());
+      });
+    final List<WarehouseOutstandingPo> ofRequestor = _requestor.isEmpty
+        ? _lines
+        : _lines
+              .where(
+                (WarehouseOutstandingPo line) => line.orderedFor == _requestor,
+              )
+              .toList(growable: false);
+    final List<WarehouseOutstandingPo> visible = ofRequestor
         .where(
           (WarehouseOutstandingPo line) =>
               (!_overdueOnly || line.isOverdue(today)) &&
               (query.isEmpty || line.searchText.contains(query)),
         )
         .toList(growable: false);
-    final int overdue = _lines
+    final int overdue = ofRequestor
         .where((WarehouseOutstandingPo line) => line.isOverdue(today))
         .length;
     final WarehouseDriveStatus? status = _status;
@@ -150,16 +175,40 @@ class _WarehousePurchaseOrderScreenState
                 controller: _search,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.search_rounded),
-                  hintText:
-                      'Cari PO, barang, kode SC, supplier, atau requestor',
+                  hintText: 'Cari PO, barang, SC, supplier, pemesan',
                 ),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _requestor,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Pemesan',
+                  prefixIcon: Icon(Icons.person_search_rounded),
+                ),
+                items: <DropdownMenuItem<String>>[
+                  DropdownMenuItem<String>(
+                    value: '',
+                    child: Text('Semua pemesan (${_lines.length})'),
+                  ),
+                  for (final String name in names)
+                    DropdownMenuItem<String>(
+                      value: name,
+                      child: Text(
+                        '$name (${requestors[name]})',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (String? value) =>
+                    setState(() => _requestor = value ?? ''),
               ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: <Widget>[
                   ChoiceChip(
-                    label: Text('Semua (${_lines.length})'),
+                    label: Text('Semua (${ofRequestor.length})'),
                     selected: !_overdueOnly,
                     onSelected: (_) => setState(() => _overdueOnly = false),
                   ),
@@ -276,6 +325,31 @@ class _PurchaseOrderCard extends StatelessWidget {
                 line.supplierName!,
                 style: const TextStyle(fontSize: 12, color: AppColors.muted),
               ),
+            const SizedBox(height: 4),
+            Row(
+              children: <Widget>[
+                Icon(
+                  line.requestor == null
+                      ? Icons.warehouse_outlined
+                      : Icons.person_outline_rounded,
+                  size: 16,
+                  color: AppColors.greenDark,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    line.requestor == null
+                        ? 'Pemesan: ${WarehouseOutstandingPo.restockLabel} '
+                              '(restock)'
+                        : 'Pemesan: ${line.requestor}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
@@ -293,11 +367,6 @@ class _PurchaseOrderCard extends StatelessWidget {
                         ? 'Lewat tempo ${warehouseDateLabel(line.dueDate!)}'
                         : 'Tempo ${warehouseDateLabel(line.dueDate!)}',
                     color: overdue ? AppColors.danger : AppColors.green,
-                  ),
-                if (line.requestor != null)
-                  Text(
-                    'Req. ${line.requestor}',
-                    style: const TextStyle(fontSize: 12),
                   ),
               ],
             ),
