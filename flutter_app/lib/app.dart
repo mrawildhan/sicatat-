@@ -487,7 +487,12 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/warehouse/receipts/new',
-      builder: (_, __) => _warehousePage(const WarehouseReceiptFormScreen()),
+      builder: (_, GoRouterState state) => _warehousePage(
+        WarehouseReceiptFormScreen(
+          poNumber: state.uri.queryParameters['po'],
+          supplier: state.uri.queryParameters['supplier'],
+        ),
+      ),
     ),
     GoRoute(
       path: '/documents',

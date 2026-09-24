@@ -59,10 +59,12 @@ void main() {
     for (final String title in <String>[
       'Cari barang',
       'Pengambilan Barang',
+      'Barang dipesan',
       'Peminjaman Alat',
-      'Penerimaan Barang',
     ]) {
       expect(find.text(title), findsOneWidget);
     }
+    // Goods receipts are recorded from inside Barang dipesan.
+    expect(find.text('Penerimaan Barang'), findsNothing);
   });
 }

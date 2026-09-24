@@ -217,7 +217,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     entries: <GuideEntry>[
       GuideEntry(
         'Membuka Gudang',
-        'Gudang ada di menu Operasional. Pilih Cari barang untuk mencari stok dan alat (semua pengguna). Pengambilan Barang, Peminjaman Alat, dan Penerimaan Barang hanya muncul untuk admin, supervisor SMG, dan warehouseman.',
+        'Gudang ada di menu Operasional. Pilih Cari barang untuk mencari stok dan alat (semua pengguna). Barang dipesan menampilkan PO yang belum datang (semua pengguna). Pengambilan Barang dan Peminjaman Alat hanya muncul untuk admin, supervisor SMG, dan warehouseman; mereka juga mencatat penerimaan barang dari dalam Barang dipesan: tombol Terima di tiap PO, atau ikon riwayat di kanan atas untuk riwayat penerimaan, cek PO / PR / stok, dan penerimaan baru.',
       ),
       GuideEntry(
         'Mencari stok',

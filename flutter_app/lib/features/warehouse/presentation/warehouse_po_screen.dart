@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../core/widgets/source_update_card.dart';
+import '../../../data/models/app_user.dart';
 import '../../../data/models/sicatat_types.dart';
+import '../../auth/application/current_user_provider.dart';
 import '../warehouse_data.dart';
 
 /// Barang dipesan: purchase order lines that are ordered but not received
 /// yet, from the Ellipse "Outstanding Purchase Order" report in Drive.
-class WarehousePurchaseOrderScreen extends StatefulWidget {
+/// Warehouse managers also record goods receipts from here.
+class WarehousePurchaseOrderScreen extends ConsumerStatefulWidget {
   const WarehousePurchaseOrderScreen({super.key});
 
   @override
-  State<WarehousePurchaseOrderScreen> createState() =>
+  ConsumerState<WarehousePurchaseOrderScreen> createState() =>
       _WarehousePurchaseOrderScreenState();
 }
 
 class _WarehousePurchaseOrderScreenState
-    extends State<WarehousePurchaseOrderScreen> {
+    extends ConsumerState<WarehousePurchaseOrderScreen> {
   final SupabaseClient _client = Supabase.instance.client;
   final TextEditingController _search = TextEditingController();
   List<WarehouseOutstandingPo> _lines = const <WarehouseOutstandingPo>[];
@@ -151,12 +156,22 @@ class _WarehousePurchaseOrderScreenState
         .where((WarehouseOutstandingPo line) => line.isOverdue(today))
         .length;
     final WarehouseDriveStatus? status = _status;
+    final bool canManage =
+        ref.watch(currentUserProvider)?.role.canManageWarehouse == true;
     return AppBackScope(
       fallbackRoute: '/warehouse',
       child: Scaffold(
         appBar: AppBar(
           leading: const AppBackButton(fallbackRoute: '/warehouse'),
           title: const Text('Barang dipesan'),
+          actions: <Widget>[
+            if (canManage)
+              IconButton(
+                onPressed: () => context.go('/warehouse/receipts'),
+                icon: const Icon(Icons.history_rounded),
+                tooltip: 'Riwayat penerimaan & cek PO',
+              ),
+          ],
         ),
         body: RefreshIndicator(
           onRefresh: () => _check(announce: true),
@@ -255,7 +270,22 @@ class _WarehousePurchaseOrderScreenState
                 )
               else
                 for (final WarehouseOutstandingPo line in visible) ...<Widget>[
-                  _PurchaseOrderCard(line: line, today: today),
+                  _PurchaseOrderCard(
+                    line: line,
+                    today: today,
+                    onReceive: canManage
+                        ? () => context.go(
+                            Uri(
+                              path: '/warehouse/receipts/new',
+                              queryParameters: <String, String>{
+                                'po': line.poNo,
+                                if (line.supplierName != null)
+                                  'supplier': line.supplierName!,
+                              },
+                            ).toString(),
+                          )
+                        : null,
+                  ),
                   const SizedBox(height: 8),
                 ],
             ],
@@ -267,10 +297,17 @@ class _WarehousePurchaseOrderScreenState
 }
 
 class _PurchaseOrderCard extends StatelessWidget {
-  const _PurchaseOrderCard({required this.line, required this.today});
+  const _PurchaseOrderCard({
+    required this.line,
+    required this.today,
+    this.onReceive,
+  });
 
   final WarehouseOutstandingPo line;
   final DateTime today;
+
+  /// Opens a goods receipt for this PO; only for warehouse managers.
+  final VoidCallback? onReceive;
 
   @override
   Widget build(BuildContext context) {
@@ -351,22 +388,37 @@ class _PurchaseOrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            Row(
               children: <Widget>[
-                if (line.orderDate != null)
-                  Text(
-                    'Dipesan ${warehouseDateLabel(line.orderDate!)}',
-                    style: const TextStyle(fontSize: 12),
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: <Widget>[
+                      if (line.orderDate != null)
+                        Text(
+                          'Dipesan ${warehouseDateLabel(line.orderDate!)}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      if (line.dueDate != null)
+                        WarehouseTag(
+                          overdue
+                              ? 'Lewat tempo ${warehouseDateLabel(line.dueDate!)}'
+                              : 'Tempo ${warehouseDateLabel(line.dueDate!)}',
+                          color: overdue ? AppColors.danger : AppColors.green,
+                        ),
+                    ],
                   ),
-                if (line.dueDate != null)
-                  WarehouseTag(
-                    overdue
-                        ? 'Lewat tempo ${warehouseDateLabel(line.dueDate!)}'
-                        : 'Tempo ${warehouseDateLabel(line.dueDate!)}',
-                    color: overdue ? AppColors.danger : AppColors.green,
+                ),
+                if (onReceive != null)
+                  TextButton.icon(
+                    onPressed: onReceive,
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.move_to_inbox_outlined, size: 18),
+                    label: const Text('Terima'),
                   ),
               ],
             ),

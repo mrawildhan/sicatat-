@@ -8,7 +8,9 @@ import '../../../data/models/app_user.dart';
 import '../../auth/application/current_user_provider.dart';
 
 /// Gudang opens here first. Everyone may search stock and tools; warehouse
-/// managers also see the transactions (owner request 2026-09-24).
+/// managers also see the transactions (owner request 2026-09-24). Goods
+/// receipts live inside Barang dipesan, since a receipt closes an open PO
+/// (owner found the separate card one menu too many, 2026-09-24).
 class WarehouseHubScreen extends ConsumerWidget {
   const WarehouseHubScreen({super.key});
 
@@ -27,7 +29,9 @@ class WarehouseHubScreen extends ConsumerWidget {
           (
             Icons.local_shipping_outlined,
             'Barang dipesan',
-            'Sudah dipesan (PO), belum datang ke gudang',
+            canManage
+                ? 'PO belum datang, dan catat penerimaan barang'
+                : 'Sudah dipesan (PO), belum datang ke gudang',
             '/warehouse/purchase-orders',
           ),
           if (canManage) ...<(IconData, String, String, String)>[
@@ -42,12 +46,6 @@ class WarehouseHubScreen extends ConsumerWidget {
               'Peminjaman Alat',
               'Pinjam, kembalikan, dan daftarkan alat',
               '/warehouse/tool-loans',
-            ),
-            (
-              Icons.move_to_inbox_outlined,
-              'Penerimaan Barang',
-              'Terima barang per PO/DO dan cek PO / PR / stok',
-              '/warehouse/receipts',
             ),
           ],
         ];

@@ -316,12 +316,14 @@ class _WarehouseReceiptScreenState extends State<WarehouseReceiptScreen> {
         .where((_Receipt r) => query.isEmpty || r.searchText.contains(query))
         .toList(growable: false);
     return AppBackScope(
-      fallbackRoute: '/warehouse',
+      fallbackRoute: '/warehouse/purchase-orders',
       child: DefaultTabController(
         length: 2,
         child: Scaffold(
           appBar: AppBar(
-            leading: const AppBackButton(fallbackRoute: '/warehouse'),
+            leading: const AppBackButton(
+              fallbackRoute: '/warehouse/purchase-orders',
+            ),
             title: const Text('Penerimaan Barang'),
             actions: <Widget>[
               IconButton(
@@ -736,7 +738,11 @@ class _ReceiptItem {
 // Form -----------------------------------------------------------------------
 
 class WarehouseReceiptFormScreen extends ConsumerStatefulWidget {
-  const WarehouseReceiptFormScreen({super.key});
+  const WarehouseReceiptFormScreen({super.key, this.poNumber, this.supplier});
+
+  /// Prefilled when opened from a Barang dipesan card.
+  final String? poNumber;
+  final String? supplier;
 
   @override
   ConsumerState<WarehouseReceiptFormScreen> createState() =>
@@ -767,6 +773,9 @@ class _WarehouseReceiptFormScreenState
     super.initState();
     _addLine();
     _loadSites();
+    _po.text = widget.poNumber ?? '';
+    _supplier.text = widget.supplier ?? '';
+    if (_po.text.isNotEmpty) _checkPo();
   }
 
   @override
