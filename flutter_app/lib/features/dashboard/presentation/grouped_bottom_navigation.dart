@@ -100,7 +100,7 @@ Future<void> openNavigationGroup(
         subtitle: 'Cari unit Asamasam dan Kintap',
         route: '/equipment-reference',
       ),
-  ];
+  ]..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
   final route = await showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
