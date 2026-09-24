@@ -79,12 +79,16 @@ class MeetingMinutePhotoCompressor {
         bytes: bytes,
         fileName: fileName,
         mimeType: _originalMimeType(fileName),
+        width: decoded.width,
+        height: decoded.height,
       );
     }
     return CompressedMeetingMinutePhoto(
       bytes: output,
       fileName: _jpegFileName(fileName),
       mimeType: jpegMimeType,
+      width: normalized.width,
+      height: normalized.height,
     );
   }
 
@@ -108,9 +112,15 @@ class CompressedMeetingMinutePhoto {
     required this.bytes,
     required this.fileName,
     required this.mimeType,
+    this.width = 0,
+    this.height = 0,
   });
 
   final Uint8List bytes;
   final String fileName;
   final String mimeType;
+
+  /// Pixel size of [bytes], so a caller can lay the photo out before upload.
+  final int width;
+  final int height;
 }
