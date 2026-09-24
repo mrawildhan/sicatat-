@@ -65,28 +65,6 @@ class PreventiveMaintenanceService {
     correctiveError: 'CM: $message',
   );
 
-  Future<MaintenanceSourceTimes> loadSourceTimes() async {
-    Future<DateTime?> newest(String table) async {
-      final Object response = await _client
-          .from(table)
-          .select('synced_at')
-          .order('synced_at', ascending: false)
-          .limit(1);
-      if (response is! List || response.isEmpty) return null;
-      return DateTime.tryParse(
-        requireJsonMap(response.first).optionalString('synced_at') ?? '',
-      )?.toLocal();
-    }
-
-    final List<DateTime?> times = await Future.wait<DateTime?>(
-      <Future<DateTime?>>[
-        newest('preventive_maintenance_work_order'),
-        newest('corrective_maintenance_work_order'),
-      ],
-    );
-    return MaintenanceSourceTimes(pmChangedAt: times[0], cmChangedAt: times[1]);
-  }
-
   Future<List<PreventiveMaintenanceWorkOrder>> loadOutstanding() async {
     final Object response = await _client
         .from('preventive_maintenance_work_order')

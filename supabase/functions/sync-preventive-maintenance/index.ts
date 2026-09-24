@@ -3,6 +3,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as XLSX from "npm:xlsx@0.18.5";
+import { recordDriveModified } from "../_shared/drive_modified.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -186,6 +187,11 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "Akun tidak aktif." }, 403);
   }
 
+  // Runs beside the import; awaited in `finally` before the response is sent.
+  const modified = recordDriveModified(admin, "preventive_maintenance", [
+    "1fzmWPxRiqH6ZIAECjqXN1PQJ99JkICEz",
+    "1lj-70kgos3_cSMQ6d7Ye8qjtAIA9N0LG",
+  ]);
   try {
     const loaded = await Promise.all(sources.map(readSource));
     const sourceFingerprint = await fingerprint(loaded.map((entry) => entry.buffer));
@@ -262,5 +268,7 @@ Deno.serve(async (req) => {
       triggered_by: caller.id,
     });
     return json({ ok: false, error: message }, 500);
+  } finally {
+    await modified;
   }
 });

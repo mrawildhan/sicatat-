@@ -3,6 +3,7 @@
 
 import * as XLSX from "npm:xlsx@0.18.5";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordDriveModified } from "../_shared/drive_modified.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -169,6 +170,8 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (callerError || !caller?.is_active) return json({ ok: false, error: "Akun tidak aktif." }, 403);
 
+  // Runs beside the import; awaited in `finally` before the response is sent.
+  const modified = recordDriveModified(admin, "purchase_requisition", [sourceWorkbookId]);
   try {
     const response = await fetch(sourceUrl, { signal: AbortSignal.timeout(60000) });
     if (!response.ok) throw new Error(`File PR tidak dapat dibaca (HTTP ${response.status}).`);
@@ -223,5 +226,7 @@ Deno.serve(async (req) => {
     // normal JSON response keeps the source problem understandable instead of
     // collapsing it into a generic FunctionsHttpException.
     return json({ ok: false, error: message });
+  } finally {
+    await modified;
   }
 });

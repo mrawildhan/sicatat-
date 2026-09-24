@@ -183,7 +183,6 @@ class _WarehouseToolLoanScreenState
   List<_SheetLoan> _sheetReturned = const <_SheetLoan>[];
   WarehouseDriveStatus? _sheetStatus;
   bool _checkingSheet = false;
-  DateTime? _sheetCheckedAt;
 
   @override
   void initState() {
@@ -312,7 +311,6 @@ class _WarehouseToolLoanScreenState
         await _loadSheetStatus();
       }
       if (!mounted) return;
-      setState(() => _sheetCheckedAt = DateTime.now());
       if (announce) {
         _toast(
           changed.isEmpty
@@ -527,13 +525,8 @@ class _WarehouseToolLoanScreenState
         children: <Widget>[
           SourceUpdateCard(
             title: 'Pinjaman di LIST ORDER (AMWH)',
-            changes: <String>[
-              status?.changedAt == null
-                  ? 'File LIST ORDER belum terbaca'
-                  : 'File berubah ${sourceUpdateStamp(status!.changedAt!)}',
-            ],
+            updatedAt: status?.modifiedAt,
             checking: _checkingSheet,
-            checkedAt: _sheetCheckedAt ?? status?.checkedAt,
             error: status?.error,
             onRefresh: () => _checkSheet(announce: true),
           ),

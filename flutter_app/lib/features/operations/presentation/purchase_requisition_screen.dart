@@ -34,6 +34,9 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   bool _hasMore = false;
   PurchaseRequisitionSnapshot? _snapshot;
 
+  /// Drive "Date modified" of PR.xlsx, recorded by the sync function.
+  DateTime? _modifiedAt;
+
   /// A spreadsheet check runs in the background; the stored data stays usable.
   bool _checking = false;
 
@@ -89,6 +92,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
         imported = true;
       }
       if (mounted) setState(() => _snapshot = snapshot);
+      await _loadModified();
       final List<PurchaseRequisition> items = !_hasSearchCriteria
           ? const <PurchaseRequisition>[]
           : await _find(service);
@@ -117,14 +121,13 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
           .loadSnapshot();
       if (!mounted) return;
       setState(() => _snapshot = snapshot);
+      await _loadModified();
       if (changed && _hasSearchCriteria) await _search();
       if (announce && mounted) {
         _toast(
           changed
               ? 'Data PR diperbarui dari spreadsheet (${_count(snapshot?.rows ?? 0)} PR).'
-              : snapshot?.changedAt == null
-              ? 'Spreadsheet PR belum berubah.'
-              : 'Spreadsheet PR belum berubah sejak ${sourceUpdateStamp(snapshot!.changedAt!)}.',
+              : 'Spreadsheet PR belum berubah.',
         );
       }
     } on Object catch (error) {
@@ -141,6 +144,18 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
       }
     } finally {
       if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  Future<void> _loadModified() async {
+    try {
+      final DateTime? modified = await loadSourceModified(
+        Supabase.instance.client,
+        const <String>['purchase_requisition'],
+      );
+      if (mounted) setState(() => _modifiedAt = modified);
+    } on Object {
+      // The card then says the date is not available yet.
     }
   }
 
@@ -270,15 +285,8 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
                   ),
                 SourceUpdateCard(
                   title: 'Pembaruan data PR',
-                  changes: <String>[
-                    _snapshot?.changedAt == null
-                        ? 'Tanggal perubahan spreadsheet belum tersedia'
-                        : 'Spreadsheet terakhir berubah '
-                              '${sourceUpdateStamp(_snapshot!.changedAt!)} · '
-                              '${_count(_snapshot!.rows)} PR',
-                  ],
+                  updatedAt: _modifiedAt,
                   checking: _checking,
-                  checkedAt: _snapshot?.checkedAt,
                   error: _snapshot?.lastError,
                 ),
                 const SizedBox(height: 12),

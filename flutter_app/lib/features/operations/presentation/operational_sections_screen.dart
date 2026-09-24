@@ -52,7 +52,9 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
   List<OperationalBudgetItem> _items = const <OperationalBudgetItem>[];
   bool _loading = true;
   String? _error;
-  DateTime? _checkedAt;
+
+  /// Newest Drive "Date modified" of the budget and actual workbooks.
+  DateTime? _modifiedAt;
   String? _checkError;
 
   /// The spreadsheet check runs in the background; stored data stays shown.
@@ -62,6 +64,18 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  Future<void> _loadModified() async {
+    try {
+      final DateTime? modified = await loadSourceModified(
+        Supabase.instance.client,
+        const <String>['operational_budget'],
+      );
+      if (mounted) setState(() => _modifiedAt = modified);
+    } on Object {
+      // The card then says the date is not available yet.
+    }
   }
 
   OperationalBudgetService? _createService() {
@@ -92,7 +106,6 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
         summary = await service.loadSummary();
         items = await service.loadItems();
         imported = true;
-        _checkedAt = DateTime.now();
       }
       if (mounted) {
         setState(() {
@@ -100,6 +113,7 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
           _items = items;
         });
       }
+      await _loadModified();
     } on Object catch (error) {
       if (mounted) {
         setState(
@@ -130,11 +144,9 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
           });
         }
       }
+      await _loadModified();
       if (!mounted) return;
-      setState(() {
-        _checkedAt = DateTime.now();
-        _checkError = null;
-      });
+      setState(() => _checkError = null);
       if (announce) {
         _toast(
           changed
@@ -162,7 +174,6 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final DateTime? changedAt = _summary?.syncedAt;
     return _OperationalSectionPage(
       title: 'Anggaran Operasional',
       icon: Icons.account_balance_wallet_rounded,
@@ -171,14 +182,8 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
         children: <Widget>[
           SourceUpdateCard(
             title: 'Pembaruan data anggaran',
-            changes: <String>[
-              changedAt == null
-                  ? 'Tanggal perubahan spreadsheet belum tersedia'
-                  : 'Spreadsheet anggaran & realisasi terakhir berubah '
-                        '${sourceUpdateStamp(changedAt)}',
-            ],
+            updatedAt: _modifiedAt,
             checking: _checking,
-            checkedAt: _checkedAt,
             error: _checkError,
             onRefresh: () => _check(announce: true),
           ),
@@ -372,8 +377,9 @@ class _OutstandingMaintenanceScreenState
       const <CorrectiveMaintenanceWorkOrder>[];
   bool _loading = true;
   String? _error;
-  MaintenanceSourceTimes? _sourceTimes;
-  DateTime? _checkedAt;
+
+  /// Newest Drive "Date modified" of the PM and CM workbooks.
+  DateTime? _modifiedAt;
   String? _checkError;
 
   /// The spreadsheet check runs in the background; stored data stays shown.
@@ -434,11 +440,9 @@ class _OutstandingMaintenanceScreenState
     setState(() => _checking = true);
     try {
       final PreventiveMaintenanceSyncResult sync = await service.synchronize();
+      await _loadModified();
       if (!mounted) return;
-      setState(() {
-        _checkedAt = (sync.updatedAt ?? DateTime.now()).toLocal();
-        _checkError = sync.correctiveError;
-      });
+      setState(() => _checkError = sync.correctiveError);
       if (sync.changed || _error != null) {
         await _loadSnapshot(service);
         if (mounted) setState(() => _error = null);
@@ -479,26 +483,26 @@ class _OutstandingMaintenanceScreenState
         .loadOutstanding();
     final List<CorrectiveMaintenanceWorkOrder> correctiveItems = await service
         .loadCorrectiveOutstanding();
-    MaintenanceSourceTimes? times;
-    try {
-      times = await service.loadSourceTimes();
-    } on Object {
-      // The status card only loses its dates; the lists still load.
-    }
     if (mounted) {
       setState(() {
         _items = items;
         _correctiveItems = correctiveItems;
-        if (times != null) _sourceTimes = times;
       });
     }
+    await _loadModified();
   }
 
-  String _changeLine(String label, DateTime? changedAt, int count) =>
-      changedAt == null
-      ? '$label: tanggal perubahan spreadsheet belum tersedia'
-      : '$label: spreadsheet terakhir berubah '
-            '${sourceUpdateStamp(changedAt)} · $count tertunda';
+  Future<void> _loadModified() async {
+    try {
+      final DateTime? modified = await loadSourceModified(
+        Supabase.instance.client,
+        const <String>['preventive_maintenance', 'corrective_maintenance'],
+      );
+      if (mounted) setState(() => _modifiedAt = modified);
+    } on Object {
+      // The card then says the date is not available yet.
+    }
+  }
 
   void _openPmSection(String crew, String site) {
     final List<PreventiveMaintenanceWorkOrder> items = _items
@@ -538,12 +542,8 @@ class _OutstandingMaintenanceScreenState
       error: _error,
       status: SourceUpdateCard(
         title: 'Pembaruan data PM & CM',
-        changes: <String>[
-          _changeLine('PM', _sourceTimes?.pmChangedAt, _items.length),
-          _changeLine('CM', _sourceTimes?.cmChangedAt, _correctiveItems.length),
-        ],
+        updatedAt: _modifiedAt,
         checking: _checking,
-        checkedAt: _checkedAt,
         error: _checkError,
         onRefresh: () => _check(announce: true),
       ),

@@ -153,7 +153,8 @@ async function listFolder(): Promise<{ id: string; name: string }[]> {
   return files;
 }
 
-async function download(id: string, label: string): Promise<Uint8Array> {
+/** The file bytes and its Drive "Date modified" (Last-Modified header). */
+async function download(id: string, label: string): Promise<{ bytes: Uint8Array; modifiedAt: string | null }> {
   const response = await fetch(
     `https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`,
     { signal: AbortSignal.timeout(60000) },
@@ -164,7 +165,9 @@ async function download(id: string, label: string): Promise<Uint8Array> {
   if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
     throw new Error(`${label} bukan file .xlsx atau belum dibagikan untuk umum.`);
   }
-  return bytes;
+  const lastModified = response.headers.get("last-modified");
+  const time = lastModified ? new Date(lastModified).getTime() : NaN;
+  return { bytes, modifiedAt: Number.isFinite(time) ? new Date(time).toISOString() : null };
 }
 
 async function insertInBatches(admin: SupabaseClient, table: string, rows: Record<string, unknown>[]) {
@@ -397,7 +400,7 @@ Deno.serve(async (req) => {
   try {
     const file = (await listFolder()).find((f) => filePatterns[source].test(f.name));
     if (!file) throw new Error(`File ${label} tidak ada di folder Drive Gudang.`);
-    const bytes = await download(file.id, label);
+    const { bytes, modifiedAt } = await download(file.id, label);
     const sourceFingerprint = await fingerprint(bytes);
     const { data: previous, error: previousError } = await admin
       .from("warehouse_drive_source")
@@ -408,6 +411,7 @@ Deno.serve(async (req) => {
     if (previous?.source_fingerprint === sourceFingerprint) {
       await admin.from("warehouse_drive_source").update({
         checked_at: now, error: null, error_at: null, file_id: file.id, file_name: file.name,
+        ...(modifiedAt ? { modified_at: modifiedAt } : {}),
       }).eq("source", source);
       return json({ ok: true, source, changed: false, rows: previous.row_count, file: file.name });
     }
@@ -423,6 +427,7 @@ Deno.serve(async (req) => {
       file_name: file.name,
       source_fingerprint: sourceFingerprint,
       report_at: result.reportAt,
+      modified_at: modifiedAt,
       row_count: result.rows,
       changed_at: now,
       checked_at: now,

@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as XLSX from "npm:xlsx@0.18.5";
+import { recordDriveModified } from "../_shared/drive_modified.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,6 +60,8 @@ Deno.serve(async (req) => {
   const { data: caller } = await admin.from("app_user").select("id,is_active").eq("nik", nik).maybeSingle();
   if (!caller?.is_active) return json({ ok: false, error: "Akun tidak aktif." }, 403);
 
+  // Runs beside the import; awaited in `finally` before the response is sent.
+  const modified = recordDriveModified(admin, "corrective_maintenance", ["1MXeJk9xIGKNEhxGhpFS-cWl9L03fMwwy"]);
   try {
     const response = await fetch(sourceUrl, { signal: AbortSignal.timeout(20000) });
     if (!response.ok) throw new Error(`CM terbaru.xlsx tidak dapat dibaca (HTTP ${response.status}).`);
@@ -115,5 +118,7 @@ Deno.serve(async (req) => {
       : String(error);
     console.error("CM synchronization failed", JSON.stringify(error));
     return json({ ok: false, error: message }, 500);
+  } finally {
+    await modified;
   }
 });

@@ -36,7 +36,6 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
   Map<WarehouseDriveSource, WarehouseDriveStatus> _drive =
       const <WarehouseDriveSource, WarehouseDriveStatus>{};
   bool _checkingDrive = false;
-  DateTime? _driveCheckedAt;
 
   static const String _stockColumns =
       'item_code,description,warehouse_code,warehouse_name,site_label,uoi,'
@@ -267,7 +266,6 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
       );
       await _loadDriveStatus();
       if (!mounted) return;
-      setState(() => _driveCheckedAt = DateTime.now());
       if (changed.contains(WarehouseDriveSource.inventory) && _hasSearched) {
         await _load();
       }
@@ -292,21 +290,19 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
       if (inventory?.error != null) 'Inventory: ${inventory!.error}',
       if (listOrder?.error != null) 'LIST ORDER: ${listOrder!.error}',
     ];
+    final DateTime? updatedAt =
+        <DateTime?>[
+          inventory?.modifiedAt,
+          listOrder?.modifiedAt,
+        ].whereType<DateTime>().fold<DateTime?>(
+          null,
+          (DateTime? newest, DateTime time) =>
+              newest == null || time.isAfter(newest) ? time : newest,
+        );
     return SourceUpdateCard(
       title: 'Pembaruan data Gudang',
-      changes: <String>[
-        inventory?.reportAt == null
-            ? 'Stok: laporan Warehouse Inventory belum terbaca'
-            : 'Stok: Warehouse Inventory per '
-                  '${sourceUpdateStamp(inventory!.reportAt!)}',
-        listOrder?.changedAt == null
-            ? 'Pengambilan: LIST ORDER belum terbaca'
-            : 'Pengambilan: LIST ORDER berubah '
-                  '${sourceUpdateStamp(listOrder!.changedAt!)}',
-      ],
+      updatedAt: updatedAt,
       checking: _checkingDrive,
-      checkedAt:
-          _driveCheckedAt ?? inventory?.checkedAt ?? listOrder?.checkedAt,
       error: errors.isEmpty ? null : errors.join(' · '),
       onRefresh: () => _refreshDrive(announce: true),
     );

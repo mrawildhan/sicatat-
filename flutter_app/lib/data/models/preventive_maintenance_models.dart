@@ -67,15 +67,6 @@ class PreventiveMaintenanceSyncResult {
   final String? correctiveError;
 }
 
-/// When the PM and CM spreadsheets last changed. Rows are rewritten only
-/// when a spreadsheet changes, so their newest synced_at is that moment.
-class MaintenanceSourceTimes {
-  const MaintenanceSourceTimes({this.pmChangedAt, this.cmChangedAt});
-
-  final DateTime? pmChangedAt;
-  final DateTime? cmChangedAt;
-}
-
 class CorrectiveMaintenanceWorkOrder {
   const CorrectiveMaintenanceWorkOrder({
     required this.workOrder,

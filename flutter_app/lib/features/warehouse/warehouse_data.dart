@@ -168,6 +168,7 @@ class WarehouseDriveStatus {
     this.fileName,
     this.reportAt,
     this.rowCount = 0,
+    this.modifiedAt,
     this.changedAt,
     this.checkedAt,
     this.error,
@@ -179,6 +180,9 @@ class WarehouseDriveStatus {
   /// Run time printed in the Ellipse report (inventory only).
   final DateTime? reportAt;
   final int rowCount;
+
+  /// Drive "Date modified" of the file (Last-Modified header).
+  final DateTime? modifiedAt;
 
   /// First check that saw the current file content.
   final DateTime? changedAt;
@@ -196,6 +200,7 @@ class WarehouseDriveStatus {
       fileName: json.optionalString('file_name'),
       reportAt: time('report_at'),
       rowCount: (json['row_count'] as num?)?.toInt() ?? 0,
+      modifiedAt: time('modified_at'),
       changedAt: time('changed_at'),
       checkedAt: time('checked_at'),
       error: json.optionalString('error'),
@@ -208,7 +213,8 @@ loadWarehouseDriveStatus(SupabaseClient client) async {
   final Object response = await client
       .from('warehouse_drive_source')
       .select(
-        'source,file_name,report_at,row_count,changed_at,checked_at,error',
+        'source,file_name,report_at,row_count,modified_at,changed_at,'
+        'checked_at,error',
       );
   final Map<WarehouseDriveSource, WarehouseDriveStatus> result =
       <WarehouseDriveSource, WarehouseDriveStatus>{};

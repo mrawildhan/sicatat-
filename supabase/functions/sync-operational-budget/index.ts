@@ -2,6 +2,7 @@
 // in Drive; Supabase stores a small, searchable snapshot for the application.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordDriveModified } from "../_shared/drive_modified.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -206,6 +207,12 @@ Deno.serve(async (req) => {
   const { data: caller, error: callerError } = await admin.from("app_user").select("id,is_active").eq("nik", nik).maybeSingle();
   if (callerError || !caller?.is_active) return json({ ok: false, error: "Akun tidak aktif." }, 403);
 
+  // Runs beside the import; awaited in `finally` before the response is sent.
+  const modified = recordDriveModified(admin, "operational_budget", [
+    workbookId,
+    "1Mv8n8YmGAp4_XTr5V8OJVaUKRGZWeBc_",
+    "16Gv5TC5Uri5MjDp8JWfLNryf4Bkksu3O",
+  ]);
   try {
     const [cppBudget, portBudget, cppActual, portActual] = await Promise.all([
       downloadCsv(source.cppBudget, "Budget CPP"), downloadCsv(source.portBudget, "Budget PORT"),
@@ -249,5 +256,7 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : String(error);
     await admin.from("operational_budget_sync_log").insert({ status: "failed", detail: message, triggered_by: caller.id });
     return json({ ok: false, error: message }, 500);
+  } finally {
+    await modified;
   }
 });

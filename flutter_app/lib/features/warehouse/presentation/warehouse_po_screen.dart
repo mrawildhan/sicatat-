@@ -26,7 +26,6 @@ class _WarehousePurchaseOrderScreenState
   bool _loading = true;
   bool _checking = false;
   bool _overdueOnly = false;
-  DateTime? _checkedAt;
   String? _error;
 
   @override
@@ -94,7 +93,6 @@ class _WarehousePurchaseOrderScreenState
       );
       await _loadStored();
       if (!mounted) return;
-      setState(() => _checkedAt = DateTime.now());
       if (announce) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -142,14 +140,8 @@ class _WarehousePurchaseOrderScreenState
             children: <Widget>[
               SourceUpdateCard(
                 title: 'Pembaruan Outstanding PO',
-                changes: <String>[
-                  status?.changedAt == null
-                      ? 'File Outstanding PO belum terbaca'
-                      : 'File berubah ${sourceUpdateStamp(status!.changedAt!)}'
-                            ' · ${_lines.length} baris PO',
-                ],
+                updatedAt: status?.modifiedAt,
                 checking: _checking,
-                checkedAt: _checkedAt ?? status?.checkedAt,
                 error: status?.error,
                 onRefresh: () => _check(announce: true),
               ),
