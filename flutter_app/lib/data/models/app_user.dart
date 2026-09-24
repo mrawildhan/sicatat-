@@ -126,6 +126,10 @@ extension UserRoleX on UserRole {
 
   bool get canManageUsers => this == UserRole.admin;
 
+  /// Major Job (laporan foto pekerjaan mingguan/bulanan) is the owner's own
+  /// report, so only admins see it (owner decision 2026-09-24).
+  bool get canUseMajorJob => this == UserRole.admin;
+
   bool get canManageMasterData =>
       this == UserRole.admin || this == UserRole.supervisorSmg;
 }

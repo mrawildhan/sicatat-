@@ -16,9 +16,14 @@ class MeetingMinutePhotoCompressor {
 
   const MeetingMinutePhotoCompressor._();
 
+  /// [maxDimension] and [targetBytes] default to the Notulen limits; Major
+  /// Job passes smaller ones because its photos are printed 5.4 cm wide and
+  /// live in a 1 GB Cloudflare KV namespace.
   static CompressedMeetingMinutePhoto compress({
     required Uint8List bytes,
     required String fileName,
+    int maxDimension = MeetingMinutePhotoCompressor.maxDimension,
+    int targetBytes = MeetingMinutePhotoCompressor.targetBytes,
   }) {
     image.Image? decoded;
     try {

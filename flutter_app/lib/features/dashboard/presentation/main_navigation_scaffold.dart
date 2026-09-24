@@ -22,6 +22,7 @@ enum MainNavigationTab {
   purchaseRequisitions,
   outstandingMaintenance,
   meetingMinutes,
+  majorJob,
   warehouse,
   documents,
   costCodes,
@@ -45,6 +46,7 @@ class MainNavigationScaffold extends ConsumerWidget {
     final canTemperature = user?.role.canOpenTemperature == true;
     final canReminders = user?.role.canUseReminders == true;
     final canWarehouse = user?.role.canUseWarehouse == true;
+    final canMajorJob = user?.role.canUseMajorJob == true;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -83,7 +85,8 @@ class MainNavigationScaffold extends ConsumerWidget {
           MainNavigationTab.materialRequests ||
           MainNavigationTab.purchaseRequisitions ||
           MainNavigationTab.outstandingMaintenance ||
-          MainNavigationTab.meetingMinutes => MainNavigationTab.operational,
+          MainNavigationTab.meetingMinutes ||
+          MainNavigationTab.majorJob => MainNavigationTab.operational,
           MainNavigationTab.warehouse ||
           MainNavigationTab.documents ||
           MainNavigationTab.costCodes ||
@@ -108,6 +111,7 @@ class MainNavigationScaffold extends ConsumerWidget {
                 canTemperature: canTemperature,
                 canReminders: canReminders,
                 canWarehouse: canWarehouse,
+                canMajorJob: canMajorJob,
               );
               return;
             case MainNavigationTab.reference:
@@ -117,6 +121,7 @@ class MainNavigationScaffold extends ConsumerWidget {
                 canTemperature: canTemperature,
                 canReminders: canReminders,
                 canWarehouse: canWarehouse,
+                canMajorJob: canMajorJob,
               );
               return;
             case MainNavigationTab.temperature:
@@ -139,6 +144,9 @@ class MainNavigationScaffold extends ConsumerWidget {
               return;
             case MainNavigationTab.meetingMinutes:
               context.go('/meeting-minutes');
+              return;
+            case MainNavigationTab.majorJob:
+              context.go('/major-job');
               return;
             case MainNavigationTab.warehouse:
               context.go('/warehouse');
@@ -287,6 +295,7 @@ class MainNavigationScaffold extends ConsumerWidget {
                   canTemperature: user?.role.canOpenTemperature == true,
                   canReminders: user?.role.canUseReminders == true,
                   canWarehouse: user?.role.canUseWarehouse == true,
+                  canMajorJob: canMajorJob,
                 ),
         );
       },

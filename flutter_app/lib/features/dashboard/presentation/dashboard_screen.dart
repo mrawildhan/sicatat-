@@ -97,6 +97,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final bool hasTemperatureTab = user?.role.canOpenTemperature == true;
     final bool hasReminderTab = user?.role.canUseReminders == true;
     final bool hasWarehouseTab = user?.role.canUseWarehouse == true;
+    final bool hasMajorJob = user?.role.canUseMajorJob == true;
     final int? reminderIndex = hasReminderTab
         ? (hasTemperatureTab ? 2 : 1)
         : null;
@@ -210,6 +211,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 canTemperature: hasTemperatureTab,
                                 canReminders: hasReminderTab,
                                 canWarehouse: hasWarehouseTab,
+                                canMajorJob: hasMajorJob,
                               ),
                             ),
                             _desktopSidebarItem(
@@ -223,6 +225,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 canTemperature: hasTemperatureTab,
                                 canReminders: hasReminderTab,
                                 canWarehouse: hasWarehouseTab,
+                                canMajorJob: hasMajorJob,
                               ),
                             ),
                             _desktopSidebarItem(
@@ -273,6 +276,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 canTemperature: hasTemperatureTab,
                 canReminders: hasReminderTab,
                 canWarehouse: hasWarehouseTab,
+                canMajorJob: hasMajorJob,
                 onHome: () => selectDestination(0),
                 onProfile: () => selectDestination(profileIndex),
               ),
@@ -513,6 +517,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         user?.role.canReviewTemperature == true;
     final bool hasReminders = user?.role.canUseReminders == true;
     final bool hasWarehouse = user?.role.canUseWarehouse == true;
+    final bool hasMajorJob = user?.role.canUseMajorJob == true;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
@@ -593,6 +598,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             canTemperature: hasTemperature,
             canReminders: hasReminders,
             canWarehouse: hasWarehouse,
+            canMajorJob: hasMajorJob,
           ),
         ),
         const SizedBox(height: 8),
@@ -606,6 +612,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             canTemperature: hasTemperature,
             canReminders: hasReminders,
             canWarehouse: hasWarehouse,
+            canMajorJob: hasMajorJob,
           ),
         ),
         const SizedBox(height: 12),

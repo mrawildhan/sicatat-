@@ -40,6 +40,7 @@ Android release APKs land in `flutter_app/build/app/outputs/flutter-apk/` (only 
 | Admin user screen | `flutter_app/lib/features/users/presentation/user_management_screen.dart` |
 | Database schema/migrations | `supabase/schema.sql`, `supabase/migrations/` |
 | Admin account creation edge function | `supabase/functions/create-crew-user/index.ts` |
+| Major Job (admin photo report; Cloudflare D1 + KV, not Supabase) | `flutter_app/lib/features/major_job/`, `cloudflare/major-job/` |
 | Full product/recovery specification | `docs/PRD-SICATAT-v0.5.md` |
 
 ## Current UX behavior

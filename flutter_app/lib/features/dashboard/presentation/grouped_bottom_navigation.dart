@@ -13,6 +13,7 @@ Future<void> openNavigationGroup(
   required bool canTemperature,
   required bool canReminders,
   required bool canWarehouse,
+  bool canMajorJob = false,
 }) async {
   final List<_NavigationGroupOption> options = <_NavigationGroupOption>[
     if (operational && canTemperature)
@@ -63,6 +64,13 @@ Future<void> openNavigationGroup(
         title: 'Notulen Rapat',
         subtitle: 'Buat dan lanjutkan draf notulen',
         route: '/meeting-minutes',
+      ),
+    if (operational && canMajorJob)
+      const _NavigationGroupOption(
+        icon: Icons.photo_library_outlined,
+        title: 'Major Job',
+        subtitle: 'Laporan foto pekerjaan mingguan & bulanan',
+        route: '/major-job',
       ),
     if (!operational && canWarehouse)
       const _NavigationGroupOption(
@@ -224,6 +232,7 @@ class GroupedBottomNavigation extends StatelessWidget {
     required this.canTemperature,
     required this.canReminders,
     required this.canWarehouse,
+    this.canMajorJob = false,
     this.onHome,
     this.onProfile,
     super.key,
@@ -233,6 +242,7 @@ class GroupedBottomNavigation extends StatelessWidget {
   final bool canTemperature;
   final bool canReminders;
   final bool canWarehouse;
+  final bool canMajorJob;
   final VoidCallback? onHome;
   final VoidCallback? onProfile;
 
@@ -252,7 +262,8 @@ class GroupedBottomNavigation extends StatelessWidget {
       'materialRequests' ||
       'purchaseRequisitions' ||
       'outstandingMaintenance' ||
-      'meetingMinutes' => 'operational',
+      'meetingMinutes' ||
+      'majorJob' => 'operational',
       'warehouse' ||
       'documents' ||
       'costCodes' ||
@@ -287,6 +298,7 @@ class GroupedBottomNavigation extends StatelessWidget {
                     canTemperature: canTemperature,
                     canReminders: canReminders,
                     canWarehouse: canWarehouse,
+                    canMajorJob: canMajorJob,
                   );
                 case 'reference':
                   openNavigationGroup(
@@ -295,6 +307,7 @@ class GroupedBottomNavigation extends StatelessWidget {
                     canTemperature: canTemperature,
                     canReminders: canReminders,
                     canWarehouse: canWarehouse,
+                    canMajorJob: canMajorJob,
                   );
               }
             },

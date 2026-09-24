@@ -29,6 +29,8 @@ import 'features/documents/presentation/document_center_screen.dart';
 import 'features/documents/presentation/cost_code_reference_screen.dart';
 import 'features/documents/presentation/equipment_reference_screen.dart';
 import 'features/guide/presentation/crew_guide_screen.dart';
+import 'features/major_job/presentation/major_job_editor_screen.dart';
+import 'features/major_job/presentation/major_job_screen.dart';
 import 'features/reminders/presentation/reminder_screen.dart';
 import 'features/operations/presentation/operational_sections_screen.dart';
 import 'features/operations/presentation/purchase_requisition_screen.dart';
@@ -51,6 +53,9 @@ const Set<UserRole> _temperatureRoles = <UserRole>{
   UserRole.supervisorSmg,
   UserRole.admin,
 };
+
+/// Same rule as `UserRoleX.canUseMajorJob`.
+const Set<UserRole> _majorJobRoles = <UserRole>{UserRole.admin};
 
 Widget _dailyCheckPage(
   Widget Function(DailyCheckFormType type) screen,
@@ -613,6 +618,44 @@ final _router = GoRouter(
           child: MeetingMinuteEditorScreen(
             meetingId: state.pathParameters['id'],
           ),
+        ),
+      ),
+    ),
+    // Major Job routes are flat on purpose: a nested parent route would keep
+    // its old state when the editor returns to it (see ReloadOnReturn).
+    GoRoute(
+      path: '/major-job',
+      builder: (_, state) => RoleGuard(
+        allowed: _majorJobRoles,
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.majorJob,
+          child: MajorJobScreen(
+            initialMonth: state.uri.queryParameters['month'],
+          ),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/major-job/new',
+      builder: (_, state) => RoleGuard(
+        allowed: _majorJobRoles,
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.majorJob,
+          child: MajorJobEditorScreen(
+            initialDate: DateTime.tryParse(
+              state.uri.queryParameters['date'] ?? '',
+            ),
+          ),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/major-job/job/:id',
+      builder: (_, state) => RoleGuard(
+        allowed: _majorJobRoles,
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.majorJob,
+          child: MajorJobEditorScreen(jobId: state.pathParameters['id']),
         ),
       ),
     ),

@@ -20,6 +20,13 @@ class AppConfig {
     defaultValue: 'https://drive.google.com/drive/folders/1Mrt4ND-wPgkfmCngbmTfHBwyAo1oclxp?usp=sharing',
   );
 
+  /// Worker Cloudflare Major Job (D1 + KV, bukan Supabase). Aksesnya memakai
+  /// token login SICATAT yang sama dan hanya menerima admin aktif.
+  static const majorJobApiUrl = String.fromEnvironment(
+    'MAJOR_JOB_API_URL',
+    defaultValue: 'https://sicatat-major-job.sicatat.workers.dev',
+  );
+
   static bool get isSupabaseConfigured =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }
