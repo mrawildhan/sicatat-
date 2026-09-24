@@ -217,7 +217,7 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     entries: <GuideEntry>[
       GuideEntry(
         'Membuka Gudang',
-        'Gudang ada di menu Operasional. Semua pengguna bisa mencari stok dan alat; pencatatan transaksi hanya untuk admin, supervisor SMG, dan warehouseman.',
+        'Gudang ada di menu Operasional. Pilih Cari barang untuk mencari stok dan alat (semua pengguna). Pengambilan Barang, Peminjaman Alat, dan Penerimaan Barang hanya muncul untuk admin, supervisor SMG, dan warehouseman.',
       ),
       GuideEntry(
         'Mencari stok',

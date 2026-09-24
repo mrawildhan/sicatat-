@@ -408,14 +408,6 @@ class _MajorJobEditorScreenState extends State<MajorJobEditorScreen> {
         'Foto ($count/$majorJobMaxPhotos)',
         style: AppTextStyles.sectionTitle,
       ),
-      const SizedBox(height: 4),
-      Text(
-        'Foto tampil persis seperti potongan di PDF: landscape 5,4 × 3,6 cm, '
-        'portrait 2,4 × 3,6 cm. Urutan di sini = urutan di PDF. '
-        'Ketuk foto untuk memperbesar.'
-        '${_isNew ? ' Foto diunggah saat pekerjaan disimpan.' : ''}',
-        style: AppTextStyles.supporting,
-      ),
       const SizedBox(height: 12),
       Wrap(
         spacing: 12,

@@ -247,17 +247,17 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
     final bool useDesktopHeader =
         kIsWeb && MediaQuery.sizeOf(context).width >= 920;
     return AppBackScope(
-      fallbackRoute: '/dashboard',
+      fallbackRoute: '/warehouse',
       child: Scaffold(
         appBar: useDesktopHeader
             ? null
             : AppBar(
                 leading: IconButton(
-                  onPressed: () => context.go('/dashboard'),
+                  onPressed: () => context.go('/warehouse'),
                   icon: const Icon(Icons.arrow_back_rounded),
-                  tooltip: 'Kembali ke menu',
+                  tooltip: 'Kembali ke menu Gudang',
                 ),
-                title: const Text('Gudang'),
+                title: const Text('Cari barang'),
                 actions: <Widget>[
                   if (canSync)
                     IconButton(
@@ -284,7 +284,6 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
             _WarehouseAutomaticSyncNotice(
               sourceUpdatedOn: _spreadsheetUpdatedOn,
             ),
-            if (canSync) const _WarehouseActions(),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: TextField(
@@ -367,7 +366,15 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
     padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
     child: Row(
       children: <Widget>[
-        const Expanded(child: Text('Gudang', style: AppTextStyles.pageTitle)),
+        IconButton(
+          onPressed: () => context.go('/warehouse'),
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Kembali ke menu Gudang',
+        ),
+        const SizedBox(width: 4),
+        const Expanded(
+          child: Text('Cari barang', style: AppTextStyles.pageTitle),
+        ),
         if (canSync)
           IconButton(
             onPressed: _syncing ? null : _sync,
@@ -437,67 +444,6 @@ class _WarehouseAutomaticSyncNotice extends StatelessWidget {
     if (date == null) return value;
     return '${date.day}/${date.month}/${(date.year % 100).toString().padLeft(2, '0')}';
   }
-}
-
-/// Shortcuts to the warehouse transactions, shown to warehouse managers.
-class _WarehouseActions extends StatelessWidget {
-  const _WarehouseActions();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-    child: Row(
-      children: <Widget>[
-        for (final (IconData icon, String label, String route)
-            in <(IconData, String, String)>[
-              (Icons.outbox_outlined, 'Pengambilan', '/warehouse/issues'),
-              (
-                Icons.handyman_outlined,
-                'Peminjaman alat',
-                '/warehouse/tool-loans',
-              ),
-              (
-                Icons.move_to_inbox_outlined,
-                'Penerimaan',
-                '/warehouse/receipts',
-              ),
-            ]) ...<Widget>[
-          if (route != '/warehouse/issues') const SizedBox(width: 8),
-          Expanded(
-            child: Card(
-              margin: EdgeInsets.zero,
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => context.go(route),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 10,
-                  ),
-                  child: Column(
-                    children: <Widget>[
-                      Icon(icon, color: AppColors.green),
-                      const SizedBox(height: 4),
-                      Text(
-                        label,
-                        maxLines: 2,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          height: 1.15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    ),
-  );
 }
 
 class _WarehouseFilterBar extends StatelessWidget {
