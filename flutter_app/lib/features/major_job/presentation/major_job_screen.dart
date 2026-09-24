@@ -34,33 +34,53 @@ class _MajorJobScreenState extends State<MajorJobScreen> {
   MajorJobUsage? _usage;
   String? _error;
   bool _loading = true;
+  int _loadRequest = 0;
 
   @override
   void initState() {
     super.initState();
-    final DateTime now = DateTime.now();
-    final RegExpMatch? match = RegExp(
-      r'^(\d{4})-(0[1-9]|1[0-2])$',
-    ).firstMatch(widget.initialMonth ?? '');
-    _year = match == null ? now.year : int.parse(match.group(1)!);
-    _month = match == null ? now.month : int.parse(match.group(2)!);
+    _applyMonth(widget.initialMonth);
     _load();
   }
 
+  /// GoRouter keeps this State when only `?month=` changes (same route), so
+  /// the new month must be read and loaded here, not only in initState.
+  @override
+  void didUpdateWidget(MajorJobScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialMonth != widget.initialMonth) {
+      _applyMonth(widget.initialMonth);
+      _jobs = null;
+      _load();
+    }
+  }
+
+  void _applyMonth(String? value) {
+    final DateTime now = DateTime.now();
+    final RegExpMatch? match = RegExp(
+      r'^(\d{4})-(0[1-9]|1[0-2])$',
+    ).firstMatch(value ?? '');
+    _year = match == null ? now.year : int.parse(match.group(1)!);
+    _month = match == null ? now.month : int.parse(match.group(2)!);
+  }
+
   Future<void> _load() async {
+    // Only the latest request may update the screen: switching month while an
+    // older request is in flight must not bring the old month's list back.
+    final int request = ++_loadRequest;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       final List<MajorJob> jobs = await _api.listMonth(_year, _month);
-      if (!mounted) return;
+      if (!mounted || request != _loadRequest) return;
       setState(() {
         _jobs = jobs;
         _loading = false;
       });
     } on Object catch (error) {
-      if (!mounted) return;
+      if (!mounted || request != _loadRequest) return;
       setState(() {
         _error = error is MajorJobApiException
             ? error.message

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:image/image.dart' as image;
@@ -199,6 +200,63 @@ void main() {
     await tester.pumpAndSettle();
     await openOperational(canMajorJob: true);
     expect(find.text('Major Job'), findsOneWidget);
+  });
+
+  testWidgets('pindah ?month= di halaman yang sama memuat ulang bulannya', (
+    tester,
+  ) async {
+    final List<String> months = <String>[];
+    final MockClient client = MockClient((request) async {
+      if (request.url.path == '/usage') {
+        return http.Response(
+          '{"photos":0,"bytes":0,"capacity_bytes":1073741824}',
+          200,
+        );
+      }
+      final String month = request.url.queryParameters['month']!;
+      months.add(month);
+      return http.Response(
+        jsonEncode(<String, Object?>{
+          'jobs': <Object?>[
+            <String, Object?>{
+              'id': 'j-$month',
+              'work_date': '$month-02',
+              'description': 'Pekerjaan bulan $month',
+              'created_by': '1',
+              'photos': <Object?>[],
+            },
+          ],
+        }),
+        200,
+      );
+    });
+    final MajorJobApi api = MajorJobApi(
+      client: client,
+      baseUrl: 'https://api.test',
+      accessToken: () async => 'token-uji',
+    );
+    final GoRouter router = GoRouter(
+      initialLocation: '/major-job?month=2026-08',
+      routes: <RouteBase>[
+        GoRoute(
+          path: '/major-job',
+          builder: (_, state) => MajorJobScreen(
+            initialMonth: state.uri.queryParameters['month'],
+            api: api,
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    expect(find.text('Pekerjaan bulan 2026-08'), findsOneWidget);
+
+    router.go('/major-job?month=2026-09');
+    await tester.pumpAndSettle();
+    expect(find.text('September 2026'), findsOneWidget);
+    expect(find.text('Pekerjaan bulan 2026-09'), findsOneWidget);
+    expect(find.text('Pekerjaan bulan 2026-08'), findsNothing);
+    expect(months, <String>['2026-08', '2026-09']);
   });
 
   testWidgets('daftar Major Job dikelompokkan per periode dengan nomor bersambung', (
