@@ -591,7 +591,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         _homeMenuCard(
           icon: Icons.fact_check_rounded,
           title: 'Operasional',
-          subtitle: 'Suhu, pengingat, anggaran, permintaan barang, PM & CM tertunda, dan notulen',
+          subtitle: 'Suhu, gudang, pengingat, anggaran, permintaan barang, PM & CM tertunda, dan notulen',
           onTap: () => openNavigationGroup(
             context,
             operational: true,
@@ -605,7 +605,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         _homeMenuCard(
           icon: Icons.folder_copy_rounded,
           title: 'Referensi',
-          subtitle: 'Gudang, pusat dokumen, SOP, manual, dan drawing',
+          subtitle: 'Pusat dokumen, SOP, manual, drawing, kode biaya, dan referensi alat',
           onTap: () => openNavigationGroup(
             context,
             operational: false,

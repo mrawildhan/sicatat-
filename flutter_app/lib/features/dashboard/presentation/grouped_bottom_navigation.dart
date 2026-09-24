@@ -30,6 +30,13 @@ Future<void> openNavigationGroup(
         subtitle: 'Tindak lanjut pekerjaan',
         route: '/reminders',
       ),
+    if (operational && canWarehouse)
+      const _NavigationGroupOption(
+        icon: Icons.inventory_2_outlined,
+        title: 'Gudang',
+        subtitle: 'Stok, pengambilan, peminjaman alat, dan penerimaan',
+        route: '/warehouse',
+      ),
     if (operational)
       const _NavigationGroupOption(
         icon: Icons.account_balance_wallet_outlined,
@@ -71,13 +78,6 @@ Future<void> openNavigationGroup(
         title: 'Major Job',
         subtitle: 'Laporan foto pekerjaan mingguan & bulanan',
         route: '/major-job',
-      ),
-    if (!operational && canWarehouse)
-      const _NavigationGroupOption(
-        icon: Icons.inventory_2_outlined,
-        title: 'Gudang',
-        subtitle: 'Cari stok dan lokasi barang',
-        route: '/warehouse',
       ),
     if (!operational)
       const _NavigationGroupOption(
@@ -263,11 +263,9 @@ class GroupedBottomNavigation extends StatelessWidget {
       'purchaseRequisitions' ||
       'outstandingMaintenance' ||
       'meetingMinutes' ||
-      'majorJob' => 'operational',
-      'warehouse' ||
-      'documents' ||
-      'costCodes' ||
-      'equipmentReference' => 'reference',
+      'majorJob' ||
+      'warehouse' => 'operational',
+      'documents' || 'costCodes' || 'equipmentReference' => 'reference',
       _ => selected,
     };
     final index = groups.indexOf(current);

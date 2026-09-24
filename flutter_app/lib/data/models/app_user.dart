@@ -110,12 +110,16 @@ extension UserRoleX on UserRole {
       this == UserRole.supervisorSmg ||
       this == UserRole.foremanLv;
 
-  bool get canUseWarehouse =>
+  /// Everyone may search warehouse stock and tools (owner decision
+  /// 2026-09-24, when Gudang moved from Referensi to Operasional).
+  bool get canUseWarehouse => true;
+
+  /// Records pickups, tool loans and goods receipts, and runs the manual
+  /// sync. Same roles as `can_manage_warehouse_site` in the database.
+  bool get canManageWarehouse =>
       this == UserRole.admin ||
       this == UserRole.supervisorSmg ||
       this == UserRole.warehouseman;
-
-  bool get canManageWarehouse => canUseWarehouse;
 
   /// Planner access follows the existing operational roles; there is no
   /// separate planner role in the current SICATAT user master.

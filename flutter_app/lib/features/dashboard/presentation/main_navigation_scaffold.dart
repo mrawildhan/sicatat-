@@ -86,8 +86,8 @@ class MainNavigationScaffold extends ConsumerWidget {
           MainNavigationTab.purchaseRequisitions ||
           MainNavigationTab.outstandingMaintenance ||
           MainNavigationTab.meetingMinutes ||
-          MainNavigationTab.majorJob => MainNavigationTab.operational,
-          MainNavigationTab.warehouse ||
+          MainNavigationTab.majorJob ||
+          MainNavigationTab.warehouse => MainNavigationTab.operational,
           MainNavigationTab.documents ||
           MainNavigationTab.costCodes ||
           MainNavigationTab.equipmentReference => MainNavigationTab.reference,

@@ -216,8 +216,24 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
     title: 'Gudang',
     entries: <GuideEntry>[
       GuideEntry(
+        'Membuka Gudang',
+        'Gudang ada di menu Operasional. Semua pengguna bisa mencari stok dan alat; pencatatan transaksi hanya untuk admin, supervisor SMG, dan warehouseman.',
+      ),
+      GuideEntry(
         'Mencari stok',
         'Ketik minimal dua karakter untuk mencari nama item, kode SC, atau lokasi bin. Daftar memang kosong sebelum ada pencarian.',
+      ),
+      GuideEntry(
+        'Pengambilan barang',
+        'Isi nama pengambil, nomor job, lalu kode SC dan jumlah tiap item. Deskripsi, satuan, bin, dan stok terisi otomatis dari data Gudang.',
+      ),
+      GuideEntry(
+        'Peminjaman alat',
+        'Pilih alat yang siap pakai, isi peminjam dan area kerja. Pinjaman lebih dari 3 hari ditandai merah. Saat alat kembali, ketuk Kembalikan dan catat kondisinya. Alat baru didaftarkan lewat tombol registrasi.',
+      ),
+      GuideEntry(
+        'Penerimaan barang dan Cek PO',
+        'Ketik nomor PO untuk memuat supplier, data PR, dan item dari penerimaan sebelumnya, lalu isi nomor DO dan jumlah yang datang. Tab Cek PO / PR / stok mencari berdasarkan nomor PO, requestor, atau stock code.',
       ),
       GuideEntry(
         'Melihat detail',

@@ -34,7 +34,10 @@ import 'features/major_job/presentation/major_job_screen.dart';
 import 'features/reminders/presentation/reminder_screen.dart';
 import 'features/operations/presentation/operational_sections_screen.dart';
 import 'features/operations/presentation/purchase_requisition_screen.dart';
+import 'features/warehouse/presentation/warehouse_issue_screen.dart';
+import 'features/warehouse/presentation/warehouse_receipt_screen.dart';
 import 'features/warehouse/presentation/warehouse_screen.dart';
+import 'features/warehouse/presentation/warehouse_tool_loan_screen.dart';
 import 'features/reports/presentation/report_screen.dart';
 import 'features/reports/presentation/sheet_export_screen.dart';
 import 'features/reports/presentation/high_temperature_report_screen.dart';
@@ -56,6 +59,21 @@ const Set<UserRole> _temperatureRoles = <UserRole>{
 
 /// Same rule as `UserRoleX.canUseMajorJob`.
 const Set<UserRole> _majorJobRoles = <UserRole>{UserRole.admin};
+
+/// Same rule as `UserRoleX.canManageWarehouse`.
+const Set<UserRole> _warehouseManagerRoles = <UserRole>{
+  UserRole.admin,
+  UserRole.supervisorSmg,
+  UserRole.warehouseman,
+};
+
+Widget _warehousePage(Widget screen) => RoleGuard(
+  allowed: _warehouseManagerRoles,
+  child: MainNavigationScaffold(
+    selectedTab: MainNavigationTab.warehouse,
+    child: screen,
+  ),
+);
 
 Widget _dailyCheckPage(
   Widget Function(DailyCheckFormType type) screen,
@@ -391,15 +409,47 @@ final _router = GoRouter(
       path: '/warehouse',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{
-          UserRole.admin,
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
           UserRole.supervisorSmg,
           UserRole.warehouseman,
+          UserRole.admin,
         },
         child: MainNavigationScaffold(
           selectedTab: MainNavigationTab.warehouse,
           child: WarehouseScreen(),
         ),
       ),
+    ),
+    GoRoute(
+      path: '/warehouse/issues',
+      builder: (_, __) => _warehousePage(const WarehouseIssueListScreen()),
+    ),
+    GoRoute(
+      path: '/warehouse/issues/new',
+      builder: (_, __) => _warehousePage(const WarehouseIssueFormScreen()),
+    ),
+    GoRoute(
+      path: '/warehouse/tool-loans',
+      builder: (_, __) => _warehousePage(const WarehouseToolLoanScreen()),
+    ),
+    GoRoute(
+      path: '/warehouse/tool-loans/new',
+      builder: (_, __) => _warehousePage(const WarehouseToolLoanFormScreen()),
+    ),
+    GoRoute(
+      path: '/warehouse/tools/new',
+      builder: (_, __) => _warehousePage(const WarehouseToolRegisterScreen()),
+    ),
+    GoRoute(
+      path: '/warehouse/receipts',
+      builder: (_, __) => _warehousePage(const WarehouseReceiptScreen()),
+    ),
+    GoRoute(
+      path: '/warehouse/receipts/new',
+      builder: (_, __) => _warehousePage(const WarehouseReceiptFormScreen()),
     ),
     GoRoute(
       path: '/documents',

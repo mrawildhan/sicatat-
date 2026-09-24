@@ -11,6 +11,7 @@ import '../../../core/widgets/app_navigation.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/sicatat_types.dart';
 import '../../auth/application/current_user_provider.dart';
+import '../warehouse_data.dart';
 
 class WarehouseScreen extends ConsumerStatefulWidget {
   const WarehouseScreen({super.key});
@@ -25,6 +26,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
   Timer? _searchDebounce;
   List<_WarehouseStock> _items = const <_WarehouseStock>[];
   List<_WarehouseTool> _tools = const <_WarehouseTool>[];
+  Set<String> _toolsOnLoan = const <String>{};
   String? _warehouseCode;
   bool _showTools = false;
   bool _hasSearched = false;
@@ -93,18 +95,31 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
         dynamic request = _client
             .from('warehouse_tool')
             .select(
-              'registration_code,tool_name,mnemonic,serial_number,tool_status,note,last_log_on,site_label',
+              'id,registration_code,tool_name,mnemonic,serial_number,tool_status,'
+              'condition_status,condition_note,note,last_log_on,site_label',
             );
         if (query.length >= 2) {
           request = request.or(
             'registration_code.ilike.%$query%,tool_name.ilike.%$query%,mnemonic.ilike.%$query%,serial_number.ilike.%$query%',
           );
         }
-        stockResponse =
-            (await request
-                    .order('tool_name', ascending: true)
-                    .limit(_pageSize + 1))
-                as Object;
+        final List<Object?> toolResponses = await Future.wait<Object?>(
+          <Future<Object?>>[
+            request.order('tool_name', ascending: true).limit(_pageSize + 1)
+                as Future<Object?>,
+            _client.rpc<Object?>('warehouse_tools_on_loan'),
+          ],
+        );
+        stockResponse = toolResponses[0] as Object;
+        final Object? onLoan = toolResponses[1];
+        _toolsOnLoan = onLoan is List
+            ? onLoan
+                  .map(
+                    (Object? row) =>
+                        requireJsonMap(row).requiredString('tool_id'),
+                  )
+                  .toSet()
+            : const <String>{};
       } else {
         dynamic request = _client
             .from('warehouse_stock')
@@ -269,6 +284,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
             _WarehouseAutomaticSyncNotice(
               sourceUpdatedOn: _spreadsheetUpdatedOn,
             ),
+            if (canSync) const _WarehouseActions(),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: TextField(
@@ -330,7 +346,10 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
                                 shown: _pageSize,
                               )
                             : _showTools
-                            ? _WarehouseToolCard(item: _tools[index])
+                            ? _WarehouseToolCard(
+                                item: _tools[index],
+                                onLoan: _toolsOnLoan.contains(_tools[index].id),
+                              )
                             : _WarehouseCard(
                                 item: _items[index],
                                 onTap: () => _showStockDetails(_items[index]),
@@ -418,6 +437,67 @@ class _WarehouseAutomaticSyncNotice extends StatelessWidget {
     if (date == null) return value;
     return '${date.day}/${date.month}/${(date.year % 100).toString().padLeft(2, '0')}';
   }
+}
+
+/// Shortcuts to the warehouse transactions, shown to warehouse managers.
+class _WarehouseActions extends StatelessWidget {
+  const _WarehouseActions();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+    child: Row(
+      children: <Widget>[
+        for (final (IconData icon, String label, String route)
+            in <(IconData, String, String)>[
+              (Icons.outbox_outlined, 'Pengambilan', '/warehouse/issues'),
+              (
+                Icons.handyman_outlined,
+                'Peminjaman alat',
+                '/warehouse/tool-loans',
+              ),
+              (
+                Icons.move_to_inbox_outlined,
+                'Penerimaan',
+                '/warehouse/receipts',
+              ),
+            ]) ...<Widget>[
+          if (route != '/warehouse/issues') const SizedBox(width: 8),
+          Expanded(
+            child: Card(
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => context.go(route),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 10,
+                  ),
+                  child: Column(
+                    children: <Widget>[
+                      Icon(icon, color: AppColors.green),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
 }
 
 class _WarehouseFilterBar extends StatelessWidget {
@@ -682,68 +762,80 @@ class _WarehouseStockDetails extends StatelessWidget {
 }
 
 class _WarehouseToolCard extends StatelessWidget {
-  const _WarehouseToolCard({required this.item});
+  const _WarehouseToolCard({required this.item, required this.onLoan});
   final _WarehouseTool item;
+  final bool onLoan;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            item.toolName,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 7,
-            children: <Widget>[
-              _chip(Icons.qr_code_rounded, item.registrationCode),
-              _chip(Icons.location_on_outlined, item.siteLabel),
-              if (item.toolStatus != null)
-                _chip(Icons.verified_outlined, item.toolStatus!),
-              if (item.mnemonic != null)
-                _chip(Icons.sell_outlined, item.mnemonic!),
-              if (item.serialNumber != null)
-                _chip(Icons.numbers_rounded, item.serialNumber!),
-            ],
-          ),
-          if (item.note != null && item.note!.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 10),
-            Text(item.note!, style: const TextStyle(color: AppColors.muted)),
-          ],
-          if (item.lastLogOn != null) ...<Widget>[
-            const SizedBox(height: 8),
+  Widget build(BuildContext context) {
+    // A SICATAT loan or recorded condition is newer than the sheet status.
+    final String? status = onLoan
+        ? 'dipinjam'
+        : item.conditionStatus ?? item.toolStatus;
+    final String? note = item.conditionNote ?? item.note;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
             Text(
-              'Catatan alat terakhir ${_formatDate(item.lastLogOn!)}',
-              style: const TextStyle(fontSize: 12, color: AppColors.muted),
+              item.toolName,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
             ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 7,
+              children: <Widget>[
+                _chip(Icons.qr_code_rounded, item.registrationCode),
+                _chip(Icons.location_on_outlined, item.siteLabel),
+                if (status != null)
+                  _chip(
+                    Icons.verified_outlined,
+                    warehouseConditionLabel(status),
+                    color: warehouseConditionColor(status),
+                  ),
+                if (item.mnemonic != null)
+                  _chip(Icons.sell_outlined, item.mnemonic!),
+                if (item.serialNumber != null)
+                  _chip(Icons.numbers_rounded, item.serialNumber!),
+              ],
+            ),
+            if (note != null && note.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 10),
+              Text(note, style: const TextStyle(color: AppColors.muted)),
+            ],
+            if (item.lastLogOn != null) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(
+                'Catatan alat terakhir ${_formatDate(item.lastLogOn!)}',
+                style: const TextStyle(fontSize: 12, color: AppColors.muted),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
-  Widget _chip(IconData icon, String label) => Container(
+  Widget _chip(IconData icon, String label, {Color? color}) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
     decoration: BoxDecoration(
-      color: AppColors.mint,
+      color: color?.withValues(alpha: .12) ?? AppColors.mint,
       borderRadius: BorderRadius.circular(20),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Icon(icon, size: 14, color: AppColors.green),
+        Icon(icon, size: 14, color: color ?? AppColors.green),
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: AppColors.greenDark,
+            color: color ?? AppColors.greenDark,
           ),
         ),
       ],
@@ -811,25 +903,34 @@ class _WarehouseStock {
 
 class _WarehouseTool {
   const _WarehouseTool({
+    required this.id,
     required this.registrationCode,
     required this.toolName,
     required this.siteLabel,
     this.mnemonic,
     this.serialNumber,
     this.toolStatus,
+    this.conditionStatus,
+    this.conditionNote,
     this.note,
     this.lastLogOn,
   });
+  final String id;
   final String registrationCode;
   final String toolName;
   final String siteLabel;
   final String? mnemonic;
   final String? serialNumber;
   final String? toolStatus;
+  final String? conditionStatus;
+  final String? conditionNote;
   final String? note;
   final String? lastLogOn;
 
   factory _WarehouseTool.fromJson(JsonMap json) => _WarehouseTool(
+    id: json.requiredString('id'),
+    conditionStatus: json.optionalString('condition_status'),
+    conditionNote: json.optionalString('condition_note'),
     registrationCode: json.requiredString('registration_code'),
     toolName: json.requiredString('tool_name'),
     siteLabel: json.requiredString('site_label'),
