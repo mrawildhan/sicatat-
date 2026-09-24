@@ -175,6 +175,27 @@ Deno.serve(async (req) => {
     const bytes = await response.arrayBuffer();
     const sourceFingerprint = await fingerprint(bytes);
     const syncedAt = new Date().toISOString();
+    // An unchanged workbook keeps the current snapshot. The log row still
+    // records the check, so the app can show both "last changed" (first log
+    // with this fingerprint) and "last checked" (newest log).
+    const { data: previous, error: previousError } = await admin
+      .from("purchase_requisition_sync_log")
+      .select("snapshot_rows,source_fingerprint")
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (previousError) throw previousError;
+    if (previous?.source_fingerprint === sourceFingerprint) {
+      await admin.from("purchase_requisition_sync_log").insert({
+        status: "completed",
+        snapshot_rows: previous.snapshot_rows,
+        source_fingerprint: sourceFingerprint,
+        detail: "Spreadsheet PR.xlsx tidak berubah; snapshot Data PR dipertahankan.",
+        triggered_by: caller.id,
+      });
+      return json({ ok: true, changed: false, rows: previous.snapshot_rows, synced_at: syncedAt });
+    }
     const rows = parseRows(bytes, sourceFingerprint, syncedAt);
     if (rows.length === 0) throw new Error("Tidak ada data PR yang dapat diimpor.");
     await upsertInBatches(admin, rows);
@@ -190,7 +211,7 @@ Deno.serve(async (req) => {
       detail: "Snapshot Data PR dari spreadsheet PR.xlsx berhasil diperbarui.",
       triggered_by: caller.id,
     });
-    return json({ ok: true, rows: rows.length, synced_at: syncedAt });
+    return json({ ok: true, changed: true, rows: rows.length, synced_at: syncedAt });
   } catch (error) {
     const message = errorMessage(error);
     await admin.from("purchase_requisition_sync_log").insert({

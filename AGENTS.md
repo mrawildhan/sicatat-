@@ -2,6 +2,11 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Data PR: keterangan pembaruan spreadsheet — 2026-09-24
+
+- Pemilik bingung apakah edit di PR.xlsx sudah masuk. Layar Data PR kini punya kartu "Pembaruan data PR" (gaya Gudang): **Spreadsheet terakhir berubah** = max(purchase_requisition.synced_at) (baris hanya ditulis ulang saat file berubah) + jumlah PR, dan **Terakhir diperiksa** = log completed terbaru; bila pemeriksaan terakhir gagal, kartu oranye dengan pesannya.
+- Membuka Data PR memeriksa spreadsheet di latar belakang (seperti PM & CM); tombol ↻ memeriksa dan memberi tahu "diperbarui" atau "belum berubah sejak …".
+- Edge function sync-purchase-requisitions (v8, verify_jwt tetap true) membandingkan SHA-256 file dengan log completed terakhir: bila sama, snapshot tidak ditulis ulang, hanya mencatat log "tidak berubah" dan mengembalikan changed:false. Sidik file Drive stabil antar-unduhan (diuji live 06:27 → 06:34 UTC).
 ## Gudang pindah ke Operasional + transaksi gudang — 2026-09-24
 
 - Pemilik meminta Gudang dipindah dari Referensi ke **Operasional** dan fiturnya mengikuti aplikasi Gudang buatan tim warehouse (`D:\Project\Sicatat\Gudang`, HTML + Google Apps Script). Keputusan pemilik: data transaksi di **Supabase SICATAT** (bukan Apps Script); tahap 1 = Pengambilan Barang, Peminjaman Alat, Penerimaan & Cek PO. **DST (stock check acak) dan menu Pengingat aplikasi itu tidak diperlukan** (keputusan pemilik 2026-09-24) — jangan dibangun; migrasi Gudang dari aplikasi teman dianggap selesai. **Semua pengguna aktif boleh mencari stok/alat**; transaksi hanya admin, supervisor SMG, warehouseman (site sendiri) — `UserRoleX.canManageWarehouse` = SQL `can_manage_warehouse_site`.

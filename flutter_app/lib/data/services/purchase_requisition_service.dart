@@ -15,7 +15,9 @@ class PurchaseRequisitionService {
   static const String _fields =
       'id,no_pr,no_po,description,equip_ref,closed_date,release_date,status';
 
-  Future<void> synchronize() async {
+  /// Checks the spreadsheet; returns whether its content changed and the
+  /// snapshot was rewritten.
+  Future<bool> synchronize() async {
     late final FunctionResponse response;
     try {
       response = await _client.functions.invoke('sync-purchase-requisitions');
@@ -35,19 +37,39 @@ class PurchaseRequisitionService {
         data.optionalString('error') ?? 'Data PR tidak dapat diperbarui.',
       );
     }
+    // Older function versions did not report it and always rewrote.
+    return data['changed'] != false;
   }
 
   Future<PurchaseRequisitionSnapshot?> loadSnapshot() async {
-    final Object response = await _client
-        .from('purchase_requisition_sync_log')
-        .select('snapshot_rows,completed_at')
-        .eq('status', 'completed')
-        .order('completed_at', ascending: false)
-        .limit(1);
-    if (response is! List || response.isEmpty) return null;
-    return PurchaseRequisitionSnapshot.fromJson(
-      requireJsonMap(response.first, source: 'Status data PR'),
+    final List<Object?> responses = await Future.wait<Object?>(
+      <Future<Object?>>[
+        _client
+            .from('purchase_requisition_sync_log')
+            .select('status,snapshot_rows,detail,completed_at')
+            .order('completed_at', ascending: false)
+            .limit(20),
+        // Rows are rewritten only when the spreadsheet changed, so their
+        // newest synced_at is when it last changed.
+        _client
+            .from('purchase_requisition')
+            .select('synced_at')
+            .order('synced_at', ascending: false)
+            .limit(1),
+      ],
     );
+    final Object? logs = responses[0];
+    final Object? rows = responses[1];
+    if (logs is! List || logs.isEmpty) return null;
+    final DateTime? changedAt = rows is List && rows.isNotEmpty
+        ? DateTime.tryParse(
+            requireJsonMap(rows.first).optionalString('synced_at') ?? '',
+          )
+        : null;
+    return PurchaseRequisitionSnapshot.fromLog(<JsonMap>[
+      for (final Object? row in logs)
+        requireJsonMap(row, source: 'Status data PR'),
+    ], changedAt: changedAt);
   }
 
   Future<List<PurchaseRequisition>> search(

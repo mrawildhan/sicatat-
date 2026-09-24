@@ -31,6 +31,10 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
   bool _loading = true;
   String? _error;
   bool _hasMore = false;
+  PurchaseRequisitionSnapshot? _snapshot;
+
+  /// A spreadsheet check runs in the background; the stored data stays usable.
+  bool _checking = false;
 
   /// Debounced searches can finish out of order; only the newest may render.
   int _requestSerial = 0;
@@ -63,21 +67,27 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
     }
   }
 
-  Future<void> _loadInitial({bool synchronizeSource = false}) async {
+  /// Shows the stored snapshot first, then checks the spreadsheet in the
+  /// background (like PM & CM), so an edit made there shows up on opening.
+  Future<void> _loadInitial() async {
     final int serial = ++_requestSerial;
     setState(() {
       _loading = true;
       _error = null;
     });
+    bool imported = false;
     try {
       _service ??= widget.service ?? _createService();
       final PurchaseRequisitionService? service = _service;
       if (service == null) return;
       PurchaseRequisitionSnapshot? snapshot = await service.loadSnapshot();
-      if (synchronizeSource || snapshot == null) {
+      if (snapshot == null) {
+        // Nothing to show yet: the first import has to finish first.
         await service.synchronize();
         snapshot = await service.loadSnapshot();
+        imported = true;
       }
+      if (mounted) setState(() => _snapshot = snapshot);
       final List<PurchaseRequisition> items = !_hasSearchCriteria
           ? const <PurchaseRequisition>[]
           : await _find(service);
@@ -91,7 +101,51 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+    if (!imported && mounted && _error == null) await _checkSource();
   }
+
+  /// Checks the PR spreadsheet. [announce] reports the outcome, for the
+  /// refresh button, so the owner knows whether an edit arrived.
+  Future<void> _checkSource({bool announce = false}) async {
+    final PurchaseRequisitionService? service = _service;
+    if (service == null || _checking) return;
+    setState(() => _checking = true);
+    try {
+      final bool changed = await service.synchronize();
+      final PurchaseRequisitionSnapshot? snapshot = await service
+          .loadSnapshot();
+      if (!mounted) return;
+      setState(() => _snapshot = snapshot);
+      if (changed && _hasSearchCriteria) await _search();
+      if (announce && mounted) {
+        _toast(
+          changed
+              ? 'Data PR diperbarui dari spreadsheet (${_count(snapshot?.rows ?? 0)} PR).'
+              : snapshot?.changedAt == null
+              ? 'Spreadsheet PR belum berubah.'
+              : 'Spreadsheet PR belum berubah sejak ${_stamp(snapshot!.changedAt!)}.',
+        );
+      }
+    } on Object catch (error) {
+      // The failure is logged; reloading shows it in the status card.
+      try {
+        final PurchaseRequisitionSnapshot? snapshot = await service
+            .loadSnapshot();
+        if (mounted) setState(() => _snapshot = snapshot);
+      } on Object {
+        // Keep the previous status.
+      }
+      if (announce && mounted) {
+        _toast('Data PR belum dapat diperiksa. ${_message(error)}');
+      }
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  void _toast(String message) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
 
   Future<void> _search() async {
     final PurchaseRequisitionService? service = _service;
@@ -191,9 +245,9 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
                 actions: <Widget>[
                   IconButton(
                     tooltip: 'Perbarui data PR',
-                    onPressed: _loading
+                    onPressed: _checking
                         ? null
-                        : () => _loadInitial(synchronizeSource: true),
+                        : () => _checkSource(announce: true),
                     icon: const Icon(Icons.refresh_rounded),
                   ),
                   const SizedBox(width: 8),
@@ -209,10 +263,12 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
               children: <Widget>[
                 if (desktop)
                   _DesktopHeader(
-                    onRefresh: _loading
+                    onRefresh: _checking
                         ? null
-                        : () => _loadInitial(synchronizeSource: true),
+                        : () => _checkSource(announce: true),
                   ),
+                _SnapshotNotice(snapshot: _snapshot, checking: _checking),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _searchController,
                   onChanged: _onQueryChanged,
@@ -298,7 +354,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
       );
     }
     return RefreshIndicator(
-      onRefresh: () => _loadInitial(synchronizeSource: true),
+      onRefresh: () => _checkSource(announce: true),
       child: ListView.separated(
         padding: const EdgeInsets.only(bottom: 120),
         itemCount: _items.length + (_hasMore ? 1 : 0),
@@ -941,6 +997,82 @@ String _monthName(int month) => const <String>[
 
 String _date(DateTime value) =>
     DateFormat('dd/MM/yyyy').format(value.toLocal());
+
+/// Short date and time, same style as the Gudang status (25/9/26 14.27).
+String _stamp(DateTime value) =>
+    DateFormat('d/M/yy HH.mm').format(value.toLocal());
+
+String _count(int value) => NumberFormat.decimalPattern('id_ID').format(value);
+
+/// Tells when the PR spreadsheet last changed and when it was last checked,
+/// like the Gudang status card.
+class _SnapshotNotice extends StatelessWidget {
+  const _SnapshotNotice({required this.snapshot, required this.checking});
+
+  final PurchaseRequisitionSnapshot? snapshot;
+  final bool checking;
+
+  @override
+  Widget build(BuildContext context) {
+    final PurchaseRequisitionSnapshot? value = snapshot;
+    final bool failed = !checking && value?.lastError != null;
+    final Color color = failed ? AppColors.orange : AppColors.green;
+    final String changed = value?.changedAt == null
+        ? 'Tanggal perubahan spreadsheet belum tersedia'
+        : 'Spreadsheet terakhir berubah ${_stamp(value!.changedAt!)} · '
+              '${_count(value.rows)} PR';
+    final String status = checking
+        ? 'Memeriksa perubahan spreadsheet…'
+        : failed
+        ? 'Pemeriksaan terakhir gagal: ${value!.lastError}'
+        : value?.checkedAt == null
+        ? 'Belum pernah diperiksa'
+        : 'Terakhir diperiksa ${_stamp(value!.checkedAt!)}';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: <Widget>[
+          checking
+              ? const SizedBox.square(
+                  dimension: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(
+                  failed ? Icons.sync_problem_rounded : Icons.schedule_rounded,
+                  color: color,
+                ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'Pembaruan data PR',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 2),
+                Text(changed, style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  status,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _MoreResultsNotice extends StatelessWidget {
   const _MoreResultsNotice();

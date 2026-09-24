@@ -48,15 +48,45 @@ class PurchaseRequisition {
 class PurchaseRequisitionSnapshot {
   const PurchaseRequisitionSnapshot({
     required this.rows,
-    required this.syncedAt,
+    required this.checkedAt,
+    required this.changedAt,
+    this.lastError,
   });
 
-  factory PurchaseRequisitionSnapshot.fromJson(JsonMap json) =>
-      PurchaseRequisitionSnapshot(
-        rows: (json['snapshot_rows'] as num?)?.toInt() ?? 0,
-        syncedAt: DateTime.tryParse(json.optionalString('completed_at') ?? ''),
-      );
+  /// [newestLogs] are `purchase_requisition_sync_log` rows, newest first;
+  /// every check logs one, changed or not. [changedAt] comes from the PR rows
+  /// themselves, which are only rewritten when the spreadsheet changed.
+  /// Returns null before the first import.
+  static PurchaseRequisitionSnapshot? fromLog(
+    List<JsonMap> newestLogs, {
+    required DateTime? changedAt,
+  }) {
+    final JsonMap? completed = newestLogs
+        .where((JsonMap row) => row['status'] == 'completed')
+        .firstOrNull;
+    if (completed == null) return null;
+    final JsonMap newest = newestLogs.first;
+    return PurchaseRequisitionSnapshot(
+      rows: (completed['snapshot_rows'] as num?)?.toInt() ?? 0,
+      checkedAt: DateTime.tryParse(
+        completed.optionalString('completed_at') ?? '',
+      )?.toLocal(),
+      changedAt: changedAt?.toLocal(),
+      lastError: newest['status'] == 'failed'
+          ? newest.optionalString('detail') ?? 'Pemeriksaan gagal.'
+          : null,
+    );
+  }
 
   final int rows;
-  final DateTime? syncedAt;
+
+  /// Last successful check of the spreadsheet, changed or not.
+  final DateTime? checkedAt;
+
+  /// When the spreadsheet content now in SICATAT was first imported. Only as
+  /// precise as the checks: an edit shows up at the first check after it.
+  final DateTime? changedAt;
+
+  /// Set when the newest check failed; the older snapshot is still shown.
+  final String? lastError;
 }
