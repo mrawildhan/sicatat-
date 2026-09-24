@@ -30,15 +30,61 @@ class PreventiveMaintenanceService {
         correctiveResponse.data,
         source: 'CM sync',
       );
-      if (correctiveData['ok'] != true) return pm;
+      if (correctiveData['ok'] != true) {
+        return _withCorrectiveError(
+          pm,
+          correctiveData.optionalString('error') ??
+              'Data CM tidak dapat diperiksa.',
+        );
+      }
       return PreventiveMaintenanceSyncResult(
         changed: pm.changed || correctiveData['changed'] == true,
         rows: pm.rows + ((correctiveData['rows'] as num?)?.toInt() ?? 0),
         updatedAt: pm.updatedAt,
       );
-    } on Object {
-      return pm;
+    } on FunctionException catch (error) {
+      final Object? details = error.details;
+      return _withCorrectiveError(
+        pm,
+        details is Map && details['error'] != null
+            ? details['error'].toString()
+            : 'Data CM tidak dapat diperiksa.',
+      );
+    } on Object catch (error) {
+      return _withCorrectiveError(pm, '$error');
     }
+  }
+
+  PreventiveMaintenanceSyncResult _withCorrectiveError(
+    PreventiveMaintenanceSyncResult pm,
+    String message,
+  ) => PreventiveMaintenanceSyncResult(
+    changed: pm.changed,
+    rows: pm.rows,
+    updatedAt: pm.updatedAt,
+    correctiveError: 'CM: $message',
+  );
+
+  Future<MaintenanceSourceTimes> loadSourceTimes() async {
+    Future<DateTime?> newest(String table) async {
+      final Object response = await _client
+          .from(table)
+          .select('synced_at')
+          .order('synced_at', ascending: false)
+          .limit(1);
+      if (response is! List || response.isEmpty) return null;
+      return DateTime.tryParse(
+        requireJsonMap(response.first).optionalString('synced_at') ?? '',
+      )?.toLocal();
+    }
+
+    final List<DateTime?> times = await Future.wait<DateTime?>(
+      <Future<DateTime?>>[
+        newest('preventive_maintenance_work_order'),
+        newest('corrective_maintenance_work_order'),
+      ],
+    );
+    return MaintenanceSourceTimes(pmChangedAt: times[0], cmChangedAt: times[1]);
   }
 
   Future<List<PreventiveMaintenanceWorkOrder>> loadOutstanding() async {

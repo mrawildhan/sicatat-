@@ -2,6 +2,10 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## PM & CM Tertunda: keterangan pembaruan spreadsheet — 2026-09-24
+
+- Kartu "Pembaruan data PM & CM" (komponen bersama core/widgets/source_update_card.dart, juga dipakai Data PR): per sumber "spreadsheet terakhir berubah" = max(synced_at) baris PM/CM + jumlah tertunda, lalu "Terakhir diperiksa" dari pemeriksaan yang berjalan setiap layar dibuka (log PM hanya terbaca admin/SMG/foreman, jadi tidak dipakai). Tombol ↻ di kartu memeriksa ulang dan memberi tahu hasilnya. Kegagalan CM kini tampil (dulu diabaikan diam-diam).
+- sync-corrective-maintenance (v6) kini melewati penulisan ulang bila sidik file sama dengan baris yang ada, supaya synced_at CM berarti waktu perubahan, bukan waktu pemeriksaan. Diuji live: CM tetap 23/9 04:50 UTC setelah pemeriksaan.
 ## Data PR: keterangan pembaruan spreadsheet — 2026-09-24
 
 - Pemilik bingung apakah edit di PR.xlsx sudah masuk. Layar Data PR kini punya kartu "Pembaruan data PR" (gaya Gudang): **Spreadsheet terakhir berubah** = max(purchase_requisition.synced_at) (baris hanya ditulis ulang saat file berubah) + jumlah PR, dan **Terakhir diperiksa** = log completed terbaru; bila pemeriksaan terakhir gagal, kartu oranye dengan pesannya.

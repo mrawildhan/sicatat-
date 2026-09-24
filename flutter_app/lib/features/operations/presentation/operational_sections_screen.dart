@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/platform/file_download.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../core/widgets/source_update_card.dart';
 import '../../../core/widgets/summary_filter_card.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/material_request_models.dart';
@@ -296,7 +297,12 @@ class _OutstandingMaintenanceScreenState
       const <CorrectiveMaintenanceWorkOrder>[];
   bool _loading = true;
   String? _error;
-  DateTime? _syncedAt;
+  MaintenanceSourceTimes? _sourceTimes;
+  DateTime? _checkedAt;
+  String? _checkError;
+
+  /// The spreadsheet check runs in the background; stored data stays shown.
+  bool _checking = false;
 
   @override
   void initState() {
@@ -342,36 +348,82 @@ class _OutstandingMaintenanceScreenState
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+    await _check();
+  }
+
+  /// Checks both spreadsheets. [announce] reports the outcome, for the
+  /// refresh button in the status card.
+  Future<void> _check({bool announce = false}) async {
+    final PreventiveMaintenanceService? service = _service;
+    if (service == null || _checking) return;
+    setState(() => _checking = true);
     try {
       final PreventiveMaintenanceSyncResult sync = await service.synchronize();
       if (!mounted) return;
-      setState(() => _syncedAt = sync.updatedAt);
+      setState(() {
+        _checkedAt = (sync.updatedAt ?? DateTime.now()).toLocal();
+        _checkError = sync.correctiveError;
+      });
       if (sync.changed || _error != null) {
         await _loadSnapshot(service);
         if (mounted) setState(() => _error = null);
       }
-    } on Object catch (error) {
-      if (mounted && _items.isEmpty && _correctiveItems.isEmpty) {
-        setState(
-          () => _error =
-              'Data PM belum dapat diperbarui. Periksa koneksi lalu coba lagi.\n$error',
+      if (announce && mounted) {
+        _toast(
+          sync.correctiveError != null
+              ? 'PM sudah diperiksa, tetapi ${sync.correctiveError}'
+              : sync.changed
+              ? 'Data PM & CM diperbarui dari spreadsheet.'
+              : 'Spreadsheet PM & CM belum berubah.',
         );
       }
+    } on Object catch (error) {
+      if (!mounted) return;
+      final String message = error is FormatException
+          ? error.message
+          : '$error';
+      setState(() {
+        _checkError = message;
+        if (_items.isEmpty && _correctiveItems.isEmpty) {
+          _error =
+              'Data PM belum dapat diperbarui. Periksa koneksi lalu coba lagi.\n$message';
+        }
+      });
+      if (announce) _toast('Spreadsheet belum dapat diperiksa. $message');
+    } finally {
+      if (mounted) setState(() => _checking = false);
     }
   }
+
+  void _toast(String message) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
 
   Future<void> _loadSnapshot(PreventiveMaintenanceService service) async {
     final List<PreventiveMaintenanceWorkOrder> items = await service
         .loadOutstanding();
     final List<CorrectiveMaintenanceWorkOrder> correctiveItems = await service
         .loadCorrectiveOutstanding();
+    MaintenanceSourceTimes? times;
+    try {
+      times = await service.loadSourceTimes();
+    } on Object {
+      // The status card only loses its dates; the lists still load.
+    }
     if (mounted) {
       setState(() {
         _items = items;
         _correctiveItems = correctiveItems;
+        if (times != null) _sourceTimes = times;
       });
     }
   }
+
+  String _changeLine(String label, DateTime? changedAt, int count) =>
+      changedAt == null
+      ? '$label: tanggal perubahan spreadsheet belum tersedia'
+      : '$label: spreadsheet terakhir berubah '
+            '${sourceUpdateStamp(changedAt)} · $count tertunda';
 
   void _openPmSection(String crew, String site) {
     final List<PreventiveMaintenanceWorkOrder> items = _items
@@ -409,7 +461,17 @@ class _OutstandingMaintenanceScreenState
       correctiveItems: _correctiveItems,
       loading: _loading,
       error: _error,
-      syncedAt: _syncedAt,
+      status: SourceUpdateCard(
+        title: 'Pembaruan data PM & CM',
+        changes: <String>[
+          _changeLine('PM', _sourceTimes?.pmChangedAt, _items.length),
+          _changeLine('CM', _sourceTimes?.cmChangedAt, _correctiveItems.length),
+        ],
+        checking: _checking,
+        checkedAt: _checkedAt,
+        error: _checkError,
+        onRefresh: () => _check(announce: true),
+      ),
       onRefresh: _load,
       onOpenPmSection: _openPmSection,
       onOpenCmSection: _openCmSection,
@@ -1199,7 +1261,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
     required this.correctiveItems,
     required this.loading,
     required this.error,
-    required this.syncedAt,
+    required this.status,
     required this.onRefresh,
     required this.onOpenPmSection,
     required this.onOpenCmSection,
@@ -1209,7 +1271,9 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
   final List<CorrectiveMaintenanceWorkOrder> correctiveItems;
   final bool loading;
   final String? error;
-  final DateTime? syncedAt;
+
+  /// When the PM and CM spreadsheets last changed and were checked.
+  final Widget status;
   final Future<void> Function() onRefresh;
   final void Function(String crew, String site) onOpenPmSection;
   final ValueChanged<String> onOpenCmSection;
@@ -1225,6 +1289,8 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        status,
+        const SizedBox(height: 16),
         const Text('PM per crew & lokasi', style: AppTextStyles.sectionTitle),
         const SizedBox(height: 5),
         const Text(

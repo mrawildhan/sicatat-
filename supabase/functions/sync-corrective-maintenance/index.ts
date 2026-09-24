@@ -64,8 +64,19 @@ Deno.serve(async (req) => {
     if (!response.ok) throw new Error(`CM terbaru.xlsx tidak dapat dibaca (HTTP ${response.status}).`);
     const buffer = await response.arrayBuffer();
     const sourceFingerprint = await fingerprint(buffer);
-    const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
     const now = new Date().toISOString();
+    // An unchanged workbook keeps the current rows, so their synced_at stays
+    // the time the spreadsheet last changed (shown in PM & CM Tertunda).
+    const { data: current, error: currentError } = await admin
+      .from("corrective_maintenance_work_order")
+      .select("source_fingerprint")
+      .limit(1)
+      .maybeSingle();
+    if (currentError) throw currentError;
+    if (current?.source_fingerprint === sourceFingerprint) {
+      return json({ ok: true, changed: false, rows: 0, synced_at: now });
+    }
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
     const rows: Record<string, unknown>[] = [];
     for (const [sheetName, site] of [["CPP", "CPP"], ["Port", "PORT"]] as const) {
       const sheet = workbook.Sheets[sheetName];

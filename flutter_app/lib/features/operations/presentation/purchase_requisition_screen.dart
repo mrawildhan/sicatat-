@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../../../core/widgets/source_update_card.dart';
 import '../../../data/models/purchase_requisition_models.dart';
 import '../../../data/services/purchase_requisition_service.dart';
 
@@ -123,7 +124,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
               ? 'Data PR diperbarui dari spreadsheet (${_count(snapshot?.rows ?? 0)} PR).'
               : snapshot?.changedAt == null
               ? 'Spreadsheet PR belum berubah.'
-              : 'Spreadsheet PR belum berubah sejak ${_stamp(snapshot!.changedAt!)}.',
+              : 'Spreadsheet PR belum berubah sejak ${sourceUpdateStamp(snapshot!.changedAt!)}.',
         );
       }
     } on Object catch (error) {
@@ -267,7 +268,19 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
                         ? null
                         : () => _checkSource(announce: true),
                   ),
-                _SnapshotNotice(snapshot: _snapshot, checking: _checking),
+                SourceUpdateCard(
+                  title: 'Pembaruan data PR',
+                  changes: <String>[
+                    _snapshot?.changedAt == null
+                        ? 'Tanggal perubahan spreadsheet belum tersedia'
+                        : 'Spreadsheet terakhir berubah '
+                              '${sourceUpdateStamp(_snapshot!.changedAt!)} · '
+                              '${_count(_snapshot!.rows)} PR',
+                  ],
+                  checking: _checking,
+                  checkedAt: _snapshot?.checkedAt,
+                  error: _snapshot?.lastError,
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _searchController,
@@ -998,81 +1011,7 @@ String _monthName(int month) => const <String>[
 String _date(DateTime value) =>
     DateFormat('dd/MM/yyyy').format(value.toLocal());
 
-/// Short date and time, same style as the Gudang status (25/9/26 14.27).
-String _stamp(DateTime value) =>
-    DateFormat('d/M/yy HH.mm').format(value.toLocal());
-
 String _count(int value) => NumberFormat.decimalPattern('id_ID').format(value);
-
-/// Tells when the PR spreadsheet last changed and when it was last checked,
-/// like the Gudang status card.
-class _SnapshotNotice extends StatelessWidget {
-  const _SnapshotNotice({required this.snapshot, required this.checking});
-
-  final PurchaseRequisitionSnapshot? snapshot;
-  final bool checking;
-
-  @override
-  Widget build(BuildContext context) {
-    final PurchaseRequisitionSnapshot? value = snapshot;
-    final bool failed = !checking && value?.lastError != null;
-    final Color color = failed ? AppColors.orange : AppColors.green;
-    final String changed = value?.changedAt == null
-        ? 'Tanggal perubahan spreadsheet belum tersedia'
-        : 'Spreadsheet terakhir berubah ${_stamp(value!.changedAt!)} · '
-              '${_count(value.rows)} PR';
-    final String status = checking
-        ? 'Memeriksa perubahan spreadsheet…'
-        : failed
-        ? 'Pemeriksaan terakhir gagal: ${value!.lastError}'
-        : value?.checkedAt == null
-        ? 'Belum pernah diperiksa'
-        : 'Terakhir diperiksa ${_stamp(value!.checkedAt!)}';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: <Widget>[
-          checking
-              ? const SizedBox.square(
-                  dimension: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Icon(
-                  failed ? Icons.sync_problem_rounded : Icons.schedule_rounded,
-                  color: color,
-                ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'Pembaruan data PR',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 2),
-                Text(changed, style: Theme.of(context).textTheme.bodySmall),
-                Text(
-                  status,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: AppColors.muted),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _MoreResultsNotice extends StatelessWidget {
   const _MoreResultsNotice();
