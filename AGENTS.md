@@ -2,6 +2,10 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Anggaran Operasional: keterangan pembaruan spreadsheet — 2026-09-24
+
+- Kartu "Pembaruan data anggaran" (SourceUpdateCard) di atas Anggaran: spreadsheet anggaran & realisasi terakhir berubah = max(operational_budget_month.synced_at), terakhir diperiksa = pemeriksaan latar belakang saat layar dibuka, ↻ memeriksa ulang dengan notifikasi. Baris "Sumber lembar kerja, diperbarui …" (dulu waktu sinkron) diganti keterangan sumber saja.
+- sync-operational-budget (v5, verify_jwt tetap false) melewati penulisan ulang bila sidik 4 CSV sama dengan snapshot, mencatat log "tidak berubah", dan mengembalikan changed:false.
 ## PM & CM Tertunda: keterangan pembaruan spreadsheet — 2026-09-24
 
 - Kartu "Pembaruan data PM & CM" (komponen bersama core/widgets/source_update_card.dart, juga dipakai Data PR): per sumber "spreadsheet terakhir berubah" = max(synced_at) baris PM/CM + jumlah tertunda, lalu "Terakhir diperiksa" dari pemeriksaan yang berjalan setiap layar dibuka (log PM hanya terbaca admin/SMG/foreman, jadi tidak dipakai). Tombol ↻ di kartu memeriksa ulang dan memberi tahu hasilnya. Kegagalan CM kini tampil (dulu diabaikan diam-diam).

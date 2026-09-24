@@ -8,7 +8,9 @@ class OperationalBudgetService {
 
   final SupabaseClient _client;
 
-  Future<void> synchronize() async {
+  /// Checks the budget spreadsheets; returns whether they changed and the
+  /// snapshot was rewritten.
+  Future<bool> synchronize() async {
     late final FunctionResponse response;
     try {
       response = await _client.functions.invoke('sync-operational-budget');
@@ -28,6 +30,8 @@ class OperationalBudgetService {
         data.optionalString('error') ?? 'Data anggaran tidak dapat diperbarui.',
       );
     }
+    // Older function versions did not report it and always rewrote.
+    return data['changed'] != false;
   }
 
   Future<OperationalBudgetSummary> loadSummary() async {

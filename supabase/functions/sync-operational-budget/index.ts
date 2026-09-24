@@ -213,6 +213,22 @@ Deno.serve(async (req) => {
     ]);
     const sourceFingerprint = await fingerprint([cppBudget, portBudget, cppActual, portActual]);
     const now = new Date().toISOString();
+    // Unchanged sheets keep the current rows, so their synced_at stays the time
+    // the spreadsheets last changed (shown in Anggaran Operasional).
+    const { data: current, error: currentError } = await admin
+      .from("operational_budget_month")
+      .select("source_fingerprint")
+      .in("site_code", ["CPP", "PORT"])
+      .limit(1)
+      .maybeSingle();
+    if (currentError) throw currentError;
+    if (current?.source_fingerprint === sourceFingerprint) {
+      await admin.from("operational_budget_sync_log").insert({
+        status: "completed", source_fingerprint: sourceFingerprint,
+        detail: "Lembar anggaran dan aktual tidak berubah; snapshot dipertahankan.", triggered_by: caller.id,
+      });
+      return json({ ok: true, changed: false, rows: 0, synced_at: now });
+    }
     const cpp = buildRows("CPP", cppBudget, cppActual, sourceFingerprint, now);
     const port = buildRows("PORT", portBudget, portActual, sourceFingerprint, now);
     const items = [...cpp.items, ...port.items];

@@ -52,6 +52,11 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
   List<OperationalBudgetItem> _items = const <OperationalBudgetItem>[];
   bool _loading = true;
   String? _error;
+  DateTime? _checkedAt;
+  String? _checkError;
+
+  /// The spreadsheet check runs in the background; stored data stays shown.
+  bool _checking = false;
 
   @override
   void initState() {
@@ -67,24 +72,27 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
     }
   }
 
-  Future<void> _load({bool synchronizeSource = false}) async {
+  /// Shows the stored snapshot first, then checks the spreadsheets in the
+  /// background (like Data PR and PM & CM).
+  Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
+    bool imported = false;
     try {
       _service ??= widget.service ?? _createService();
       final OperationalBudgetService? service = _service;
       if (service == null) return;
       OperationalBudgetSummary summary = await service.loadSummary();
       List<OperationalBudgetItem> items = await service.loadItems();
-      // The approved workbook is imported to the server as a snapshot. Reading
-      // that snapshot keeps this screen fast and avoids reprocessing large
-      // Excel files whenever the user opens the page.
-      if (synchronizeSource || summary.months.isEmpty || items.isEmpty) {
+      if (summary.months.isEmpty || items.isEmpty) {
+        // Nothing to show yet: the first import has to finish first.
         await service.synchronize();
         summary = await service.loadSummary();
         items = await service.loadItems();
+        imported = true;
+        _checkedAt = DateTime.now();
       }
       if (mounted) {
         setState(() {
@@ -94,32 +102,101 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
       }
     } on Object catch (error) {
       if (mounted) {
-        final String message = error.toString().replaceFirst(
-          'FormatException: ',
-          '',
+        setState(
+          () => _error = 'Anggaran belum dapat diperbarui. ${_budgetError(error)}',
         );
-        setState(() => _error = 'Anggaran belum dapat diperbarui. $message');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+    if (!imported && mounted && _error == null) await _check();
   }
 
+  /// Checks the budget spreadsheets. [announce] reports the outcome, for the
+  /// refresh button in the status card.
+  Future<void> _check({bool announce = false}) async {
+    final OperationalBudgetService? service = _service;
+    if (service == null || _checking) return;
+    setState(() => _checking = true);
+    try {
+      final bool changed = await service.synchronize();
+      if (changed) {
+        final OperationalBudgetSummary summary = await service.loadSummary();
+        final List<OperationalBudgetItem> items = await service.loadItems();
+        if (mounted) {
+          setState(() {
+            _summary = summary;
+            _items = items;
+          });
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _checkedAt = DateTime.now();
+        _checkError = null;
+      });
+      if (announce) {
+        _toast(
+          changed
+              ? 'Anggaran diperbarui dari spreadsheet.'
+              : 'Spreadsheet anggaran belum berubah.',
+        );
+      }
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _checkError = _budgetError(error));
+      if (announce) {
+        _toast('Spreadsheet anggaran belum dapat diperiksa. ${_budgetError(error)}');
+      }
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  String _budgetError(Object error) =>
+      error.toString().replaceFirst('FormatException: ', '');
+
+  void _toast(String message) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+
   @override
-  Widget build(BuildContext context) => _OperationalSectionPage(
-    title: 'Anggaran Operasional',
-    icon: Icons.account_balance_wallet_rounded,
-    child: _BudgetOverviewBody(
-      summary: _summary,
-      items: _items,
-      loading: _loading,
-      error: _error,
-      onRefresh: _refreshSource,
-      onBrowseItems: _browseItems,
-      onOpenItem: _openItem,
-      onOpenMonthly: _openMonthly,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final DateTime? changedAt = _summary?.syncedAt;
+    return _OperationalSectionPage(
+      title: 'Anggaran Operasional',
+      icon: Icons.account_balance_wallet_rounded,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          SourceUpdateCard(
+            title: 'Pembaruan data anggaran',
+            changes: <String>[
+              changedAt == null
+                  ? 'Tanggal perubahan spreadsheet belum tersedia'
+                  : 'Spreadsheet anggaran & realisasi terakhir berubah '
+                        '${sourceUpdateStamp(changedAt)}',
+            ],
+            checking: _checking,
+            checkedAt: _checkedAt,
+            error: _checkError,
+            onRefresh: () => _check(announce: true),
+          ),
+          const SizedBox(height: 16),
+          _BudgetOverviewBody(
+            summary: _summary,
+            items: _items,
+            loading: _loading,
+            error: _error,
+            onRefresh: _load,
+            onBrowseItems: _browseItems,
+            onOpenItem: _openItem,
+            onOpenMonthly: _openMonthly,
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _browseItems() async {
     final OperationalBudgetItem? item = await showBudgetItemBrowser(
@@ -136,8 +213,6 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
     final OperationalBudgetSummary? summary = _summary;
     if (summary != null) await showBudgetMonthlyDetail(context, summary);
   }
-
-  Future<void> _refreshSource() => _load(synchronizeSource: true);
 }
 
 class MaterialRequestOverviewScreen extends ConsumerStatefulWidget {
@@ -891,7 +966,20 @@ class _BudgetOverviewBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        _BudgetSourceLine(syncedAt: summary.syncedAt),
+        const Row(
+          children: <Widget>[
+            Icon(Icons.table_chart_outlined, size: 14, color: AppColors.muted),
+            SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Sumber: anggaran 3271/3275 dan realisasi CPP/PORT',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.supporting,
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -1064,38 +1152,6 @@ class _BudgetActionCard extends StatelessWidget {
 }
 
 /// Where the figures come from, kept to one line so the page fits a phone.
-class _BudgetSourceLine extends StatelessWidget {
-  const _BudgetSourceLine({this.syncedAt});
-
-  final DateTime? syncedAt;
-
-  @override
-  Widget build(BuildContext context) {
-    final DateTime? synced = syncedAt;
-    return Row(
-      children: <Widget>[
-        const Icon(
-          Icons.table_chart_outlined,
-          size: 14,
-          color: AppColors.muted,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            synced == null
-                ? 'Sumber: anggaran 3271/3275 dan realisasi CPP/PORT'
-                : 'Sumber lembar kerja, diperbarui '
-                      '${DateFormat('dd/MM/yyyy HH:mm').format(synced.toLocal())}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.supporting,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 String _usd(double value) =>
     'US\$${NumberFormat.decimalPattern('id_ID').format(value.round())}';
 
