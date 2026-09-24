@@ -21,7 +21,8 @@ maintenance work. Data is deliberately **not** in Supabase (free-plan storage).
 
 | Method | Path | |
 |---|---|---|
-| GET | `/jobs?month=YYYY-MM` | jobs of a month with their photos |
+| GET | `/jobs?from=YYYY-MM-DD&to=YYYY-MM-DD` | jobs in a date range (max 62 days) with their photos; weeks cross months, so a month screen asks e.g. 29 Sep – 31 Oct |
+| GET | `/jobs?month=YYYY-MM` | jobs of one calendar month |
 | POST | `/jobs` | `{work_date, description}` |
 | GET / PATCH / DELETE | `/jobs/:id` | delete also removes its KV photos |
 | POST | `/jobs/:id/photos` | raw JPEG/PNG body; type and size read from the bytes; max 8 per job |

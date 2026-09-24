@@ -209,11 +209,29 @@ async function requireJob(env, id) {
 
 // ------------------------------------------------------------------ handlers
 
+// Weeks run on across months (29 September – 05 Oktober), so the app asks for
+// a date range; `month` remains for a plain calendar month.
+const MAX_RANGE_DAYS = 62;
+
+function listRange(url) {
+  const month = url.searchParams.get('month');
+  if (month !== null) {
+    if (!MONTH.test(month)) throw new HttpError(400, 'Bulan harus berformat YYYY-MM.');
+    return [`${month}-01`, `${month}-31`];
+  }
+  const from = url.searchParams.get('from');
+  const to = url.searchParams.get('to');
+  if (!validDate(from) || !validDate(to) || from > to) {
+    throw new HttpError(400, 'Rentang tanggal harus from=YYYY-MM-DD&to=YYYY-MM-DD.');
+  }
+  if ((Date.parse(to) - Date.parse(from)) / 86400000 > MAX_RANGE_DAYS) {
+    throw new HttpError(400, `Rentang tanggal maksimal ${MAX_RANGE_DAYS} hari.`);
+  }
+  return [from, to];
+}
+
 async function listJobs(env, url) {
-  const month = url.searchParams.get('month') ?? '';
-  if (!MONTH.test(month)) throw new HttpError(400, 'Bulan harus berformat YYYY-MM.');
-  const from = `${month}-01`;
-  const to = `${month}-31`;
+  const [from, to] = listRange(url);
   const [jobs, photos] = await env.DB.batch([
     env.DB.prepare(
       'SELECT * FROM job WHERE work_date BETWEEN ? AND ? ORDER BY work_date, created_at',

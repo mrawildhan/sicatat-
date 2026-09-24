@@ -37,6 +37,11 @@ String majorJobIsoDate(DateTime value) =>
 String majorJobMonthLabel(int year, int month) =>
     '${majorJobMonthNames[month - 1]} $year';
 
+/// "29 September 2026".
+String majorJobDateLabel(DateTime date) =>
+    '${date.day.toString().padLeft(2, '0')} '
+    '${majorJobMonthNames[date.month - 1]} ${date.year}';
+
 /// "Sen, 03 Agustus 2026".
 String majorJobDayLabel(DateTime date) =>
     '${_dayNames[date.weekday - 1]}, ${date.day.toString().padLeft(2, '0')} '
@@ -56,9 +61,10 @@ String majorJobRangeLabel(DateTime start, DateTime end) {
   return '${day(start)} $startMonth ${start.year} – ${day(end)} $endMonth ${end.year}';
 }
 
-/// One subheading of the report. Reports go to the boss on Tuesday, so a
-/// period closes on Monday and never crosses a month boundary: August 2026 is
-/// 01–03, 04–10, 11–17, 18–24, 25–31.
+/// One subheading of the report: a Tuesday–Monday week (reports go to the
+/// boss on Tuesday). Weeks run on continuously across months, e.g.
+/// 22–28 September, 29 September – 05 Oktober, 06–12 Oktober (owner decision
+/// 2026-09-24). A week belongs to the month in which it ends.
 class MajorJobPeriod {
   const MajorJobPeriod(this.start, this.end);
 
@@ -72,6 +78,17 @@ class MajorJobPeriod {
 
   String get label => majorJobRangeLabel(start, end);
 
+  /// This period limited to one calendar month (the monthly report shows
+  /// 29 September – 05 Oktober as "29 – 30 September" and "01 – 05 Oktober").
+  MajorJobPeriod clippedTo(int year, int month) {
+    final DateTime first = DateTime(year, month);
+    final DateTime last = DateTime(year, month + 1, 0);
+    return MajorJobPeriod(
+      start.isBefore(first) ? first : start,
+      end.isAfter(last) ? last : end,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       other is MajorJobPeriod && other.start == start && other.end == end;
@@ -80,18 +97,41 @@ class MajorJobPeriod {
   int get hashCode => Object.hash(start, end);
 }
 
-List<MajorJobPeriod> majorJobPeriodsOfMonth(int year, int month) {
+/// The Tuesday–Monday week that contains [date].
+MajorJobPeriod majorJobPeriodOf(DateTime date) {
+  final DateTime day = majorJobDateOnly(date);
+  final int toMonday = (DateTime.monday - day.weekday + 7) % 7;
+  final DateTime end = DateTime(day.year, day.month, day.day + toMonday);
+  return MajorJobPeriod(DateTime(end.year, end.month, end.day - 6), end);
+}
+
+/// Weeks reported in this month: those that end (on a Monday) inside it.
+/// October 2026 starts with 29 September – 05 Oktober and ends with 20–26
+/// Oktober; 27 Oktober – 02 November belongs to November.
+List<MajorJobPeriod> majorJobWeeksOfMonth(int year, int month) {
   final DateTime last = DateTime(year, month + 1, 0);
-  final List<MajorJobPeriod> periods = <MajorJobPeriod>[];
-  DateTime start = DateTime(year, month);
-  while (!start.isAfter(last)) {
-    final int toMonday = (DateTime.monday - start.weekday + 7) % 7;
-    DateTime end = DateTime(start.year, start.month, start.day + toMonday);
-    if (end.isAfter(last)) end = last;
-    periods.add(MajorJobPeriod(start, end));
-    start = DateTime(end.year, end.month, end.day + 1);
+  final List<MajorJobPeriod> weeks = <MajorJobPeriod>[];
+  // The week holding the 1st always ends on or after the 1st, so it counts.
+  MajorJobPeriod week = majorJobPeriodOf(DateTime(year, month));
+  while (!week.end.isAfter(last)) {
+    weeks.add(week);
+    week = majorJobPeriodOf(week.end.add(const Duration(days: 1)));
   }
-  return periods;
+  return weeks;
+}
+
+/// Every date whose jobs the month screen needs: its weeks (which may start
+/// in the previous month) and the whole calendar month (the monthly report
+/// includes the last days even when their week ends next month).
+({DateTime from, DateTime to}) majorJobMonthRange(int year, int month) {
+  final List<MajorJobPeriod> weeks = majorJobWeeksOfMonth(year, month);
+  final DateTime first = DateTime(year, month);
+  return (
+    from: weeks.isNotEmpty && weeks.first.start.isBefore(first)
+        ? weeks.first.start
+        : first,
+    to: DateTime(year, month + 1, 0),
+  );
 }
 
 class MajorJobPhoto {
@@ -192,17 +232,61 @@ class MajorJobSection {
   final List<MajorJob> jobs;
 }
 
-/// Groups a month's jobs into its periods (date, then creation order as sent
-/// by the API). Periods without jobs are left out.
-List<MajorJobSection> majorJobSections(
-  int year,
-  int month,
+List<MajorJobSection> _group(
+  Iterable<MajorJobPeriod> periods,
   List<MajorJob> jobs,
 ) => <MajorJobSection>[
-  for (final MajorJobPeriod period in majorJobPeriodsOfMonth(year, month))
+  for (final MajorJobPeriod period in periods)
     if (jobs.any((job) => period.contains(job.workDate)))
       MajorJobSection(
         period,
         jobs.where((job) => period.contains(job.workDate)).toList(),
       ),
 ];
+
+/// The month's weekly sections (weeks ending in the month, full labels such
+/// as "29 September – 05 Oktober 2026"). Jobs keep the API order (date, then
+/// creation). Weeks without jobs are left out.
+List<MajorJobSection> majorJobSections(
+  int year,
+  int month,
+  List<MajorJob> jobs,
+) => _group(majorJobWeeksOfMonth(year, month), jobs);
+
+/// The last days of the calendar month whose week ends next month (e.g.
+/// 29 – 30 September). They go into next month's weekly reports but still
+/// belong to this month's Major Job report. Null when there are none or they
+/// have no jobs.
+MajorJobSection? majorJobTailSection(
+  int year,
+  int month,
+  List<MajorJob> jobs,
+) {
+  final DateTime last = DateTime(year, month + 1, 0);
+  final List<MajorJobPeriod> weeks = majorJobWeeksOfMonth(year, month);
+  final DateTime start = weeks.isEmpty
+      ? DateTime(year, month)
+      : weeks.last.end.add(const Duration(days: 1));
+  if (start.isAfter(last)) return null;
+  final List<MajorJobSection> tail = _group(<MajorJobPeriod>[
+    MajorJobPeriod(start, last),
+  ], jobs);
+  return tail.isEmpty ? null : tail.first;
+}
+
+/// The calendar month in weekly sections clipped to the month: the monthly
+/// Major Job report (01 – 30 September includes 29 – 30 September).
+List<MajorJobSection> majorJobCalendarSections(
+  int year,
+  int month,
+  List<MajorJob> jobs,
+) {
+  final DateTime last = DateTime(year, month + 1, 0);
+  final List<MajorJobPeriod> periods = <MajorJobPeriod>[];
+  MajorJobPeriod week = majorJobPeriodOf(DateTime(year, month));
+  while (!week.start.isAfter(last)) {
+    periods.add(week.clippedTo(year, month));
+    week = majorJobPeriodOf(week.end.add(const Duration(days: 1)));
+  }
+  return _group(periods, jobs);
+}

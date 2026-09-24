@@ -44,54 +44,106 @@ String _labels(List<MajorJobPeriod> periods) =>
     periods.map((p) => p.label).join(' | ');
 
 void main() {
-  test('periode laporan ditutup hari Senin dan tidak melewati akhir bulan', () {
+  test('minggu Selasa–Senin bersambung terus melewati akhir bulan', () {
     expect(
-      _labels(majorJobPeriodsOfMonth(2026, 8)),
-      '01 – 03 Agustus 2026 | 04 – 10 Agustus 2026 | 11 – 17 Agustus 2026 | '
-      '18 – 24 Agustus 2026 | 25 – 31 Agustus 2026',
-    );
-    expect(
-      _labels(majorJobPeriodsOfMonth(2026, 9)),
+      _labels(majorJobWeeksOfMonth(2026, 9)),
       '01 – 07 September 2026 | 08 – 14 September 2026 | '
-      '15 – 21 September 2026 | 22 – 28 September 2026 | 29 – 30 September 2026',
+      '15 – 21 September 2026 | 22 – 28 September 2026',
     );
-    // 1 June 2026 is itself a Monday: a one-day first period.
-    expect(majorJobPeriodsOfMonth(2026, 6).first.label, '01 – 01 Juni 2026');
+    // A week belongs to the month in which it ends.
     expect(
-      majorJobRangeLabel(DateTime(2026, 9, 28), DateTime(2026, 10, 4)),
-      '28 September – 04 Oktober 2026',
+      _labels(majorJobWeeksOfMonth(2026, 10)),
+      '29 September – 05 Oktober 2026 | 06 – 12 Oktober 2026 | '
+      '13 – 19 Oktober 2026 | 20 – 26 Oktober 2026',
     );
+    expect(
+      majorJobWeeksOfMonth(2026, 11).first.label,
+      '27 Oktober – 02 November 2026',
+    );
+    expect(
+      majorJobPeriodOf(DateTime(2026, 8, 1)).label,
+      '28 Juli – 03 Agustus 2026',
+    );
+    // No gaps and no overlaps, week after week, across a year boundary.
+    DateTime expectedStart = DateTime(2026, 9, 1);
+    for (int m = 9; m <= 15; m++) {
+      for (final MajorJobPeriod week in majorJobWeeksOfMonth(2026, m)) {
+        expect(week.start, expectedStart);
+        expect(week.end.weekday, DateTime.monday);
+        expectedStart = week.end.add(const Duration(days: 1));
+      }
+    }
+    final range = majorJobMonthRange(2026, 10);
+    expect(range.from, DateTime(2026, 9, 29));
+    expect(range.to, DateTime(2026, 10, 31));
   });
 
-  test('report mingguan kumulatif sejak tanggal 1, bulanan sebulan penuh', () {
+  test('29 Sep – 05 Okt masuk Weekly Oktober, tetapi ikut Major Job September', () {
     final List<MajorJob> jobs = <MajorJob>[
-      _job('a', '2026-08-01', <MajorJobPhoto>[_photo('p1', 4, 3)]),
-      _job('b', '2026-08-05', <MajorJobPhoto>[_photo('p2', 4, 3)]),
-      _job('tanpa-foto', '2026-08-06', <MajorJobPhoto>[]),
-      _job('c', '2026-08-12', <MajorJobPhoto>[_photo('p3', 3, 4)]),
+      _job('sep28', '2026-09-28', <MajorJobPhoto>[_photo('p1', 4, 3)]),
+      _job('sep29', '2026-09-29', <MajorJobPhoto>[_photo('p2', 4, 3)]),
+      _job('sep30-tanpa-foto', '2026-09-30', <MajorJobPhoto>[]),
+      _job('okt02', '2026-10-02', <MajorJobPhoto>[_photo('p3', 3, 4)]),
+      _job('okt07', '2026-10-07', <MajorJobPhoto>[_photo('p4', 4, 3)]),
     ];
-    final MajorJobReport weekly = majorJobReportFor(
-      kind: MajorJobReportKind.weekly,
-      year: 2026,
-      month: 8,
-      jobs: jobs,
-      until: majorJobPeriodsOfMonth(2026, 8)[1],
-    );
-    expect(weekly.fileName, 'Weekly Job 01 - 10 Agustus 2026.pdf');
-    expect(weekly.sections.map((s) => s.period.label), <String>[
-      '01 – 03 Agustus 2026',
-      '04 – 10 Agustus 2026',
-    ]);
-    expect(weekly.jobs.map((j) => j.id), <String>['a', 'b']);
 
-    final MajorJobReport monthly = majorJobReportFor(
+    // September screen: weeks up to 28 Sep, then 29–30 Sep as its own tail.
+    expect(
+      majorJobSections(2026, 9, jobs).expand((s) => s.jobs).map((j) => j.id),
+      <String>['sep28'],
+    );
+    final MajorJobSection tail = majorJobTailSection(2026, 9, jobs)!;
+    expect(tail.period.label, '29 – 30 September 2026');
+    expect(tail.jobs.map((j) => j.id), <String>['sep29', 'sep30-tanpa-foto']);
+    expect(majorJobTailSection(2026, 8, jobs), isNull, reason: '31 Aug is a Monday');
+
+    final MajorJobReport septemberMonthly = majorJobReportFor(
       kind: MajorJobReportKind.monthly,
       year: 2026,
-      month: 8,
+      month: 9,
       jobs: jobs,
     );
-    expect(monthly.fileName, 'Mayor Job 01 - 31 Agustus 2026.pdf');
-    expect(monthly.jobs.map((j) => j.id), <String>['a', 'b', 'c']);
+    expect(septemberMonthly.fileName, 'Mayor Job 01 - 30 September 2026.pdf');
+    expect(septemberMonthly.sections.map((s) => s.period.label), <String>[
+      '22 – 28 September 2026',
+      '29 – 30 September 2026',
+    ]);
+    expect(septemberMonthly.jobs.map((j) => j.id), <String>['sep28', 'sep29']);
+
+    final List<MajorJobPeriod> october = majorJobWeeksOfMonth(2026, 10);
+    final MajorJobReport firstWeek = majorJobReportFor(
+      kind: MajorJobReportKind.weekly,
+      year: 2026,
+      month: 10,
+      jobs: jobs,
+      until: october[0],
+    );
+    expect(firstWeek.fileName, 'Weekly Job 29 September - 05 Oktober 2026.pdf');
+    expect(firstWeek.sections.single.period.label, '29 September – 05 Oktober 2026');
+    expect(firstWeek.jobs.map((j) => j.id), <String>['sep29', 'okt02']);
+
+    final MajorJobReport secondWeek = majorJobReportFor(
+      kind: MajorJobReportKind.weekly,
+      year: 2026,
+      month: 10,
+      jobs: jobs,
+      until: october[1],
+    );
+    expect(secondWeek.fileName, 'Weekly Job 29 September - 12 Oktober 2026.pdf');
+    expect(secondWeek.jobs.map((j) => j.id), <String>['sep29', 'okt02', 'okt07']);
+
+    final MajorJobReport octoberMonthly = majorJobReportFor(
+      kind: MajorJobReportKind.monthly,
+      year: 2026,
+      month: 10,
+      jobs: jobs,
+    );
+    expect(octoberMonthly.fileName, 'Mayor Job 01 - 31 Oktober 2026.pdf');
+    expect(octoberMonthly.sections.map((s) => s.period.label), <String>[
+      '01 – 05 Oktober 2026',
+      '06 – 12 Oktober 2026',
+    ]);
+    expect(octoberMonthly.jobs.map((j) => j.id), <String>['okt02', 'okt07']);
   });
 
   test('foto disusun kiri ke kanan selama muat di kolom foto', () {
@@ -213,7 +265,7 @@ void main() {
           200,
         );
       }
-      final String month = request.url.queryParameters['month']!;
+      final String month = request.url.queryParameters['to']!.substring(0, 7);
       months.add(month);
       return http.Response(
         jsonEncode(<String, Object?>{
@@ -314,9 +366,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(requests.first, 'GET /jobs?month=2026-08');
+    expect(requests.first, 'GET /jobs?from=2026-07-28&to=2026-08-31');
     expect(find.text('Agustus 2026'), findsOneWidget);
-    expect(find.text('01 – 03 Agustus 2026'), findsOneWidget);
+    expect(find.text('28 Juli – 03 Agustus 2026'), findsOneWidget);
     expect(find.text('04 – 10 Agustus 2026'), findsOneWidget);
     expect(find.text('2'), findsOneWidget, reason: 'nomor bersambung antar periode');
     expect(find.text('Belum ada foto, tidak ikut di PDF'), findsNWidgets(2));

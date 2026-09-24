@@ -98,9 +98,15 @@ class MajorJobApi {
   JsonMap _json(http.Response response) =>
       requireJsonMap(jsonDecode(response.body), source: 'Major Job');
 
-  Future<List<MajorJob>> listMonth(int year, int month) async {
-    final String key = '$year-${month.toString().padLeft(2, '0')}';
-    final JsonMap body = _json(await _send('GET', '/jobs?month=$key'));
+  /// Jobs dated [from]..[to] inclusive (a month screen spans its weeks, which
+  /// may start in the previous month; see `majorJobMonthRange`).
+  Future<List<MajorJob>> listRange(DateTime from, DateTime to) async {
+    final JsonMap body = _json(
+      await _send(
+        'GET',
+        '/jobs?from=${majorJobIsoDate(from)}&to=${majorJobIsoDate(to)}',
+      ),
+    );
     final Object? jobs = body['jobs'];
     if (jobs is! List) return <MajorJob>[];
     return jobs

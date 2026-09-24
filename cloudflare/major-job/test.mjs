@@ -106,6 +106,13 @@ test('alur pekerjaan: buat, unggah, urutkan, daftar, hapus', async () => {
   assert.deepEqual(list.jobs[0].photos.map(p => p.id), [second.photo.id, first.photo.id]);
   assert.equal((await call(e, 'GET', '/jobs?month=2026-8')).status, 400);
 
+  // Weeks cross months: 29 September – 05 Oktober is one range request.
+  const range = await (await call(e, 'GET', '/jobs?from=2026-08-04&to=2026-09-01')).json();
+  assert.deepEqual(range.jobs.map(j => j.description), ['Fabrikasi lower chute', 'Bulan lain']);
+  assert.equal((await call(e, 'GET', '/jobs?from=2026-09-05&to=2026-09-01')).status, 400);
+  assert.equal((await call(e, 'GET', '/jobs?from=2026-01-01&to=2026-06-01')).status, 400);
+  assert.equal((await call(e, 'GET', '/jobs?from=2026-09-31&to=2026-10-05')).status, 400);
+
   const single = await (await call(e, 'GET', `/jobs/${job.id}`)).json();
   assert.deepEqual(single.job.photos.map(p => p.position), [1, 2]);
   assert.equal(single.job.photos[0].id, second.photo.id);

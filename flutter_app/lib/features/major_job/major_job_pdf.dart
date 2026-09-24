@@ -55,9 +55,12 @@ class MajorJobReport {
       sections.expand((MajorJobSection section) => section.jobs);
 }
 
-/// Weekly reports are cumulative from the 1st of the month up to [until]
-/// (as the owner's Word reports were); monthly reports cover the whole month.
-/// Jobs without photos are left out, like the old script did.
+/// Weekly reports are cumulative over the month's weeks up to [until], so
+/// October's start on 29 September ("Weekly Job 29 September – 12 Oktober").
+/// Monthly reports follow the calendar month, with the weeks clipped to it,
+/// so "Mayor Job 01 – 30 September" includes 29 – 30 September (owner
+/// decision 2026-09-24). Jobs without photos are left out, like the old
+/// script did.
 MajorJobReport majorJobReportFor({
   required MajorJobReportKind kind,
   required int year,
@@ -68,16 +71,21 @@ MajorJobReport majorJobReportFor({
   final List<MajorJob> withPhotos = jobs
       .where((job) => job.photos.isNotEmpty)
       .toList();
-  final DateTime monthStart = DateTime(year, month);
-  final DateTime end = kind == MajorJobReportKind.monthly || until == null
-      ? DateTime(year, month + 1, 0)
-      : until.end;
+  final List<MajorJobPeriod> weeks = majorJobWeeksOfMonth(year, month);
+  if (kind == MajorJobReportKind.monthly || until == null || weeks.isEmpty) {
+    return MajorJobReport(
+      kind: kind,
+      start: DateTime(year, month),
+      end: DateTime(year, month + 1, 0),
+      sections: majorJobCalendarSections(year, month, withPhotos),
+    );
+  }
   return MajorJobReport(
     kind: kind,
-    start: monthStart,
-    end: end,
+    start: weeks.first.start,
+    end: until.end,
     sections: majorJobSections(year, month, withPhotos)
-        .where((section) => !section.period.start.isAfter(end))
+        .where((section) => !section.period.end.isAfter(until.end))
         .toList(),
   );
 }

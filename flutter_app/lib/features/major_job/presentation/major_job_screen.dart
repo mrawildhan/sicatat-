@@ -73,7 +73,8 @@ class _MajorJobScreenState extends State<MajorJobScreen> {
       _error = null;
     });
     try {
-      final List<MajorJob> jobs = await _api.listMonth(_year, _month);
+      final range = majorJobMonthRange(_year, _month);
+      final List<MajorJob> jobs = await _api.listRange(range.from, range.to);
       if (!mounted || request != _loadRequest) return;
       setState(() {
         _jobs = jobs;
@@ -118,7 +119,8 @@ class _MajorJobScreenState extends State<MajorJobScreen> {
   Future<void> _export() async {
     final List<MajorJob> jobs = _jobs ?? <MajorJob>[];
     final List<MajorJobSection> sections = majorJobSections(_year, _month, jobs);
-    if (sections.isEmpty) {
+    final MajorJobSection? tail = majorJobTailSection(_year, _month, jobs);
+    if (sections.isEmpty && tail == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Belum ada pekerjaan pada bulan ini.')),
       );
@@ -211,7 +213,12 @@ class _MajorJobScreenState extends State<MajorJobScreen> {
   Widget build(BuildContext context) {
     final List<MajorJob> jobs = _jobs ?? <MajorJob>[];
     final List<MajorJobSection> sections = majorJobSections(_year, _month, jobs);
-    final int photoCount = jobs.fold(0, (sum, job) => sum + job.photos.length);
+    final MajorJobSection? tail = majorJobTailSection(_year, _month, jobs);
+    final List<MajorJob> shown = <MajorJob>[
+      for (final MajorJobSection section in sections) ...section.jobs,
+      ...?tail?.jobs,
+    ];
+    final int photoCount = shown.fold(0, (sum, job) => sum + job.photos.length);
     int number = 0;
     return AppBackScope(
       fallbackRoute: '/dashboard',
@@ -276,7 +283,7 @@ class _MajorJobScreenState extends State<MajorJobScreen> {
                       Text(
                         _jobs == null
                             ? 'Memuat…'
-                            : '${jobs.length} pekerjaan · $photoCount foto',
+                            : '${shown.length} pekerjaan · $photoCount foto',
                         style: AppTextStyles.supporting,
                       ),
                       if (_usage != null) ...<Widget>[
@@ -299,19 +306,34 @@ class _MajorJobScreenState extends State<MajorJobScreen> {
                   text: _error!,
                   action: TextButton(onPressed: _load, child: const Text('Coba lagi')),
                 )
-              else if (sections.isEmpty)
+              else if (shown.isEmpty)
                 const _Message(
                   icon: Icons.photo_library_outlined,
                   text:
                       'Belum ada pekerjaan di bulan ini. Tekan "Tambah pekerjaan" untuk mulai.',
                 )
               else
-                for (final MajorJobSection section in sections) ...<Widget>[
+                for (final MajorJobSection section in <MajorJobSection>[
+                  ...sections,
+                  if (tail != null) tail,
+                ]) ...<Widget>[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-                    child: Text(
-                      section.period.label,
-                      style: AppTextStyles.sectionTitle,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          section.period.label,
+                          style: AppTextStyles.sectionTitle,
+                        ),
+                        if (identical(section, tail))
+                          Text(
+                            'Minggu ${majorJobPeriodOf(section.period.start).label} '
+                            'masuk Weekly Report ${majorJobMonthNames[_month % 12]}, '
+                            'tetapi tetap ikut di Major Job ${majorJobMonthLabel(_year, _month)}.',
+                            style: AppTextStyles.supporting,
+                          ),
+                      ],
                     ),
                   ),
                   for (final MajorJob job in section.jobs)
@@ -534,6 +556,10 @@ class _ExportSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int withoutPhotos = jobs.where((job) => job.photos.isEmpty).length;
+    final List<MajorJobPeriod> weeks = majorJobWeeksOfMonth(year, month);
+    final String weeklyStart = weeks.isEmpty
+        ? ''
+        : majorJobDateLabel(weeks.first.start);
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * .85,
@@ -549,8 +575,10 @@ class _ExportSheet extends StatelessWidget {
         children: <Widget>[
           const Text('Export PDF', style: AppTextStyles.sectionTitle),
           const SizedBox(height: 4),
-          const Text(
-            'Report mingguan berisi pekerjaan sejak tanggal 1 sampai akhir minggu yang dipilih.',
+          Text(
+            'Weekly berisi pekerjaan sejak $weeklyStart sampai akhir minggu '
+            'yang dipilih. Major Job bulanan mengikuti tanggal kalender '
+            '${majorJobRangeLabel(DateTime(year, month), DateTime(year, month + 1, 0))}.',
             style: AppTextStyles.supporting,
           ),
           if (withoutPhotos > 0) ...<Widget>[
@@ -561,8 +589,10 @@ class _ExportSheet extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 14),
-          const Text('Weekly Job Report', style: AppTextStyles.cardTitle),
-          const SizedBox(height: 8),
+          if (sections.isNotEmpty) ...<Widget>[
+            const Text('Weekly Job Report', style: AppTextStyles.cardTitle),
+            const SizedBox(height: 8),
+          ],
           for (final MajorJobSection section in sections.reversed)
             _option(
               context,

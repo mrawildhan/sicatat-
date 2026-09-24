@@ -349,7 +349,8 @@ class _MajorJobEditorScreenState extends State<MajorJobEditorScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Masuk subjudul ${majorJobPeriodsOfMonth(_date.year, _date.month).firstWhere((p) => p.contains(_date)).label}',
+                    'Masuk subjudul ${majorJobPeriodOf(_date).label} '
+                    '(Weekly Report ${majorJobMonthLabel(majorJobPeriodOf(_date).end.year, majorJobPeriodOf(_date).end.month)})',
                     style: AppTextStyles.supporting,
                   ),
                   const SizedBox(height: 18),
