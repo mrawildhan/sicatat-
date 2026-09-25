@@ -8,8 +8,9 @@ PreventiveMaintenanceWorkOrder _pm(
   String wo,
   String crew,
   String site,
-  DateTime raised,
-) => PreventiveMaintenanceWorkOrder(
+  DateTime raised, [
+  DateTime? planned,
+]) => PreventiveMaintenanceWorkOrder(
   workOrder: wo,
   description: 'PM $wo',
   equipmentReference: 'EQ-$wo',
@@ -17,6 +18,7 @@ PreventiveMaintenanceWorkOrder _pm(
   site: site,
   status: 'A',
   raisedOn: raised,
+  plannedStartOn: planned,
 );
 
 CorrectiveMaintenanceWorkOrder _cm(String wo, String site, DateTime raised) =>
@@ -46,7 +48,7 @@ void main() {
         <PreventiveMaintenanceWorkOrder>[
           _pm('1', 'A', 'CPP', DateTime(2026, 9, 1)),
           _pm('2', 'A', 'CPP', DateTime(2026, 8, 12)),
-          _pm('3', 'B', 'CPP', DateTime(2026, 8, 12)),
+          _pm('3', 'B', 'CPP', DateTime(2026, 8, 12), DateTime(2026, 9, 24)),
           _pm('4', 'A', 'PORT', DateTime(2026, 9, 4)),
         ];
     final List<CorrectiveMaintenanceWorkOrder> cm =
@@ -68,8 +70,10 @@ void main() {
     ]);
     expect(pmReport.pmAt('PORT').map((item) => item.workOrder), <String>['4']);
     expect(pmReport.cm, isEmpty);
-    expect(pmReport.title, 'PM Tertunda · Crew A');
-    expect(pmReport.fileName, 'PM Tertunda Crew A 25-09-2026.pdf');
+    expect(pmReport.title, 'PM Outstanding · Crew A');
+    expect(pmReport.fileName, 'PM Outstanding Crew A 25-09-2026.pdf');
+    // Period ends at the latest Plan Start Date of the whole PM export.
+    expect(pmReport.periodLabel, '01 - 24 September 2026');
 
     final MaintenanceReport cmReport = MaintenanceReport(
       kind: MaintenanceReportKind.cm,
@@ -79,7 +83,8 @@ void main() {
     );
     expect(cmReport.pm, isEmpty);
     expect(cmReport.cmAt('CPP').single.workOrder, '9');
-    expect(cmReport.fileName, 'CM Tertunda CPP PORT 25-09-2026.pdf');
+    expect(cmReport.title, 'CM Outstanding · CPP & PORT');
+    expect(cmReport.fileName, 'CM Outstanding CPP PORT 25-09-2026.pdf');
 
     for (final MaintenanceReport report in <MaintenanceReport>[
       pmReport,

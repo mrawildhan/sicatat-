@@ -34,6 +34,25 @@ List<T> _oldestFirst<T>(Iterable<T> items, DateTime? Function(T) raised) =>
 /// PM and CM go to foremen as separate PDFs (owner request 2026-09-25).
 enum MaintenanceReportKind { pm, cm }
 
+/// PM grouped by crew (A, B, C), oldest first within each crew.
+List<PreventiveMaintenanceWorkOrder> _byCrewThenOldest(
+  Iterable<PreventiveMaintenanceWorkOrder> items,
+) {
+  final List<PreventiveMaintenanceWorkOrder> oldest = _oldestFirst(
+    items,
+    (PreventiveMaintenanceWorkOrder item) => item.raisedOn,
+  );
+  // List.sort is not stable, so sort by crew and keep the age order by index.
+  final Map<PreventiveMaintenanceWorkOrder, int> rank =
+      <PreventiveMaintenanceWorkOrder, int>{
+        for (int i = 0; i < oldest.length; i++) oldest[i]: i,
+      };
+  return oldest..sort((a, b) {
+    final int byCrew = a.crew.compareTo(b.crew);
+    return byCrew != 0 ? byCrew : rank[a]!.compareTo(rank[b]!);
+  });
+}
+
 /// What one PDF covers: one crew's PM (or every crew's), or all CM.
 class MaintenanceReport {
   MaintenanceReport({
@@ -46,11 +65,20 @@ class MaintenanceReport {
         const <CorrectiveMaintenanceWorkOrder>[],
     this.dataUpdatedAt,
   }) : pm = kind == MaintenanceReportKind.pm
-           ? _oldestFirst(
+           ? _byCrewThenOldest(
                pm.where((item) => crew == null || item.crew == crew),
-               (PreventiveMaintenanceWorkOrder item) => item.raisedOn,
              )
            : const <PreventiveMaintenanceWorkOrder>[],
+       // The newest Plan Start Date of the whole PM export, so every crew's
+       // PDF names the same period.
+       planEnd = pm
+           .map((PreventiveMaintenanceWorkOrder item) => item.plannedStartOn)
+           .whereType<DateTime>()
+           .fold<DateTime?>(
+             null,
+             (DateTime? latest, DateTime date) =>
+                 latest == null || date.isAfter(latest) ? date : latest,
+           ),
        cm = kind == MaintenanceReportKind.cm
            ? _oldestFirst(
                cm,
@@ -59,6 +87,9 @@ class MaintenanceReport {
            : const <CorrectiveMaintenanceWorkOrder>[];
 
   final MaintenanceReportKind kind;
+
+  /// Latest Plan Start Date in the uploaded PM data.
+  final DateTime? planEnd;
 
   /// A, B, or C for a PM report; null for all crews.
   final String? crew;
@@ -69,18 +100,29 @@ class MaintenanceReport {
   /// When the PM & CM spreadsheets last changed.
   final DateTime? dataUpdatedAt;
 
-  String get crewLabel => crew == null ? 'Semua crew' : 'Crew $crew';
+  String get crewLabel => crew == null ? 'All Crew' : 'Crew $crew';
 
-  /// "PM Tertunda · Crew A" or "CM Tertunda · CPP & PORT".
+  /// "PM Outstanding · Crew A" or "CM Outstanding · CPP & PORT" (owner's
+  /// wording, 2026-09-25).
   String get title => kind == MaintenanceReportKind.pm
-      ? 'PM Tertunda · $crewLabel'
-      : 'CM Tertunda · CPP & PORT';
+      ? 'PM Outstanding · $crewLabel'
+      : 'CM Outstanding · CPP & PORT';
+
+  /// "01 - 24 September 2026": from the first of the month up to the latest
+  /// Plan Start Date (PM), or the day the CM data was updated.
+  String get periodLabel {
+    if (kind == MaintenanceReportKind.cm) {
+      return 'per ${DateFormat('d MMMM yyyy', 'id_ID').format((dataUpdatedAt ?? today).toLocal())}';
+    }
+    final DateTime end = planEnd ?? today;
+    return '01 - ${DateFormat('dd MMMM yyyy', 'id_ID').format(end)}';
+  }
 
   String get fileName {
     final String date = DateFormat('dd-MM-yyyy').format(today);
     return kind == MaintenanceReportKind.pm
-        ? 'PM Tertunda $crewLabel $date.pdf'
-        : 'CM Tertunda CPP PORT $date.pdf';
+        ? 'PM Outstanding $crewLabel $date.pdf'
+        : 'CM Outstanding CPP PORT $date.pdf';
   }
 
   List<PreventiveMaintenanceWorkOrder> pmAt(String site, [String? crewCode]) =>
@@ -155,9 +197,7 @@ Future<Uint8List> buildMaintenancePdf(
         ),
         pw.SizedBox(height: 2),
         pw.Text(
-          'CPP & PORT Asam-Asam · data spreadsheet per '
-          '${report.dataUpdatedAt == null ? '-' : stamp.format(report.dataUpdatedAt!.toLocal())}'
-          ' · umur dihitung sampai ${_date(report.today)}',
+          'CPP & PORT Asam-Asam · ${report.periodLabel}',
           style: pw.TextStyle(fontSize: 8.5, color: _muted),
         ),
         pw.SizedBox(height: 10),
@@ -321,7 +361,7 @@ pw.Widget _pmChart(MaintenanceReport report) {
       : <String>[report.crew!];
   // One labelled bar per crew and site: Crew A CPP, Crew A PORT, ...
   return _barChart(
-    title: 'PM tertunda per crew',
+    title: 'PM Outstanding per crew',
     groups: <String>[
       for (final String crew in crews)
         for (final String site in maintenanceSites) 'Crew $crew\n$site',
@@ -361,6 +401,9 @@ pw.Widget _table({
   required Map<int, pw.TableColumnWidth> widths,
   required List<List<String>> rows,
   Set<int> ageColumns = const <int>{},
+
+  /// Columns centred in both the header and the cells; the rest are left.
+  Set<int> centered = const <int>{},
 }) => pw.TableHelper.fromTextArray(
   headers: headers,
   data: rows,
@@ -377,9 +420,17 @@ pw.Widget _table({
   border: pw.TableBorder(
     horizontalInside: pw.BorderSide(color: _line, width: 0.5),
   ),
+  headerAlignments: <int, pw.Alignment>{
+    for (int column = 0; column < headers.length; column++)
+      column: centered.contains(column)
+          ? pw.Alignment.center
+          : pw.Alignment.centerLeft,
+  },
   cellAlignments: <int, pw.Alignment>{
-    0: pw.Alignment.centerRight,
-    for (final int column in ageColumns) column: pw.Alignment.centerRight,
+    for (int column = 0; column < headers.length; column++)
+      column: centered.contains(column)
+          ? pw.Alignment.center
+          : pw.Alignment.centerLeft,
   },
   textStyleBuilder: (int column, dynamic value, int row) {
     // Work waiting more than 30 days stands out in red.
@@ -399,17 +450,20 @@ pw.Widget _table({
 
 List<pw.Widget> _pmSection(MaintenanceReport report, String site) {
   final List<PreventiveMaintenanceWorkOrder> items = report.pmAt(site);
-  final String who = report.crew == null ? 'semua crew' : report.crewLabel;
+  final String who = report.crewLabel;
   if (items.isEmpty) {
     return <pw.Widget>[
+      if (site != maintenanceSites.first) pw.NewPage(),
       _sectionTitle('PM $site · $who', 0),
       pw.Text(
-        'Tidak ada PM tertunda.',
+        'Tidak ada PM outstanding.',
         style: pw.TextStyle(fontSize: 8, color: _muted),
       ),
     ];
   }
   return <pw.Widget>[
+    // PORT starts on a fresh page instead of under the CPP list.
+    if (site != maintenanceSites.first) pw.NewPage(),
     _sectionTitle('PM $site · $who', items.length),
     _table(
       headers: <String>[
@@ -443,6 +497,9 @@ List<pw.Widget> _pmSection(MaintenanceReport report, String site) {
               6: pw.FixedColumnWidth(44),
             },
       ageColumns: <int>{report.crew == null ? 7 : 6},
+      centered: report.crew == null
+          ? const <int>{0, 1, 4, 5, 6, 7}
+          : const <int>{0, 3, 4, 5, 6},
       rows: <List<String>>[
         for (int i = 0; i < items.length; i++)
           <String>[
@@ -464,14 +521,16 @@ List<pw.Widget> _cmSection(MaintenanceReport report, String site) {
   final List<CorrectiveMaintenanceWorkOrder> items = report.cmAt(site);
   if (items.isEmpty) {
     return <pw.Widget>[
+      if (site != maintenanceSites.first) pw.NewPage(),
       _sectionTitle('CM $site', 0),
       pw.Text(
-        'Tidak ada CM tertunda.',
+        'Tidak ada CM outstanding.',
         style: pw.TextStyle(fontSize: 8, color: _muted),
       ),
     ];
   }
   return <pw.Widget>[
+    if (site != maintenanceSites.first) pw.NewPage(),
     _sectionTitle('CM $site', items.length),
     _table(
       headers: const <String>[
@@ -495,6 +554,7 @@ List<pw.Widget> _cmSection(MaintenanceReport report, String site) {
         7: pw.FlexColumnWidth(4),
       },
       ageColumns: const <int>{6},
+      centered: const <int>{0, 3, 4, 5, 6},
       rows: <List<String>>[
         for (int i = 0; i < items.length; i++)
           <String>[
