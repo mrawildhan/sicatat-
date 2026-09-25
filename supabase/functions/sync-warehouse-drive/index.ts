@@ -7,6 +7,17 @@
 
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { type Cell, excelSerialToIso, readXlsx, type SheetRows } from "../_shared/lean_xlsx.ts";
+import {
+  discardUpload,
+  errorText,
+  isActiveAdmin,
+  loadSourceParts,
+  type PendingUpload,
+  promoteUpload,
+  readPart,
+  readPendingUpload,
+  usesUpload,
+} from "../_shared/source_files.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,6 +32,13 @@ const filePatterns: Record<Source, RegExp> = {
   inventory: /^warehouse[\s_-]*inventory/i,
   list_order: /^list[\s_-]*order/i,
   outstanding_po: /^outstanding[\s_-]*purchase[\s_-]*order/i,
+};
+
+// "Unggah data" part of each source.
+const uploadParts: Record<Source, string> = {
+  inventory: "gudang_inventory",
+  list_order: "gudang_list_order",
+  outstanding_po: "gudang_outstanding_po",
 };
 
 const fileLabels: Record<Source, string> = {
@@ -387,20 +405,44 @@ Deno.serve(async (req) => {
   if (!caller?.is_active) return json({ ok: false, error: "Akun tidak aktif." }, 403);
 
   let source: Source;
+  let body: { source?: string; upload?: unknown };
   try {
-    const body = await req.json() as { source?: string };
+    body = await req.json() as { source?: string; upload?: unknown };
     if (!body.source || !(body.source in filePatterns)) throw new Error();
     source = body.source as Source;
   } catch {
     return json({ ok: false, error: "Sumber tidak dikenal." }, 400);
   }
   const label = fileLabels[source];
+  const part = uploadParts[source];
   const now = new Date().toISOString();
+  let pending: PendingUpload | null = null;
+  try {
+    pending = await readPendingUpload(body as Record<string, unknown>, [part], await isActiveAdmin(admin, caller.id));
+  } catch (error) {
+    return json({ ok: false, source, error: errorText(error) }, 400);
+  }
 
   try {
-    const file = (await listFolder()).find((f) => filePatterns[source].test(f.name));
-    if (!file) throw new Error(`File ${label} tidak ada di folder Drive Gudang.`);
-    const { bytes, modifiedAt } = await download(file.id, label);
+    const parts = await loadSourceParts(admin, [part], pending);
+    // An uploaded file replaces the Drive folder for this source.
+    let file: { id: string | null; name: string };
+    let bytes: Uint8Array;
+    let modifiedAt: string | null;
+    if (usesUpload(parts, part)) {
+      bytes = await readPart(admin, parts, part, label, () => Promise.reject(new Error("unreachable")));
+      file = { id: null, name: pending?.fileName ?? `${label} (unggahan)` };
+      modifiedAt = pending ? now : parts.uploaded.get(part) ?? null;
+      if (!pending) {
+        const { data: stored } = await admin.from("data_source_upload").select("file_name").eq("part", part).maybeSingle();
+        if (stored?.file_name) file = { id: null, name: stored.file_name as string };
+      }
+    } else {
+      const found = (await listFolder()).find((f) => filePatterns[source].test(f.name));
+      if (!found) throw new Error(`File ${label} tidak ada di folder Drive Gudang.`);
+      file = found;
+      ({ bytes, modifiedAt } = await download(found.id, label));
+    }
     const sourceFingerprint = await fingerprint(bytes);
     const { data: previous, error: previousError } = await admin
       .from("warehouse_drive_source")
@@ -409,6 +451,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (previousError) throw previousError;
     if (previous?.source_fingerprint === sourceFingerprint) {
+      await promoteUpload(admin, "gudang", pending, caller.id);
       await admin.from("warehouse_drive_source").update({
         checked_at: now, error: null, error_at: null, file_id: file.id, file_name: file.name,
         ...(modifiedAt ? { modified_at: modifiedAt } : {}),
@@ -435,18 +478,21 @@ Deno.serve(async (req) => {
       error_at: null,
     }, { onConflict: "source" });
     if (saveError) throw saveError;
+    await promoteUpload(admin, "gudang", pending, caller.id);
     return json({ ok: true, source, changed: true, rows: result.rows, file: file.name });
   } catch (error) {
-    const message = error instanceof Error
-      ? error.message
-      : typeof error === "object" && error !== null && "message" in error
-      ? String((error as { message: unknown }).message)
-      : String(error);
+    const message = errorText(error);
     console.error(`${label} import failed`, message);
-    await admin.from("warehouse_drive_source").upsert(
-      { source, error: message, error_at: now },
-      { onConflict: "source" },
-    );
+    if (pending) {
+      // A rejected upload leaves the current data and status untouched; the
+      // admin sees the reason on the upload screen.
+      await discardUpload(admin, pending);
+    } else {
+      await admin.from("warehouse_drive_source").upsert(
+        { source, error: message, error_at: now },
+        { onConflict: "source" },
+      );
+    }
     return json({ ok: false, source, error: message });
   }
 });

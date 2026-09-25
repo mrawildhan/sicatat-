@@ -1,6 +1,17 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as XLSX from "npm:xlsx@0.18.5";
-import { recordDriveModified } from "../_shared/drive_modified.ts";
+import {
+  discardUpload,
+  errorText,
+  isActiveAdmin,
+  loadSourceParts,
+  type PendingUpload,
+  promoteUpload,
+  readPart,
+  readPendingUpload,
+  recordSourceModified,
+  requestBody,
+} from "../_shared/source_files.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,12 +71,20 @@ Deno.serve(async (req) => {
   const { data: caller } = await admin.from("app_user").select("id,is_active").eq("nik", nik).maybeSingle();
   if (!caller?.is_active) return json({ ok: false, error: "Akun tidak aktif." }, 403);
 
-  // Runs beside the import; awaited in `finally` before the response is sent.
-  const modified = recordDriveModified(admin, "corrective_maintenance", ["1MXeJk9xIGKNEhxGhpFS-cWl9L03fMwwy"]);
+  const body = await requestBody(req);
+  let pending: PendingUpload | null = null;
   try {
-    const response = await fetch(sourceUrl, { signal: AbortSignal.timeout(20000) });
-    if (!response.ok) throw new Error(`CM terbaru.xlsx tidak dapat dibaca (HTTP ${response.status}).`);
-    const buffer = await response.arrayBuffer();
+    pending = await readPendingUpload(body, ["cm"], await isActiveAdmin(admin, caller.id));
+  } catch (error) {
+    return json({ ok: false, error: errorText(error) }, 400);
+  }
+  try {
+    const sources = await loadSourceParts(admin, ["cm"], pending);
+    const buffer = (await readPart(admin, sources, "cm", "Weekly Meeting (CM)", async () => {
+      const response = await fetch(sourceUrl, { signal: AbortSignal.timeout(20000) });
+      if (!response.ok) throw new Error(`File CM (Weekly Meeting) tidak dapat dibaca (HTTP ${response.status}).`);
+      return new Uint8Array(await response.arrayBuffer());
+    })).buffer as ArrayBuffer;
     const sourceFingerprint = await fingerprint(buffer);
     const now = new Date().toISOString();
     // An unchanged workbook keeps the current rows, so their synced_at stays
@@ -77,6 +96,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (currentError) throw currentError;
     if (current?.source_fingerprint === sourceFingerprint) {
+      await promoteUpload(admin, "corrective_maintenance", pending, caller.id);
       return json({ ok: true, changed: false, rows: 0, synced_at: now });
     }
     const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
@@ -109,16 +129,16 @@ Deno.serve(async (req) => {
     if (writeError) throw writeError;
     const { error: deleteError } = await admin.from("corrective_maintenance_work_order").delete().neq("source_fingerprint", sourceFingerprint);
     if (deleteError) throw deleteError;
+    await promoteUpload(admin, "corrective_maintenance", pending, caller.id);
     return json({ ok: true, changed: true, rows: rows.length, synced_at: now });
   } catch (error) {
-    const message = error instanceof Error
-      ? error.message
-      : typeof error === "object" && error !== null && "message" in error
-      ? String(error.message)
-      : String(error);
+    const message = errorText(error);
     console.error("CM synchronization failed", JSON.stringify(error));
+    await discardUpload(admin, pending);
     return json({ ok: false, error: message }, 500);
   } finally {
-    await modified;
+    await recordSourceModified(admin, "corrective_maintenance", [
+      { part: "cm", driveId: "1MXeJk9xIGKNEhxGhpFS-cWl9L03fMwwy" },
+    ]);
   }
 });

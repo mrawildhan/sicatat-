@@ -87,6 +87,14 @@ class MasterDataHubScreen extends ConsumerWidget {
             if (canManageUsers)
               _item(
                 context,
+                Icons.upload_file_rounded,
+                'Unggah data',
+                'File Excel PR, PM & CM, anggaran, dan gudang',
+                '/admin/data-upload',
+              ),
+            if (canManageUsers)
+              _item(
+                context,
                 Icons.manage_accounts_outlined,
                 'Pengguna',
                 'NIK, peran, regu, dan status akun crew',

@@ -1,8 +1,23 @@
-// Imports only the compact Google Sheets CSV views. The source workbooks stay
-// in Drive; Supabase stores a small, searchable snapshot for the application.
+// Imports only the compact Google Sheets CSV views, or the same sheets from a
+// workbook an admin uploaded through "Unggah data". Supabase stores a small,
+// searchable snapshot for the application.
 
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { recordDriveModified } from "../_shared/drive_modified.ts";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { readXlsx } from "../_shared/lean_xlsx.ts";
+import {
+  discardUpload,
+  errorText,
+  isActiveAdmin,
+  loadSourceParts,
+  type PendingUpload,
+  promoteUpload,
+  readPart,
+  readPendingUpload,
+  recordSourceModified,
+  requestBody,
+  type SourceParts,
+  usesUpload,
+} from "../_shared/source_files.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -80,6 +95,30 @@ function numberValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+/** "Jan-26" header cells are Excel dates in an uploaded workbook. */
+function monthLabel(value: string) {
+  const serial = Number(value);
+  if (!/^\d{5}(\.\d+)?$/.test(value.trim()) || serial < 40000 || serial > 60000) return value;
+  const date = new Date(Date.UTC(1899, 11, 30) + Math.round(serial) * 86400000);
+  return `${monthNames[date.getUTCMonth()]}-${String(date.getUTCFullYear()).slice(2)}`;
+}
+
+/** One sheet of an uploaded workbook as text rows, like the CSV export. */
+function xlsxRows(bytes: Uint8Array, sheetName: string, label: string): CsvRows {
+  const sheets = readXlsx(bytes, (name) => name.trim() === sheetName, 20);
+  const rows = [...sheets.values()][0];
+  if (!rows) throw new Error(`${label}: sheet ${sheetName} tidak ditemukan.`);
+  return rows.map((row) => row.map((cell) => cell === null || cell === undefined ? "" : String(cell)));
+}
+
+/** Name of the first sheet, for workbooks whose data sheet name may vary. */
+function firstSheet(bytes: Uint8Array, preferred: string): string {
+  const names = [...readXlsx(bytes, () => true, 1).keys()];
+  return names.find((name) => name.trim() === preferred) ?? names[0] ?? preferred;
+}
+
 function periodStart(period: string) {
   return `${period.slice(0, 4)}-${period.slice(4)}-01`;
 }
@@ -133,7 +172,7 @@ async function fingerprint(values: string[]) {
 function budgetItems(rows: CsvRows, site: Site) {
   const headerRow = rows.findIndex((row) => compact(row[1]).toUpperCase() === "EXPENSE" && compact(row[2]).toUpperCase() === "EXPENSE");
   if (headerRow < 0) throw new Error(`Header budget ${site} tidak ditemukan.`);
-  const headers = headerIndex(rows[headerRow]);
+  const headers = headerIndex(rows[headerRow].map(monthLabel));
   const result = new Map<string, { description: string; months: Record<string, number> }>();
   for (const row of rows.slice(headerRow + 2)) {
     const code = compact(row[1]);
@@ -175,9 +214,9 @@ function actualItems(rows: CsvRows) {
   return result;
 }
 
-function buildRows(site: Site, budgetCsv: string, actualCsv: string, sourceFingerprint: string, now: string) {
-  const budget = budgetItems(parseCsv(budgetCsv), site);
-  const actual = actualItems(parseCsv(actualCsv));
+function buildRows(site: Site, budgetRows: CsvRows, actualRows: CsvRows, sourceFingerprint: string, now: string) {
+  const budget = budgetItems(budgetRows, site);
+  const actual = actualItems(actualRows);
   const items: BudgetItem[] = [];
   for (const [code, budgetItem] of budget.entries()) {
     const actualItem = actual.get(code);
@@ -202,6 +241,52 @@ function buildRows(site: Site, budgetCsv: string, actualCsv: string, sourceFinge
   return { items, months };
 }
 
+const ownParts = ["budget", "actual_cpp", "actual_port"];
+const budgetSheets = { cpp: "3271 (Mtc)", port: "3275 (Mtc)" } as const;
+
+type LoadedRows = { rows: CsvRows; text: string };
+
+async function csvPart(url: string, label: string): Promise<LoadedRows> {
+  const text = await downloadCsv(url, label);
+  return { rows: parseCsv(text), text };
+}
+
+function uploadedRows(bytes: Uint8Array, sheetName: string, label: string): LoadedRows {
+  const rows = xlsxRows(bytes, sheetName, label);
+  return { rows, text: JSON.stringify(rows) };
+}
+
+const notOnDrive = () => Promise.reject(new Error("File unggahan tidak ditemukan."));
+
+/** Both budget sheets: from the uploaded workbook, or Drive's CSV views. */
+async function readBudget(admin: SupabaseClient, parts: SourceParts) {
+  if (!usesUpload(parts, "budget")) {
+    const [cpp, port] = await Promise.all([
+      csvPart(source.cppBudget, "Budget CPP"),
+      csvPart(source.portBudget, "Budget PORT"),
+    ]);
+    return { cpp, port };
+  }
+  const bytes = await readPart(admin, parts, "budget", "Budget", notOnDrive);
+  return {
+    cpp: uploadedRows(bytes, budgetSheets.cpp, "Budget"),
+    port: uploadedRows(bytes, budgetSheets.port, "Budget"),
+  };
+}
+
+/** Actual transactions: the uploaded workbook's PLDetail sheet, or Drive's CSV. */
+async function readActual(
+  admin: SupabaseClient,
+  parts: SourceParts,
+  part: string,
+  url: string,
+  label: string,
+): Promise<LoadedRows> {
+  if (!usesUpload(parts, part)) return await csvPart(url, label);
+  const bytes = await readPart(admin, parts, part, label, notOnDrive);
+  return uploadedRows(bytes, firstSheet(bytes, "PLDetail"), label);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ ok: false, error: "Metode tidak diizinkan." }, 405);
@@ -218,18 +303,23 @@ Deno.serve(async (req) => {
   const { data: caller, error: callerError } = await admin.from("app_user").select("id,is_active").eq("nik", nik).maybeSingle();
   if (callerError || !caller?.is_active) return json({ ok: false, error: "Akun tidak aktif." }, 403);
 
-  // Runs beside the import; awaited in `finally` before the response is sent.
-  const modified = recordDriveModified(admin, "operational_budget", [
-    workbookId,
-    "1Mv8n8YmGAp4_XTr5V8OJVaUKRGZWeBc_",
-    "16Gv5TC5Uri5MjDp8JWfLNryf4Bkksu3O",
-  ]);
+  const body = await requestBody(req);
+  let pending: PendingUpload | null = null;
   try {
-    const [cppBudget, portBudget, cppActual, portActual] = await Promise.all([
-      downloadCsv(source.cppBudget, "Budget CPP"), downloadCsv(source.portBudget, "Budget PORT"),
-      downloadCsv(source.cppActual, "Aktual CPP"), downloadCsv(source.portActual, "Aktual PORT"),
+    pending = await readPendingUpload(body, ownParts, await isActiveAdmin(admin, caller.id));
+  } catch (error) {
+    return json({ ok: false, error: errorText(error) }, 400);
+  }
+  try {
+    const parts = await loadSourceParts(admin, ownParts, pending);
+    const [budget, cppActual, portActual] = await Promise.all([
+      readBudget(admin, parts),
+      readActual(admin, parts, "actual_cpp", source.cppActual, "Aktual CPP (cpp asm)"),
+      readActual(admin, parts, "actual_port", source.portActual, "Aktual PORT (port asm)"),
     ]);
-    const sourceFingerprint = await fingerprint([importVersion, cppBudget, portBudget, cppActual, portActual]);
+    const sourceFingerprint = await fingerprint([
+      importVersion, budget.cpp.text, budget.port.text, cppActual.text, portActual.text,
+    ]);
     const now = new Date().toISOString();
     // Unchanged sheets keep the current rows, so their synced_at stays the time
     // the spreadsheets last changed (shown in Anggaran Operasional).
@@ -241,14 +331,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (currentError) throw currentError;
     if (current?.source_fingerprint === sourceFingerprint) {
+      await promoteUpload(admin, "operational_budget", pending, caller.id);
       await admin.from("operational_budget_sync_log").insert({
         status: "completed", source_fingerprint: sourceFingerprint,
         detail: "Lembar anggaran dan aktual tidak berubah; snapshot dipertahankan.", triggered_by: caller.id,
       });
       return json({ ok: true, changed: false, rows: 0, synced_at: now });
     }
-    const cpp = buildRows("CPP", cppBudget, cppActual, sourceFingerprint, now);
-    const port = buildRows("PORT", portBudget, portActual, sourceFingerprint, now);
+    const cpp = buildRows("CPP", budget.cpp.rows, cppActual.rows, sourceFingerprint, now);
+    const port = buildRows("PORT", budget.port.rows, portActual.rows, sourceFingerprint, now);
     const items = [...cpp.items, ...port.items];
     const months = [...cpp.months, ...port.months];
     if (items.length === 0 || months.length !== periods.length * 2) throw new Error("Snapshot anggaran Asam-Asam tidak lengkap.");
@@ -258,21 +349,22 @@ Deno.serve(async (req) => {
     if (monthError) throw monthError;
     await admin.from("operational_budget_item").delete().in("site_code", ["CPP", "PORT"]).neq("source_fingerprint", sourceFingerprint);
     await admin.from("operational_budget_month").delete().in("site_code", ["CPP", "PORT"]).neq("source_fingerprint", sourceFingerprint);
+    await promoteUpload(admin, "operational_budget", pending, caller.id);
     await admin.from("operational_budget_sync_log").insert({
       status: "completed", snapshot_rows: items.length + months.length, source_fingerprint: sourceFingerprint,
       detail: "Ringkasan item budget dan aktual USD Asam-Asam Januari–Desember 2026 tersimpan.", triggered_by: caller.id,
     });
     return json({ ok: true, changed: true, rows: items.length + months.length, synced_at: now });
   } catch (error) {
-    // Database errors are plain objects with a message, not Error instances.
-    const message = error instanceof Error
-      ? error.message
-      : typeof (error as { message?: unknown })?.message === "string"
-      ? (error as { message: string }).message
-      : String(error);
+    const message = errorText(error);
+    await discardUpload(admin, pending);
     await admin.from("operational_budget_sync_log").insert({ status: "failed", detail: message, triggered_by: caller.id });
     return json({ ok: false, error: message }, 500);
   } finally {
-    await modified;
+    await recordSourceModified(admin, "operational_budget", [
+      { part: "budget", driveId: workbookId },
+      { part: "actual_cpp", driveId: "1Mv8n8YmGAp4_XTr5V8OJVaUKRGZWeBc_" },
+      { part: "actual_port", driveId: "16Gv5TC5Uri5MjDp8JWfLNryf4Bkksu3O" },
+    ]);
   }
 });

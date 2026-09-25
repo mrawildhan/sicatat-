@@ -3,7 +3,17 @@
 
 import * as XLSX from "npm:xlsx@0.18.5";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { recordDriveModified } from "../_shared/drive_modified.ts";
+import {
+  discardUpload,
+  isActiveAdmin,
+  loadSourceParts,
+  type PendingUpload,
+  promoteUpload,
+  readPart,
+  readPendingUpload,
+  recordSourceModified,
+  requestBody,
+} from "../_shared/source_files.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -170,12 +180,20 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (callerError || !caller?.is_active) return json({ ok: false, error: "Akun tidak aktif." }, 403);
 
-  // Runs beside the import; awaited in `finally` before the response is sent.
-  const modified = recordDriveModified(admin, "purchase_requisition", [sourceWorkbookId]);
+  const body = await requestBody(req);
+  let pending: PendingUpload | null = null;
   try {
-    const response = await fetch(sourceUrl, { signal: AbortSignal.timeout(60000) });
-    if (!response.ok) throw new Error(`File PR tidak dapat dibaca (HTTP ${response.status}).`);
-    const bytes = await response.arrayBuffer();
+    pending = await readPendingUpload(body, ["pr"], await isActiveAdmin(admin, caller.id));
+  } catch (error) {
+    return json({ ok: false, error: errorMessage(error) });
+  }
+  try {
+    const sources = await loadSourceParts(admin, ["pr"], pending);
+    const bytes = (await readPart(admin, sources, "pr", "PR.xlsx", async () => {
+      const response = await fetch(sourceUrl, { signal: AbortSignal.timeout(60000) });
+      if (!response.ok) throw new Error(`File PR tidak dapat dibaca (HTTP ${response.status}).`);
+      return new Uint8Array(await response.arrayBuffer());
+    })).buffer as ArrayBuffer;
     const sourceFingerprint = await fingerprint(bytes);
     const syncedAt = new Date().toISOString();
     // An unchanged workbook keeps the current snapshot. The log row still
@@ -190,6 +208,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (previousError) throw previousError;
     if (previous?.source_fingerprint === sourceFingerprint) {
+      await promoteUpload(admin, "purchase_requisition", pending, caller.id);
       await admin.from("purchase_requisition_sync_log").insert({
         status: "completed",
         snapshot_rows: previous.snapshot_rows,
@@ -207,6 +226,7 @@ Deno.serve(async (req) => {
       .delete()
       .neq("source_fingerprint", sourceFingerprint);
     if (deleteError) throw deleteError;
+    await promoteUpload(admin, "purchase_requisition", pending, caller.id);
     await admin.from("purchase_requisition_sync_log").insert({
       status: "completed",
       snapshot_rows: rows.length,
@@ -217,6 +237,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, changed: true, rows: rows.length, synced_at: syncedAt });
   } catch (error) {
     const message = errorMessage(error);
+    await discardUpload(admin, pending);
     await admin.from("purchase_requisition_sync_log").insert({
       status: "failed",
       detail: message,
@@ -227,6 +248,6 @@ Deno.serve(async (req) => {
     // collapsing it into a generic FunctionsHttpException.
     return json({ ok: false, error: message });
   } finally {
-    await modified;
+    await recordSourceModified(admin, "purchase_requisition", [{ part: "pr", driveId: sourceWorkbookId }]);
   }
 });

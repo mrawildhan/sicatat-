@@ -11,6 +11,7 @@ import 'features/auth/presentation/login_screen.dart';
 import 'features/admin/presentation/basic_master_screens.dart';
 import 'features/admin/presentation/equipment_management_screen.dart';
 import 'features/admin/presentation/form_template_management_screen.dart';
+import 'features/admin/presentation/data_upload_screen.dart';
 import 'features/admin/presentation/master_data_hub_screen.dart';
 import 'features/admin/presentation/site_management_screen.dart';
 import 'features/admin/presentation/threshold_management_screen.dart';
@@ -188,6 +189,16 @@ final _router = GoRouter(
         child: MainNavigationScaffold(
           selectedTab: MainNavigationTab.home,
           child: FormTemplateManagementScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/admin/data-upload',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{UserRole.admin},
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: DataUploadScreen(),
         ),
       ),
     ),

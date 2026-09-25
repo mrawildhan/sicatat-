@@ -1,9 +1,21 @@
 // Synchronises the approved PM work-order files into a private database snapshot.
 // The Flutter app never downloads or parses spreadsheets directly.
 
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import * as XLSX from "npm:xlsx@0.18.5";
-import { recordDriveModified } from "../_shared/drive_modified.ts";
+import {
+  discardUpload,
+  errorText,
+  isActiveAdmin,
+  loadSourceParts,
+  type PendingUpload,
+  promoteUpload,
+  readPart,
+  readPendingUpload,
+  recordSourceModified,
+  requestBody,
+  type SourceParts,
+} from "../_shared/source_files.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,12 +25,16 @@ const corsHeaders = {
 const sources = [
   {
     site: "CPP",
+    part: "pm_cpp",
     label: "CPP PM.xlsx",
+    driveId: "1fzmWPxRiqH6ZIAECjqXN1PQJ99JkICEz",
     url: "https://drive.google.com/uc?export=download&id=1fzmWPxRiqH6ZIAECjqXN1PQJ99JkICEz",
   },
   {
     site: "PORT",
+    part: "pm_port",
     label: "PORT PM.xlsx",
+    driveId: "1lj-70kgos3_cSMQ6d7Ye8qjtAIA9N0LG",
     url: "https://drive.google.com/uc?export=download&id=1lj-70kgos3_cSMQ6d7Ye8qjtAIA9N0LG",
   },
 ] as const;
@@ -113,10 +129,16 @@ async function fingerprint(buffers: ArrayBuffer[]) {
     .join("");
 }
 
-async function readSource(source: typeof sources[number]) {
-  const response = await fetch(source.url, { signal: AbortSignal.timeout(20000) });
-  if (!response.ok) throw new Error(`${source.label} tidak dapat dibaca (HTTP ${response.status}).`);
-  const buffer = await response.arrayBuffer();
+async function readSource(
+  admin: SupabaseClient,
+  parts: SourceParts,
+  source: typeof sources[number],
+) {
+  const buffer = (await readPart(admin, parts, source.part, source.label, async () => {
+    const response = await fetch(source.url, { signal: AbortSignal.timeout(20000) });
+    if (!response.ok) throw new Error(`${source.label} tidak dapat dibaca (HTTP ${response.status}).`);
+    return new Uint8Array(await response.arrayBuffer());
+  })).buffer as ArrayBuffer;
   const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) throw new Error(`${source.label} tidak memiliki sheet data.`);
@@ -187,13 +209,20 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "Akun tidak aktif." }, 403);
   }
 
-  // Runs beside the import; awaited in `finally` before the response is sent.
-  const modified = recordDriveModified(admin, "preventive_maintenance", [
-    "1fzmWPxRiqH6ZIAECjqXN1PQJ99JkICEz",
-    "1lj-70kgos3_cSMQ6d7Ye8qjtAIA9N0LG",
-  ]);
+  const body = await requestBody(req);
+  let pending: PendingUpload | null = null;
   try {
-    const loaded = await Promise.all(sources.map(readSource));
+    pending = await readPendingUpload(
+      body,
+      sources.map((source) => source.part),
+      await isActiveAdmin(admin, caller.id),
+    );
+  } catch (error) {
+    return json({ ok: false, error: errorText(error) }, 400);
+  }
+  try {
+    const parts = await loadSourceParts(admin, sources.map((source) => source.part), pending);
+    const loaded = await Promise.all(sources.map((source) => readSource(admin, parts, source)));
     const sourceFingerprint = await fingerprint(loaded.map((entry) => entry.buffer));
     const { data: previous } = await admin
       .from("preventive_maintenance_sync_log")
@@ -204,6 +233,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const now = new Date().toISOString();
     if (previous?.source_fingerprint === sourceFingerprint) {
+      await promoteUpload(admin, "preventive_maintenance", pending, caller.id);
       await admin.from("preventive_maintenance_sync_log").insert({
         status: "completed",
         snapshot_rows: 0,
@@ -252,6 +282,7 @@ Deno.serve(async (req) => {
       .in("site_code", ["CPP", "PORT"])
       .neq("source_fingerprint", sourceFingerprint);
     if (deleteError) throw deleteError;
+    await promoteUpload(admin, "preventive_maintenance", pending, caller.id);
     await admin.from("preventive_maintenance_sync_log").insert({
       status: "completed",
       snapshot_rows: rows.length,
@@ -261,7 +292,8 @@ Deno.serve(async (req) => {
     });
     return json({ ok: true, changed: true, rows: rows.length, synced_at: now });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorText(error);
+    await discardUpload(admin, pending);
     await admin.from("preventive_maintenance_sync_log").insert({
       status: "failed",
       detail: message,
@@ -269,6 +301,10 @@ Deno.serve(async (req) => {
     });
     return json({ ok: false, error: message }, 500);
   } finally {
-    await modified;
+    await recordSourceModified(
+      admin,
+      "preventive_maintenance",
+      sources.map((source) => ({ part: source.part, driveId: source.driveId })),
+    );
   }
 });

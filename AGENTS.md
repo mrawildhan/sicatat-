@@ -2,6 +2,15 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Unggah data: file Excel langsung ke SICATAT, Anggaran setahun penuh — 2026-09-25
+
+- Pemilik (satu-satunya yang meng-update spreadsheet) memilih **upload langsung** daripada OneDrive (akun kantor arutmin.com biasanya melarang link "siapa saja", Graph API butuh admin IT) dan daripada link publik Google Drive (data PR/anggaran/PO terbuka untuk siapa pun yang punya link).
+- Admin: Data master → **Unggah data** (`/admin/data-upload`, `features/admin/presentation/data_upload_screen.dart`). Bagian (part): `pr`, `pm_cpp`, `pm_port`, `cm`, `budget`, `actual_cpp`, `actual_port`, `gudang_inventory`, `gudang_list_order`, `gudang_outstanding_po`.
+- Alur: app mengunggah ke Storage privat `data-source-uploads/incoming/<part>` (RLS admin), lalu memanggil fungsi sync-nya dengan `{"upload": {"part", "file_name", "size"}}` (Gudang juga `source`). Fungsi mengimpor bersama part lain; **hanya bila berhasil** file dipindah ke `current/<part>` dan dicatat di `data_source_upload`; bila gagal `incoming` dihapus dan data lama tetap. Selama `current/<part>` ada, link Drive part itu diabaikan; "Kembali ke Google Drive" menghapusnya. Helper bersama: `supabase/functions/_shared/source_files.ts`; migrasi `20260925100000_data_source_uploads.sql`. Kartu "Terakhir diperbarui" memakai waktu unggah untuk part yang diunggah.
+- Yang disimpan hanya file terbaru per part (~8 MB di Storage 1 GB); database tetap snapshot yang ditimpa (spreadsheet ±22 MB dari 46 MB DB pada 2026-09-25).
+- Anggaran kini **Jan–Des 2026** (budget setahun penuh, pilihan pemilik; aktual mengisi sendiri saat `cpp asm`/`port asm` di-update). Migrasi `20260925090000` melebarkan check `period_start` sampai Desember; `importVersion` di sidik jari memaksa impor ulang.
+- Temuan: ekspor CSV Google (gviz) mengosongkan sel rumus `=300000000/D5` (CPP 00220 CONTRACTOR-GENERAL, Jun 2026), jadi budget CPP dari Drive kurang US$18.182. File Excel yang diunggah membaca nilai tersimpan Excel dengan benar (total budget US$685.952). Budget sudah diunggah sebagai sumber pada 2026-09-25; Data PR diuji lalu dikembalikan ke Drive.
+
 ## Kartu pembaruan: dua baris, tanggal "Date modified" Drive — 2026-09-24
 
 - Permintaan pemilik: kartu pembaruan di Data PR, PM & CM, Anggaran, Cari barang, Barang dipesan, dan tab List Order cukup dua baris: judul + "Terakhir diperbarui d/M/yy HH.mm" (24 jam), memakai **tanggal modifikasi file di Drive** (seperti kolom "Date modified"), bukan waktu SICATAT mendeteksi perubahan. `SourceUpdateCard(title, updatedAt, checking, error, onRefresh)`; baris kedua berganti "Memeriksa pembaruan…" atau "Gagal memeriksa: …".
