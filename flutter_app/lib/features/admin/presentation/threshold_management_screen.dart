@@ -414,10 +414,10 @@ class _ThresholdManagementScreenState extends State<ThresholdManagementScreen> {
 
   @override
   Widget build(BuildContext context) => AppBackScope(
-    fallbackRoute: '/admin',
+    fallbackRoute: '/admin/temperature',
     child: Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(fallbackRoute: '/admin'),
+        leading: const AppBackButton(fallbackRoute: '/admin/temperature'),
         title: const Text('Batas suhu'),
       ),
       floatingActionButton: FloatingActionButton.extended(

@@ -198,9 +198,14 @@ class _DataUploadScreenState extends State<DataUploadScreen> {
   }
 
   /// Runs the part's sync function; returns its JSON answer.
-  Future<JsonMap> _runImport(DataUploadPart part, {PlatformFile? file}) async {
+  Future<JsonMap> _runImport(
+    DataUploadPart part, {
+    PlatformFile? file,
+    bool confirmShrink = false,
+  }) async {
     final Map<String, Object?> body = <String, Object?>{
       if (part.warehouseSource != null) 'source': part.warehouseSource,
+      if (confirmShrink) 'confirm_shrink': true,
       if (file != null)
         'upload': <String, Object?>{
           'part': part.part,
@@ -254,7 +259,30 @@ class _DataUploadScreenState extends State<DataUploadScreen> {
                   : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             ),
           );
-      final JsonMap result = await _runImport(part, file: file);
+      JsonMap result = await _runImport(part, file: file);
+      if (result['needs_confirmation'] == true) {
+        // The file holds far less than the current data (e.g. only the new
+        // rows). Nothing was written yet; the upload waits in incoming/.
+        final bool proceed = await _confirmShrink(part, file.name, result);
+        if (!proceed) {
+          await _client.storage.from(_bucket).remove(<String>[
+            'incoming/${part.part}',
+          ]);
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Unggahan ${part.title} dibatalkan. Data lama tetap dipakai.',
+                  ),
+                ),
+              );
+          }
+          return;
+        }
+        result = await _runImport(part, file: file, confirmShrink: true);
+      }
       await _load();
       if (!mounted) return;
       if (result['ok'] == true) {
@@ -280,6 +308,43 @@ class _DataUploadScreenState extends State<DataUploadScreen> {
     } finally {
       if (mounted) setState(() => _busy = null);
     }
+  }
+
+  Future<bool> _confirmShrink(
+    DataUploadPart part,
+    String fileName,
+    JsonMap result,
+  ) async {
+    final NumberFormat number = NumberFormat.decimalPattern('id_ID');
+    final String unit = result['unit']?.toString() ?? 'baris';
+    final String newCount = number.format(result['new_count'] as num? ?? 0);
+    final String currentCount = number.format(
+      result['current_count'] as num? ?? 0,
+    );
+    final bool? proceed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded, color: AppColors.orange),
+        title: Text('Isi ${part.title} jauh lebih sedikit'),
+        content: Text(
+          '$fileName berisi $newCount $unit, sedangkan data sekarang '
+          '$currentCount $unit.\n\nKalau diteruskan, data yang tidak ada di '
+          'file ini hilang dari aplikasi. Pastikan ini file lengkap, bukan '
+          'hanya data tambahan.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Tetap ganti'),
+          ),
+        ],
+      ),
+    );
+    return proceed == true;
   }
 
   Future<void> _backToDrive(DataUploadPart part) async {

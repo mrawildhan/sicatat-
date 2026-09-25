@@ -229,10 +229,10 @@ class _EquipmentManagementScreenState extends State<EquipmentManagementScreen> {
       : value;
   @override
   Widget build(BuildContext context) => AppBackScope(
-    fallbackRoute: '/admin',
+    fallbackRoute: '/admin/temperature',
     child: Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(fallbackRoute: '/admin'),
+        leading: const AppBackButton(fallbackRoute: '/admin/temperature'),
         title: const Text('Peralatan & titik ukur'),
       ),
       floatingActionButton: FloatingActionButton.extended(

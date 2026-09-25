@@ -193,6 +193,16 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/admin/temperature',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{UserRole.admin, UserRole.supervisorSmg},
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: TemperatureSettingsHubScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
       path: '/admin/data-upload',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{UserRole.admin},

@@ -124,10 +124,10 @@ class _FormTemplateManagementScreenState
 
   @override
   Widget build(BuildContext context) => AppBackScope(
-    fallbackRoute: '/admin',
+    fallbackRoute: '/admin/temperature',
     child: Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(fallbackRoute: '/admin'),
+        leading: const AppBackButton(fallbackRoute: '/admin/temperature'),
         title: const Text('Template formulir suhu'),
       ),
       body: _loading

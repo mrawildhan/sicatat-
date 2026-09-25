@@ -14,6 +14,10 @@ import {
   readPendingUpload,
   recordSourceModified,
   requestBody,
+  rowCount,
+  shrinkAnswer,
+  ShrinkNeedsConfirmation,
+  checkShrink,
   type SourceParts,
 } from "../_shared/source_files.ts";
 
@@ -271,6 +275,16 @@ Deno.serve(async (req) => {
       }
     }
     if (rows.length < 20) throw new Error("Jumlah PM yang terbaca terlalu sedikit. Snapshot sebelumnya dipertahankan.");
+    const uploadedSite = sources.find((source) => source.part === pending?.part)?.site;
+    if (uploadedSite) {
+      checkShrink(
+        pending,
+        body,
+        rows.filter((row) => row.site_code === uploadedSite).length,
+        await rowCount(admin, "preventive_maintenance_work_order", "site_code", uploadedSite),
+        `PM ${uploadedSite}`,
+      );
+    }
 
     const { error: writeError } = await admin
       .from("preventive_maintenance_work_order")
@@ -292,6 +306,7 @@ Deno.serve(async (req) => {
     });
     return json({ ok: true, changed: true, rows: rows.length, synced_at: now });
   } catch (error) {
+    if (error instanceof ShrinkNeedsConfirmation) return json(shrinkAnswer(error));
     const message = errorText(error);
     await discardUpload(admin, pending);
     await admin.from("preventive_maintenance_sync_log").insert({

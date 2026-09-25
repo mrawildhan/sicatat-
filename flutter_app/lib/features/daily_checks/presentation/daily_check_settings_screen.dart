@@ -204,10 +204,10 @@ class _DailyCheckSettingsScreenState extends State<DailyCheckSettingsScreen> {
 
   @override
   Widget build(BuildContext context) => AppBackScope(
-    fallbackRoute: '/admin',
+    fallbackRoute: '/admin/temperature',
     child: Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(fallbackRoute: '/admin'),
+        leading: const AppBackButton(fallbackRoute: '/admin/temperature'),
         title: const Text('Batas & peringatan suhu'),
       ),
       body: _loading

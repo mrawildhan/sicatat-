@@ -15,6 +15,10 @@ import {
   readPendingUpload,
   recordSourceModified,
   requestBody,
+  rowCount,
+  shrinkAnswer,
+  ShrinkNeedsConfirmation,
+  checkShrink,
   type SourceParts,
   usesUpload,
 } from "../_shared/source_files.ts";
@@ -343,6 +347,20 @@ Deno.serve(async (req) => {
     const items = [...cpp.items, ...port.items];
     const months = [...cpp.months, ...port.months];
     if (items.length === 0 || months.length !== periods.length * 2) throw new Error("Snapshot anggaran Asam-Asam tidak lengkap.");
+    if (pending?.part === "budget") {
+      checkShrink(pending, body, items.length, await rowCount(admin, "operational_budget_item"), "pos anggaran");
+    } else if (pending) {
+      // Actuals only grow during the year, so compare the site's total USD.
+      const site = pending.part === "actual_cpp" ? "CPP" : "PORT";
+      const { data: currentMonths, error: currentMonthsError } = await admin
+        .from("operational_budget_month")
+        .select("actual_usd")
+        .eq("site_code", site);
+      if (currentMonthsError) throw currentMonthsError;
+      const currentActual = (currentMonths ?? []).reduce((total, row) => total + Number(row.actual_usd ?? 0), 0);
+      const newActual = months.filter((row) => row.site_code === site).reduce((total, row) => total + row.actual_usd, 0);
+      checkShrink(pending, body, newActual, currentActual, "USD aktual");
+    }
     const { error: itemError } = await admin.from("operational_budget_item").upsert(items, { onConflict: "source_key" });
     if (itemError) throw itemError;
     const { error: monthError } = await admin.from("operational_budget_month").upsert(months, { onConflict: "source_key" });
@@ -356,6 +374,7 @@ Deno.serve(async (req) => {
     });
     return json({ ok: true, changed: true, rows: items.length + months.length, synced_at: now });
   } catch (error) {
+    if (error instanceof ShrinkNeedsConfirmation) return json(shrinkAnswer(error));
     const message = errorText(error);
     await discardUpload(admin, pending);
     await admin.from("operational_budget_sync_log").insert({ status: "failed", detail: message, triggered_by: caller.id });

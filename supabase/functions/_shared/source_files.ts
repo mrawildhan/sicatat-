@@ -163,6 +163,57 @@ export async function recordSourceModified(
   }
 }
 
+/**
+ * Thrown before anything is written when an uploaded file holds far less
+ * than the current data (e.g. only the 200 new PR rows instead of the whole
+ * file). The pending upload is kept so the admin can confirm and retry.
+ */
+export class ShrinkNeedsConfirmation extends Error {
+  constructor(readonly newCount: number, readonly currentCount: number, readonly unit: string) {
+    super(`File ini berisi ${newCount} ${unit}, data sekarang ${currentCount} ${unit}.`);
+  }
+}
+
+/** Upload drops below half of the current data without confirmation. */
+export function checkShrink(
+  pending: PendingUpload | null,
+  body: Record<string, unknown>,
+  newCount: number,
+  currentCount: number,
+  unit: string,
+): void {
+  if (!pending || body.confirm_shrink === true) return;
+  if (currentCount > 0 && newCount < currentCount * 0.5) {
+    throw new ShrinkNeedsConfirmation(Math.round(newCount), Math.round(currentCount), unit);
+  }
+}
+
+/** Number of rows in [table], optionally where [column] = [value]. */
+export async function rowCount(
+  admin: SupabaseClient,
+  table: string,
+  column?: string,
+  value?: string,
+): Promise<number> {
+  let query = admin.from(table).select("*", { count: "exact", head: true });
+  if (column && value !== undefined) query = query.eq(column, value);
+  const { count, error } = await query;
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** JSON answer asking the admin to confirm a shrinking upload. */
+export function shrinkAnswer(error: ShrinkNeedsConfirmation) {
+  return {
+    ok: false,
+    needs_confirmation: true,
+    new_count: error.newCount,
+    current_count: error.currentCount,
+    unit: error.unit,
+    error: error.message,
+  };
+}
+
 /** Whether the caller is an active admin (uploads are admin-only). */
 export async function isActiveAdmin(admin: SupabaseClient, callerId: string): Promise<boolean> {
   const { data } = await admin.from("app_user").select("role,is_active").eq("id", callerId).maybeSingle();

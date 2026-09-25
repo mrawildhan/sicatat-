@@ -13,6 +13,10 @@ import {
   readPendingUpload,
   recordSourceModified,
   requestBody,
+  rowCount,
+  shrinkAnswer,
+  ShrinkNeedsConfirmation,
+  checkShrink,
 } from "../_shared/source_files.ts";
 
 const corsHeaders = {
@@ -220,6 +224,7 @@ Deno.serve(async (req) => {
     }
     const rows = parseRows(bytes, sourceFingerprint, syncedAt);
     if (rows.length === 0) throw new Error("Tidak ada data PR yang dapat diimpor.");
+    checkShrink(pending, body, rows.length, await rowCount(admin, "purchase_requisition"), "baris PR");
     await upsertInBatches(admin, rows);
     const { error: deleteError } = await admin
       .from("purchase_requisition")
@@ -236,6 +241,7 @@ Deno.serve(async (req) => {
     });
     return json({ ok: true, changed: true, rows: rows.length, synced_at: syncedAt });
   } catch (error) {
+    if (error instanceof ShrinkNeedsConfirmation) return json(shrinkAnswer(error));
     const message = errorMessage(error);
     await discardUpload(admin, pending);
     await admin.from("purchase_requisition_sync_log").insert({

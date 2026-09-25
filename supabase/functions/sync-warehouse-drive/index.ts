@@ -16,8 +16,15 @@ import {
   promoteUpload,
   readPart,
   readPendingUpload,
+  rowCount,
+  shrinkAnswer,
+  ShrinkNeedsConfirmation,
+  checkShrink,
   usesUpload,
 } from "../_shared/source_files.ts";
+
+/** Called with the parsed size right before an import writes anything. */
+type Guard = (newCount: number, table: string, unit: string, column?: string, value?: string) => Promise<void>;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -204,7 +211,7 @@ async function upsertInBatches(admin: SupabaseClient, table: string, rows: Recor
 
 // Inventory ------------------------------------------------------------------
 
-async function importInventory(admin: SupabaseClient, bytes: Uint8Array, batch: string) {
+async function importInventory(admin: SupabaseClient, bytes: Uint8Array, batch: string, guard: Guard) {
   const rows = [...readXlsx(bytes, undefined, 24).values()][0] ?? [];
   let reportAt: string | null = null;
   for (const row of rows.slice(0, 12)) {
@@ -255,6 +262,7 @@ async function importInventory(admin: SupabaseClient, bytes: Uint8Array, batch: 
     });
   }
   if (stock.size < 100) throw new Error("Warehouse Inventory berisi terlalu sedikit barang; data lama dipertahankan.");
+  await guard(stock.size, "warehouse_stock", "barang", "stock_source", "inventory");
   await upsertInBatches(admin, "warehouse_stock", [...stock.values()]);
   // Items that left the report disappear, but only for warehouses it covers
   // and only rows an earlier inventory import wrote.
@@ -271,7 +279,7 @@ async function importInventory(admin: SupabaseClient, bytes: Uint8Array, batch: 
 
 // Outstanding purchase orders ---------------------------------------------------
 
-async function importOutstandingPo(admin: SupabaseClient, bytes: Uint8Array, batch: string) {
+async function importOutstandingPo(admin: SupabaseClient, bytes: Uint8Array, batch: string, guard: Guard) {
   const rows = [...readXlsx(bytes, undefined, 16).values()][0] ?? [];
   const found = findHeader(rows, ["PO NO", "DESCRIPTION", "QTY OUTSTANDING"]);
   if (!found) throw new Error("Kolom PO No / Description / Qty Outstanding tidak ditemukan.");
@@ -302,6 +310,7 @@ async function importOutstandingPo(admin: SupabaseClient, bytes: Uint8Array, bat
     });
   }
   if (lines.length === 0) throw new Error("Outstanding Purchase Order tidak berisi baris PO.");
+  await guard(lines.length, "warehouse_outstanding_po", "baris PO");
   await insertInBatches(admin, "warehouse_outstanding_po", lines);
   const { error } = await admin.from("warehouse_outstanding_po").delete().neq("source_batch", batch);
   if (error) throw error;
@@ -312,7 +321,7 @@ async function importOutstandingPo(admin: SupabaseClient, bytes: Uint8Array, bat
 
 const loanSheet = "PEMINJAMAN & OUTSTANDING TOOLS";
 
-async function importListOrder(admin: SupabaseClient, bytes: Uint8Array, batch: string) {
+async function importListOrder(admin: SupabaseClient, bytes: Uint8Array, batch: string, guard: Guard) {
   const sheets = readXlsx(bytes, undefined, 12);
   const latest = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
   const issues: Record<string, unknown>[] = [];
@@ -376,6 +385,7 @@ async function importListOrder(admin: SupabaseClient, bytes: Uint8Array, batch: 
     });
   });
 
+  await guard(issues.length, "warehouse_issue_history", "pengambilan");
   await insertInBatches(admin, "warehouse_issue_history", issues);
   await insertInBatches(admin, "warehouse_list_order_loan", loans);
   for (const table of ["warehouse_issue_history", "warehouse_list_order_loan"]) {
@@ -459,11 +469,13 @@ Deno.serve(async (req) => {
       return json({ ok: true, source, changed: false, rows: previous.row_count, file: file.name });
     }
     const batch = sourceFingerprint.slice(0, 16);
+    const guard: Guard = async (newCount, table, unit, column, value) =>
+      checkShrink(pending, body as Record<string, unknown>, newCount, await rowCount(admin, table, column, value), unit);
     const result = source === "inventory"
-      ? await importInventory(admin, bytes, batch)
+      ? await importInventory(admin, bytes, batch, guard)
       : source === "outstanding_po"
-      ? await importOutstandingPo(admin, bytes, batch)
-      : await importListOrder(admin, bytes, batch);
+      ? await importOutstandingPo(admin, bytes, batch, guard)
+      : await importListOrder(admin, bytes, batch, guard);
     const { error: saveError } = await admin.from("warehouse_drive_source").upsert({
       source,
       file_id: file.id,
@@ -481,6 +493,7 @@ Deno.serve(async (req) => {
     await promoteUpload(admin, "gudang", pending, caller.id);
     return json({ ok: true, source, changed: true, rows: result.rows, file: file.name });
   } catch (error) {
+    if (error instanceof ShrinkNeedsConfirmation) return json({ source, ...shrinkAnswer(error) });
     const message = errorText(error);
     console.error(`${label} import failed`, message);
     if (pending) {

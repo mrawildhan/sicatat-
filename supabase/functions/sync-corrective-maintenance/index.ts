@@ -11,6 +11,10 @@ import {
   readPendingUpload,
   recordSourceModified,
   requestBody,
+  rowCount,
+  shrinkAnswer,
+  ShrinkNeedsConfirmation,
+  checkShrink,
 } from "../_shared/source_files.ts";
 
 const corsHeaders = {
@@ -125,6 +129,7 @@ Deno.serve(async (req) => {
       }
     }
     if (rows.length < 2) throw new Error("Jumlah CM yang terbaca terlalu sedikit.");
+    checkShrink(pending, body, rows.length, await rowCount(admin, "corrective_maintenance_work_order"), "CM");
     const { error: writeError } = await admin.from("corrective_maintenance_work_order").upsert(rows, { onConflict: "source_key" });
     if (writeError) throw writeError;
     const { error: deleteError } = await admin.from("corrective_maintenance_work_order").delete().neq("source_fingerprint", sourceFingerprint);
@@ -132,6 +137,7 @@ Deno.serve(async (req) => {
     await promoteUpload(admin, "corrective_maintenance", pending, caller.id);
     return json({ ok: true, changed: true, rows: rows.length, synced_at: now });
   } catch (error) {
+    if (error instanceof ShrinkNeedsConfirmation) return json(shrinkAnswer(error));
     const message = errorText(error);
     console.error("CM synchronization failed", JSON.stringify(error));
     await discardUpload(admin, pending);
