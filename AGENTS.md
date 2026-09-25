@@ -2,6 +2,12 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## PM & CM: grafik dan ekspor PDF per foreman — 2026-09-25
+
+- Halaman PM & CM Tertunda punya dua grafik (fl_chart, `presentation/maintenance_charts.dart`): "PM tertunda per crew" (CPP vs PORT untuk Crew A/B/C) dan "Umur pekerjaan sejak dibuat" (PM vs CM dalam kelompok 0–7, 8–14, 15–30, >30 hari).
+- Tombol "Ekspor PDF untuk foreman" menawarkan Crew A/B/C atau Semua crew. Crew A/B/C terdaftar di satu site (Asam-Asam), jadi satu foreman memegang crew-nya di CPP dan PORT. PDF (A4 landscape, `features/operations/maintenance_report.dart`) berisi ringkasan, dua grafik, tabel PM CPP dan PORT untuk crew itu, lalu CM CPP dan PORT dengan progress terakhir. Semua daftar diurutkan dari yang tertua; umur lebih dari 30 hari ditulis merah. File dibagikan lewat `Printing.sharePdf`, misalnya ke WhatsApp.
+- Setelah rilis Android, APK lama langsung dihapus dari `app-releases` (pemilik, 2026-09-25). CLI `storage rm` tidak menghapus apa pun, jadi pakai `DELETE /storage/v1/object/app-releases` dengan sesi admin.
+
 ## Rilis Android 2.8.42 — 2026-09-25
 
 - Pemilik meminta update Android. Versi `2.8.42+12322`, `AppConfig.appVersion` `2.8.42`, cache suffix web `2.8.42-android-release`. Hanya `arm64-v8a` (version code 14322, 28.675.868 byte) diunggah ke `app-releases` dan diaktifkan lewat `20260925110000_publish_sicatat_2_8_42_gudang_upload.sql`; `aapt2` menunjukkan 2.8.42/14322 dan sertifikat SHA-256 `b1d69e78…dc574584` (keystore debug mesin ini, sama dengan rilis sebelumnya).

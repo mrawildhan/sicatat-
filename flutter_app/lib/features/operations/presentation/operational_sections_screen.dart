@@ -7,10 +7,12 @@ import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/pdf/pdf_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/platform/file_download.dart';
 import '../../../core/widgets/app_navigation.dart';
@@ -26,7 +28,9 @@ import '../../../data/services/material_request_service.dart';
 import '../../../data/services/operational_budget_service.dart';
 import '../../../data/services/preventive_maintenance_service.dart';
 import '../../auth/application/current_user_provider.dart';
+import '../maintenance_report.dart';
 import 'budget_item_sections.dart';
+import 'maintenance_charts.dart';
 
 const TextStyle _budgetSectionTitleStyle = AppTextStyles.sectionTitle;
 const TextStyle _budgetCardTitleStyle = AppTextStyles.cardTitle;
@@ -522,6 +526,71 @@ class _OutstandingMaintenanceScreenState
     );
   }
 
+  /// PDF for one crew's foreman (their PM at CPP and PORT plus all CM with
+  /// the latest progress), or for every crew.
+  Future<void> _export() async {
+    final String? choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
+              child: Text('Ekspor PDF', style: AppTextStyles.sectionTitle),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                'PM crew yang dipilih di CPP dan PORT, ditambah CM CPP dan '
+                'PORT beserta progress terakhir.',
+                style: AppTextStyles.supporting,
+              ),
+            ),
+            for (final String crew in maintenanceCrews)
+              ListTile(
+                leading: const Icon(Icons.person_outline_rounded),
+                title: Text('Crew $crew'),
+                subtitle: Text(
+                  '${_items.where((item) => item.crew == crew).length} PM · '
+                  '${_correctiveItems.length} CM',
+                ),
+                onTap: () => Navigator.of(context).pop(crew),
+              ),
+            ListTile(
+              leading: const Icon(Icons.groups_outlined),
+              title: const Text('Semua crew'),
+              subtitle: Text(
+                '${_items.length} PM · ${_correctiveItems.length} CM',
+              ),
+              onTap: () => Navigator.of(context).pop('all'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    final MaintenanceReport report = MaintenanceReport(
+      crew: choice == 'all' ? null : choice,
+      pm: _items,
+      cm: _correctiveItems,
+      today: DateTime.now(),
+      dataUpdatedAt: _modifiedAt,
+    );
+    try {
+      final Uint8List bytes = await buildMaintenancePdf(
+        report,
+        theme: await loadPdfTheme(),
+      );
+      await Printing.sharePdf(bytes: bytes, filename: report.fileName);
+    } on Object catch (error) {
+      if (mounted) _toast('PDF gagal dibuat: $error');
+    }
+  }
+
   void _openCmSection(String site) {
     final List<CorrectiveMaintenanceWorkOrder> items = _correctiveItems
         .where((item) => item.site == site)
@@ -553,6 +622,7 @@ class _OutstandingMaintenanceScreenState
       onRefresh: _load,
       onOpenPmSection: _openPmSection,
       onOpenCmSection: _openCmSection,
+      onExport: _export,
     ),
   );
 }
@@ -1324,6 +1394,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
     required this.onRefresh,
     required this.onOpenPmSection,
     required this.onOpenCmSection,
+    required this.onExport,
   });
 
   final List<PreventiveMaintenanceWorkOrder> items;
@@ -1336,6 +1407,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final void Function(String crew, String site) onOpenPmSection;
   final ValueChanged<String> onOpenCmSection;
+  final VoidCallback onExport;
 
   int _countPm(String crew, String site) =>
       items.where((item) => item.crew == crew && item.site == site).length;
@@ -1349,6 +1421,12 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         status,
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: loading || error != null ? null : onExport,
+          icon: const Icon(Icons.picture_as_pdf_outlined),
+          label: const Text('Ekspor PDF untuk foreman'),
+        ),
         const SizedBox(height: 16),
         const Text('PM per crew & lokasi', style: AppTextStyles.sectionTitle),
         const SizedBox(height: 5),
@@ -1444,6 +1522,14 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 18),
+          const Text('Grafik', style: AppTextStyles.sectionTitle),
+          const SizedBox(height: 8),
+          MaintenanceCharts(
+            pm: items,
+            cm: correctiveItems,
+            today: DateTime.now(),
           ),
         ],
       ],
