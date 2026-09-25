@@ -11,23 +11,6 @@ import '../../data/models/preventive_maintenance_models.dart';
 const List<String> maintenanceCrews = <String>['A', 'B', 'C'];
 const List<String> maintenanceSites = <String>['CPP', 'PORT'];
 
-/// Age groups (days since the work order was raised) for the charts.
-class MaintenanceAgeBucket {
-  const MaintenanceAgeBucket(this.label, this.maxDays);
-
-  final String label;
-
-  /// Upper bound in days, inclusive; null for the open-ended last group.
-  final int? maxDays;
-}
-
-const List<MaintenanceAgeBucket> maintenanceAgeBuckets = <MaintenanceAgeBucket>[
-  MaintenanceAgeBucket('0–7 hari', 7),
-  MaintenanceAgeBucket('8–14 hari', 14),
-  MaintenanceAgeBucket('15–30 hari', 30),
-  MaintenanceAgeBucket('> 30 hari', null),
-];
-
 /// Days since [raisedOn], or null when the sheet has no raise date.
 int? maintenanceAgeDays(DateTime? raisedOn, DateTime today) {
   if (raisedOn == null) return null;
@@ -35,30 +18,6 @@ int? maintenanceAgeDays(DateTime? raisedOn, DateTime today) {
   final DateTime raised = DateTime(raisedOn.year, raisedOn.month, raisedOn.day);
   final int days = day.difference(raised).inDays;
   return days < 0 ? 0 : days;
-}
-
-/// Index into [maintenanceAgeBuckets], or null without a raise date.
-int? maintenanceAgeBucket(DateTime? raisedOn, DateTime today) {
-  final int? days = maintenanceAgeDays(raisedOn, today);
-  if (days == null) return null;
-  for (int i = 0; i < maintenanceAgeBuckets.length; i++) {
-    final int? max = maintenanceAgeBuckets[i].maxDays;
-    if (max == null || days <= max) return i;
-  }
-  return maintenanceAgeBuckets.length - 1;
-}
-
-/// Counts per age group.
-List<int> maintenanceAgeCounts(
-  Iterable<DateTime?> raisedDates,
-  DateTime today,
-) {
-  final List<int> counts = List<int>.filled(maintenanceAgeBuckets.length, 0);
-  for (final DateTime? raised in raisedDates) {
-    final int? bucket = maintenanceAgeBucket(raised, today);
-    if (bucket != null) counts[bucket]++;
-  }
-  return counts;
 }
 
 /// Oldest first, so the longest-waiting work sits at the top of each list.
@@ -72,24 +31,36 @@ List<T> _oldestFirst<T>(Iterable<T> items, DateTime? Function(T) raised) =>
       return x.compareTo(y);
     });
 
-/// What one PDF covers: one crew (for its foreman) or every crew.
+/// PM and CM go to foremen as separate PDFs (owner request 2026-09-25).
+enum MaintenanceReportKind { pm, cm }
+
+/// What one PDF covers: one crew's PM (or every crew's), or all CM.
 class MaintenanceReport {
   MaintenanceReport({
-    required this.crew,
-    required List<PreventiveMaintenanceWorkOrder> pm,
-    required List<CorrectiveMaintenanceWorkOrder> cm,
+    required this.kind,
     required this.today,
+    this.crew,
+    List<PreventiveMaintenanceWorkOrder> pm =
+        const <PreventiveMaintenanceWorkOrder>[],
+    List<CorrectiveMaintenanceWorkOrder> cm =
+        const <CorrectiveMaintenanceWorkOrder>[],
     this.dataUpdatedAt,
-  }) : pm = _oldestFirst(
-         pm.where((item) => crew == null || item.crew == crew),
-         (PreventiveMaintenanceWorkOrder item) => item.raisedOn,
-       ),
-       cm = _oldestFirst(
-         cm,
-         (CorrectiveMaintenanceWorkOrder item) => item.raisedOn,
-       );
+  }) : pm = kind == MaintenanceReportKind.pm
+           ? _oldestFirst(
+               pm.where((item) => crew == null || item.crew == crew),
+               (PreventiveMaintenanceWorkOrder item) => item.raisedOn,
+             )
+           : const <PreventiveMaintenanceWorkOrder>[],
+       cm = kind == MaintenanceReportKind.cm
+           ? _oldestFirst(
+               cm,
+               (CorrectiveMaintenanceWorkOrder item) => item.raisedOn,
+             )
+           : const <CorrectiveMaintenanceWorkOrder>[];
 
-  /// A, B, or C; null for all crews.
+  final MaintenanceReportKind kind;
+
+  /// A, B, or C for a PM report; null for all crews.
   final String? crew;
   final List<PreventiveMaintenanceWorkOrder> pm;
   final List<CorrectiveMaintenanceWorkOrder> cm;
@@ -100,8 +71,17 @@ class MaintenanceReport {
 
   String get crewLabel => crew == null ? 'Semua crew' : 'Crew $crew';
 
-  String get fileName =>
-      'PM CM Tertunda $crewLabel ${DateFormat('dd-MM-yyyy').format(today)}.pdf';
+  /// "PM Tertunda · Crew A" or "CM Tertunda · CPP & PORT".
+  String get title => kind == MaintenanceReportKind.pm
+      ? 'PM Tertunda · $crewLabel'
+      : 'CM Tertunda · CPP & PORT';
+
+  String get fileName {
+    final String date = DateFormat('dd-MM-yyyy').format(today);
+    return kind == MaintenanceReportKind.pm
+        ? 'PM Tertunda $crewLabel $date.pdf'
+        : 'CM Tertunda CPP PORT $date.pdf';
+  }
 
   List<PreventiveMaintenanceWorkOrder> pmAt(String site, [String? crewCode]) =>
       pm
@@ -129,16 +109,14 @@ final PdfColor _danger = PdfColor.fromHex('#D85B52');
 String _date(DateTime? value) =>
     value == null ? '-' : DateFormat('d MMM yyyy', 'id_ID').format(value);
 
-/// The PM & CM report a foreman receives: summary, charts, and the full
-/// lists (oldest first) with the latest CM progress.
+/// A PM report (one crew's work at CPP and PORT, with the per-crew chart)
+/// or a CM report (CPP and PORT with the latest progress). Lists are oldest
+/// first.
 Future<Uint8List> buildMaintenancePdf(
   MaintenanceReport report, {
   required pw.ThemeData theme,
 }) async {
-  final pw.Document document = pw.Document(
-    theme: theme,
-    title: 'PM & CM Tertunda ${report.crewLabel}',
-  );
+  final pw.Document document = pw.Document(theme: theme, title: report.title);
   final DateFormat stamp = DateFormat('d/M/yy HH.mm');
   document.addPage(
     pw.MultiPage(
@@ -149,7 +127,7 @@ Future<Uint8List> buildMaintenancePdf(
           : pw.Padding(
               padding: const pw.EdgeInsets.only(bottom: 8),
               child: pw.Text(
-                'PM & CM Tertunda · ${report.crewLabel}',
+                report.title,
                 style: pw.TextStyle(fontSize: 8, color: _muted),
               ),
             ),
@@ -168,7 +146,7 @@ Future<Uint8List> buildMaintenancePdf(
       ),
       build: (pw.Context context) => <pw.Widget>[
         pw.Text(
-          'PM & CM TERTUNDA · ${report.crewLabel.toUpperCase()}',
+          report.title.toUpperCase(),
           style: pw.TextStyle(
             fontSize: 16,
             fontWeight: pw.FontWeight.bold,
@@ -184,17 +162,14 @@ Future<Uint8List> buildMaintenancePdf(
         ),
         pw.SizedBox(height: 10),
         _summaryRow(report),
-        pw.SizedBox(height: 10),
-        pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: <pw.Widget>[
-            pw.Expanded(child: _pmChart(report)),
-            pw.SizedBox(width: 14),
-            pw.Expanded(child: _ageChart(report)),
-          ],
-        ),
-        for (final String site in maintenanceSites) ..._pmSection(report, site),
-        for (final String site in maintenanceSites) ..._cmSection(report, site),
+        if (report.kind == MaintenanceReportKind.pm) ...<pw.Widget>[
+          pw.SizedBox(height: 10),
+          _pmChart(report),
+          for (final String site in maintenanceSites)
+            ..._pmSection(report, site),
+        ] else
+          for (final String site in maintenanceSites)
+            ..._cmSection(report, site),
       ],
     ),
   );
@@ -225,15 +200,17 @@ pw.Widget _summaryRow(MaintenanceReport report) {
       ),
     ),
   );
+  final bool pm = report.kind == MaintenanceReportKind.pm;
   return pw.Row(
     children: <pw.Widget>[
-      box('PM CPP', report.pmAt('CPP').length, _green),
-      pw.SizedBox(width: 8),
-      box('PM PORT', report.pmAt('PORT').length, _green),
-      pw.SizedBox(width: 8),
-      box('CM CPP', report.cmAt('CPP').length, _orange),
-      pw.SizedBox(width: 8),
-      box('CM PORT', report.cmAt('PORT').length, _orange),
+      for (final String site in maintenanceSites) ...<pw.Widget>[
+        if (site != maintenanceSites.first) pw.SizedBox(width: 8),
+        box(
+          '${pm ? 'PM' : 'CM'} $site',
+          pm ? report.pmAt(site).length : report.cmAt(site).length,
+          pm ? _green : _orange,
+        ),
+      ],
     ],
   );
 }
@@ -366,32 +343,6 @@ pw.Widget _pmChart(MaintenanceReport report) {
     legend: <(String, PdfColor)>[('CPP', _green), ('PORT', _orange)],
   );
 }
-
-pw.Widget _ageChart(MaintenanceReport report) => _barChart(
-  title: 'Umur pekerjaan sejak dibuat',
-  groups: <String>[
-    for (final MaintenanceAgeBucket bucket in maintenanceAgeBuckets)
-      bucket.label,
-  ],
-  series: <(String, PdfColor, List<int>)>[
-    (
-      'PM',
-      _green,
-      maintenanceAgeCounts(
-        report.pm.map((PreventiveMaintenanceWorkOrder item) => item.raisedOn),
-        report.today,
-      ),
-    ),
-    (
-      'CM',
-      _orange,
-      maintenanceAgeCounts(
-        report.cm.map((CorrectiveMaintenanceWorkOrder item) => item.raisedOn),
-        report.today,
-      ),
-    ),
-  ],
-);
 
 pw.Widget _sectionTitle(String text, int count) => pw.Padding(
   padding: const pw.EdgeInsets.only(top: 14, bottom: 5),

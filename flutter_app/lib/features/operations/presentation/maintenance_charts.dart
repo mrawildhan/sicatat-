@@ -5,33 +5,18 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/preventive_maintenance_models.dart';
 import '../maintenance_report.dart';
 
-/// PM per crew and the age of all outstanding PM & CM, shown above the
-/// PM & CM cards (owner request 2026-09-25).
+/// Outstanding PM per crew and site, below the PM & CM cards (owner request
+/// 2026-09-25; the age chart was dropped the same day).
 class MaintenanceCharts extends StatelessWidget {
-  const MaintenanceCharts({
-    required this.pm,
-    required this.cm,
-    required this.today,
-    super.key,
-  });
+  const MaintenanceCharts({required this.pm, super.key});
 
   final List<PreventiveMaintenanceWorkOrder> pm;
-  final List<CorrectiveMaintenanceWorkOrder> cm;
-  final DateTime today;
 
   int _pm(String crew, String site) =>
       pm.where((item) => item.crew == crew && item.site == site).length;
 
   @override
   Widget build(BuildContext context) {
-    final List<int> pmAges = maintenanceAgeCounts(
-      pm.map((item) => item.raisedOn),
-      today,
-    );
-    final List<int> cmAges = maintenanceAgeCounts(
-      cm.map((item) => item.raisedOn),
-      today,
-    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -59,20 +44,6 @@ class MaintenanceCharts extends StatelessWidget {
               AppColors.orange,
             ],
           ],
-        ),
-        const SizedBox(height: 10),
-        _ChartCard(
-          title: 'Umur pekerjaan sejak dibuat',
-          legend: const <(String, Color)>[
-            ('PM', AppColors.green),
-            ('CM', AppColors.orange),
-          ],
-          groups: <String>[
-            for (final MaintenanceAgeBucket bucket in maintenanceAgeBuckets)
-              bucket.label,
-          ],
-          series: <List<int>>[pmAges, cmAges],
-          colors: const <Color>[AppColors.green, AppColors.orange],
         ),
       ],
     );

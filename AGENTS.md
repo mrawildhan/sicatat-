@@ -4,8 +4,8 @@
 
 ## PM & CM: grafik dan ekspor PDF per foreman — 2026-09-25
 
-- Halaman PM & CM Tertunda punya dua grafik (fl_chart, `presentation/maintenance_charts.dart`): "PM tertunda per crew" (CPP vs PORT untuk Crew A/B/C) dan "Umur pekerjaan sejak dibuat" (PM vs CM dalam kelompok 0–7, 8–14, 15–30, >30 hari).
-- Tombol "Ekspor PDF untuk foreman" menawarkan Crew A/B/C atau Semua crew. Crew A/B/C terdaftar di satu site (Asam-Asam), jadi satu foreman memegang crew-nya di CPP dan PORT. PDF (A4 landscape, `features/operations/maintenance_report.dart`) berisi ringkasan, dua grafik, tabel PM CPP dan PORT untuk crew itu, lalu CM CPP dan PORT dengan progress terakhir. Semua daftar diurutkan dari yang tertua; umur lebih dari 30 hari ditulis merah. File dibagikan lewat `Printing.sharePdf`, misalnya ke WhatsApp.
+- Halaman PM & CM Tertunda punya satu grafik (fl_chart, `presentation/maintenance_charts.dart`): "PM tertunda per crew", satu batang berlabel per crew dan lokasi (Crew A CPP, Crew A PORT, … — permintaan pemilik). Grafik umur pekerjaan sempat dibuat lalu dihapus atas permintaan pemilik.
+- Tombol "Ekspor PDF untuk foreman" membuat **PDF terpisah untuk PM dan CM** (permintaan pemilik): PM Crew A/B/C atau PM semua crew (ringkasan, grafik per crew, tabel PM CPP dan PORT), dan CM CPP & PORT (ringkasan, tabel dengan prioritas dan progress terakhir). Crew A/B/C terdaftar di satu site (Asam-Asam), jadi satu foreman memegang crew-nya di CPP dan PORT. PDF A4 landscape dibuat oleh `features/operations/maintenance_report.dart` (`MaintenanceReportKind.pm/cm`). Daftar diurutkan dari yang tertua, umur lebih dari 30 hari ditulis merah, dan file dibagikan lewat `Printing.sharePdf`.
 - Setelah rilis Android, APK lama langsung dihapus dari `app-releases` (pemilik, 2026-09-25). CLI `storage rm` tidak menghapus apa pun, jadi pakai `DELETE /storage/v1/object/app-releases` dengan sesi admin.
 
 ## Rilis Android 2.8.42 — 2026-09-25

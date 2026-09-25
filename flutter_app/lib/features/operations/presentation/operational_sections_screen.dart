@@ -526,46 +526,55 @@ class _OutstandingMaintenanceScreenState
     );
   }
 
-  /// PDF for one crew's foreman (their PM at CPP and PORT plus all CM with
-  /// the latest progress), or for every crew.
+  /// PM and CM are separate PDFs (owner request 2026-09-25): PM for one
+  /// crew's foreman (CPP and PORT) or every crew, and CM for CPP and PORT
+  /// with the latest progress.
   Future<void> _export() async {
     final String? choice = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
+      // Five choices do not fit the default half-height sheet on a phone.
+      isScrollControlled: true,
       builder: (BuildContext context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
+          shrinkWrap: true,
           children: <Widget>[
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
               child: Text('Ekspor PDF', style: AppTextStyles.sectionTitle),
             ),
             const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text(
-                'PM crew yang dipilih di CPP dan PORT, ditambah CM CPP dan '
-                'PORT beserta progress terakhir.',
-                style: AppTextStyles.supporting,
-              ),
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Text('PM per crew', style: AppTextStyles.cardTitle),
             ),
             for (final String crew in maintenanceCrews)
               ListTile(
                 leading: const Icon(Icons.person_outline_rounded),
-                title: Text('Crew $crew'),
+                title: Text('PM Crew $crew'),
                 subtitle: Text(
-                  '${_items.where((item) => item.crew == crew).length} PM · '
-                  '${_correctiveItems.length} CM',
+                  '${_items.where((item) => item.crew == crew).length} PM '
+                  'di CPP dan PORT',
                 ),
                 onTap: () => Navigator.of(context).pop(crew),
               ),
             ListTile(
               leading: const Icon(Icons.groups_outlined),
-              title: const Text('Semua crew'),
-              subtitle: Text(
-                '${_items.length} PM · ${_correctiveItems.length} CM',
-              ),
+              title: const Text('PM semua crew'),
+              subtitle: Text('${_items.length} PM di CPP dan PORT'),
               onTap: () => Navigator.of(context).pop('all'),
+            ),
+            const Divider(height: 16),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: Text('CM', style: AppTextStyles.cardTitle),
+            ),
+            ListTile(
+              leading: const Icon(Icons.build_circle_outlined),
+              title: const Text('CM CPP & PORT'),
+              subtitle: Text(
+                '${_correctiveItems.length} CM beserta progress terakhir',
+              ),
+              onTap: () => Navigator.of(context).pop('cm'),
             ),
             const SizedBox(height: 8),
           ],
@@ -573,13 +582,20 @@ class _OutstandingMaintenanceScreenState
       ),
     );
     if (choice == null || !mounted) return;
-    final MaintenanceReport report = MaintenanceReport(
-      crew: choice == 'all' ? null : choice,
-      pm: _items,
-      cm: _correctiveItems,
-      today: DateTime.now(),
-      dataUpdatedAt: _modifiedAt,
-    );
+    final MaintenanceReport report = choice == 'cm'
+        ? MaintenanceReport(
+            kind: MaintenanceReportKind.cm,
+            cm: _correctiveItems,
+            today: DateTime.now(),
+            dataUpdatedAt: _modifiedAt,
+          )
+        : MaintenanceReport(
+            kind: MaintenanceReportKind.pm,
+            crew: choice == 'all' ? null : choice,
+            pm: _items,
+            today: DateTime.now(),
+            dataUpdatedAt: _modifiedAt,
+          );
     try {
       final Uint8List bytes = await buildMaintenancePdf(
         report,
@@ -1526,11 +1542,7 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
           const SizedBox(height: 18),
           const Text('Grafik', style: AppTextStyles.sectionTitle),
           const SizedBox(height: 8),
-          MaintenanceCharts(
-            pm: items,
-            cm: correctiveItems,
-            today: DateTime.now(),
-          ),
+          MaintenanceCharts(pm: items),
         ],
       ],
     );

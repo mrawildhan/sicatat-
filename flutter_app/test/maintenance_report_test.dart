@@ -35,52 +35,61 @@ void main() {
 
   final DateTime today = DateTime(2026, 9, 25);
 
-  test('umur PM & CM dikelompokkan 0–7, 8–14, 15–30, >30 hari', () {
+  test('umur dihitung dari tanggal dibuat', () {
     expect(maintenanceAgeDays(DateTime(2026, 9, 18), today), 7);
+    expect(maintenanceAgeDays(DateTime(2026, 9, 26), today), 0);
     expect(maintenanceAgeDays(null, today), isNull);
-    expect(
-      maintenanceAgeCounts(<DateTime?>[
-        DateTime(2026, 9, 25),
-        DateTime(2026, 9, 18),
-        DateTime(2026, 9, 17),
-        DateTime(2026, 8, 26),
-        DateTime(2026, 8, 25),
-        null,
-      ], today),
-      <int>[2, 1, 1, 1],
-    );
   });
 
-  test(
-    'laporan foreman: PM crew-nya di CPP & PORT, semua CM, terlama dulu',
-    () async {
-      final MaintenanceReport report = MaintenanceReport(
-        crew: 'A',
-        pm: <PreventiveMaintenanceWorkOrder>[
+  test('PDF PM per crew dan PDF CM terpisah, terlama dulu', () async {
+    final List<PreventiveMaintenanceWorkOrder> pm =
+        <PreventiveMaintenanceWorkOrder>[
           _pm('1', 'A', 'CPP', DateTime(2026, 9, 1)),
           _pm('2', 'A', 'CPP', DateTime(2026, 8, 12)),
           _pm('3', 'B', 'CPP', DateTime(2026, 8, 12)),
           _pm('4', 'A', 'PORT', DateTime(2026, 9, 4)),
-        ],
-        cm: <CorrectiveMaintenanceWorkOrder>[
+        ];
+    final List<CorrectiveMaintenanceWorkOrder> cm =
+        <CorrectiveMaintenanceWorkOrder>[
           _cm('9', 'CPP', DateTime(2026, 8, 1)),
           _cm('8', 'PORT', DateTime(2026, 9, 1)),
-        ],
-        today: today,
-      );
-      expect(report.pmAt('CPP').map((item) => item.workOrder), <String>[
-        '2',
-        '1',
-      ]);
-      expect(report.pmAt('PORT').map((item) => item.workOrder), <String>['4']);
-      expect(report.cm, hasLength(2));
-      expect(report.fileName, 'PM CM Tertunda Crew A 25-09-2026.pdf');
+        ];
 
+    final MaintenanceReport pmReport = MaintenanceReport(
+      kind: MaintenanceReportKind.pm,
+      crew: 'A',
+      pm: pm,
+      cm: cm,
+      today: today,
+    );
+    expect(pmReport.pmAt('CPP').map((item) => item.workOrder), <String>[
+      '2',
+      '1',
+    ]);
+    expect(pmReport.pmAt('PORT').map((item) => item.workOrder), <String>['4']);
+    expect(pmReport.cm, isEmpty);
+    expect(pmReport.title, 'PM Tertunda · Crew A');
+    expect(pmReport.fileName, 'PM Tertunda Crew A 25-09-2026.pdf');
+
+    final MaintenanceReport cmReport = MaintenanceReport(
+      kind: MaintenanceReportKind.cm,
+      pm: pm,
+      cm: cm,
+      today: today,
+    );
+    expect(cmReport.pm, isEmpty);
+    expect(cmReport.cmAt('CPP').single.workOrder, '9');
+    expect(cmReport.fileName, 'CM Tertunda CPP PORT 25-09-2026.pdf');
+
+    for (final MaintenanceReport report in <MaintenanceReport>[
+      pmReport,
+      cmReport,
+    ]) {
       final List<int> bytes = await buildMaintenancePdf(
         report,
         theme: pw.ThemeData.base(),
       );
       expect(String.fromCharCodes(bytes.take(4)), '%PDF');
-    },
-  );
+    }
+  });
 }
