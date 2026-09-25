@@ -22,7 +22,7 @@ const source = {
     "https://docs.google.com/spreadsheets/d/1nzKdmxZFdq47ukSONUjHGo8JGHBSZRFidDlzorVjk-8/gviz/tq?tqx=out:csv&gid=0",
 };
 
-const importVersion = "receipts-iso-dates-2026-09-25";
+const importVersion = "newest-stock-2026-09-25b";
 
 // Same labels as sync-warehouse-drive (Ellipse MAIN is the NPLCT warehouse).
 const siteLabels: Record<string, string> = {
@@ -302,8 +302,10 @@ Deno.serve(async (req) => {
     for (const row of stock.rows) {
       const itemCode = valueAt(row, stock.headers, "SC");
       const warehouseCode = valueAt(row, stock.headers, "SITE").toUpperCase();
-      const description = valueAt(row, stock.headers, "DESC");
-      if (!itemCode || !warehouseCode || !description || warehouseCode === "TOTAL") continue;
+      // A few sheet rows have stock but no description (SC 7173 AMWH on
+      // 2026-09-25); keep them findable by their code.
+      const description = valueAt(row, stock.headers, "DESC") || `SC ${itemCode}`;
+      if (!itemCode || !warehouseCode || warehouseCode === "TOTAL") continue;
       const sourceKey = itemCode + "|" + warehouseCode;
       const existing = aggregated.get(sourceKey);
       const masterItem = masterByItem.get(itemCode);
@@ -354,15 +356,30 @@ Deno.serve(async (req) => {
         synced_at: new Date().toISOString(),
       });
     }
-    // The Warehouse Inventory report (sync-warehouse-drive) is the main stock
-    // source; these sheets only fill items and warehouses it does not list.
+    // Items the Warehouse Inventory report (sync-warehouse-drive) lists keep
+    // its details, but take this sheet's stock when the sheet is dated later
+    // (owner request 2026-09-25: the newest stock wins). Items the report
+    // does not list come from these sheets alone.
     const fromInventory = await inventoryKeys(admin);
     const stockRows = [...aggregated.values()]
       .filter((row) => !fromInventory.has(row.source_key as string))
-      .map((row) => ({ ...row, stock_source: "scallsite" }));
+      .map((row) => ({ ...row, stock_source: "scallsite", stock_from: "sheet" }));
     for (const batch of chunks(stockRows)) {
       const { error } = await admin.from("warehouse_stock").upsert(batch, { onConflict: "source_key" });
       if (error) throw error;
+    }
+    const newerStock = [...aggregated.values()]
+      .filter((row) => fromInventory.has(row.source_key as string) && row.source_updated_on)
+      .map((row) => ({
+        source_key: row.source_key,
+        stock_on_hand: row.stock_on_hand,
+        source_updated_on: row.source_updated_on,
+      }));
+    let sheetStockApplied = 0;
+    for (const batch of chunks(newerStock)) {
+      const { data, error } = await admin.rpc("warehouse_apply_sheet_stock", { p_rows: batch });
+      if (error) throw error;
+      sheetStockApplied += Number(data ?? 0);
     }
 
     // Every receipt row of this run gets the same stamp, so rows the sheet no
@@ -448,13 +465,15 @@ Deno.serve(async (req) => {
       changed: true,
       source_fingerprint: sourceFingerprint,
       source_summary: sourceSummary,
-      detail: "Validated and read SCALLSITE, SCMASTER, PENERIMAAN, DST Kintap inventory, and PEMINJAMAMAN tool register.",
+      detail: "Validated and read SCALLSITE, SCMASTER, PENERIMAAN, DST Kintap inventory, and PEMINJAMAMAN tool register. " +
+        `Newer sheet stock applied to ${sheetStockApplied} report items.`,
       completed_at: new Date().toISOString(),
     }).eq("id", log.id);
     return json({
       ok: true,
       changed: true,
       stock_rows: stockRows.length,
+      sheet_stock_applied: sheetStockApplied,
       receipt_rows: receiptRows.length,
       tool_rows: tools.length,
     });

@@ -40,7 +40,7 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
   static const String _stockColumns =
       'item_code,description,warehouse_code,warehouse_name,site_label,uoi,'
       'bin_code,unit_price,stock_on_hand,source_updated_on,synced_at,'
-      'stock_source,part_no,part_no_2,stock_class,expense_element,'
+      'stock_source,stock_from,part_no,part_no_2,stock_class,expense_element,'
       'last_received_on,last_issued_on';
 
   /// Rows shown per search. One extra row is requested to know whether the
@@ -755,6 +755,13 @@ class _WarehouseStockDetailsState extends State<_WarehouseStockDetails> {
           _detailRow('Lokasi bin', item.binCode ?? 'Belum tercatat'),
           _detailRow('Satuan', item.uoi ?? 'Belum tercatat'),
           _detailRow('Stok tersedia', _stockLabel(item.stockOnHand, item.uoi)),
+          // The newest of the two stock sources wins (owner request
+          // 2026-09-25); say which one and from which day.
+          _detailRow(
+            'Stok per',
+            '${item.sourceUpdatedOn == null ? 'tanggal belum tercatat' : _formatDate(item.sourceUpdatedOn!)}'
+                ' · ${item.stockFromSheet ? 'lembar Warehouse Inventory gudang' : 'laporan Ellipse'}',
+          ),
           _detailRow('Harga unit', _priceLabel(item.unitPrice)),
           if (item.stockClass != null)
             _detailRow('Kelas stok', item.stockClass!),
@@ -774,14 +781,6 @@ class _WarehouseStockDetailsState extends State<_WarehouseStockDetails> {
                   : _formatDate(item.lastIssuedOn!),
             ),
           ],
-          _detailRow(
-            item.fromInventory
-                ? 'Tanggal laporan'
-                : 'Tanggal pembaruan lembar kerja',
-            item.sourceUpdatedOn == null
-                ? 'Belum tercatat'
-                : _formatDate(item.sourceUpdatedOn!),
-          ),
           const SizedBox(height: 14),
           ..._ordersSection(),
           const SizedBox(height: 14),
@@ -1019,6 +1018,7 @@ class _WarehouseStock {
     required this.siteLabel,
     required this.stockOnHand,
     required this.fromInventory,
+    this.stockFromSheet = false,
     this.warehouseCode,
     this.warehouseName,
     this.uoi,
@@ -1040,6 +1040,10 @@ class _WarehouseStock {
 
   /// From the Warehouse Inventory report rather than the old stock sheet.
   final bool fromInventory;
+
+  /// Stock on hand came from the warehouse's Google Sheet, which was newer
+  /// than the Ellipse report.
+  final bool stockFromSheet;
   final String? warehouseCode;
   final String? warehouseName;
   final String? uoi;
@@ -1060,6 +1064,7 @@ class _WarehouseStock {
     siteLabel: json.requiredString('site_label'),
     stockOnHand: json['stock_on_hand'] as num? ?? 0,
     fromInventory: json['stock_source'] == 'inventory',
+    stockFromSheet: json['stock_from'] == 'sheet',
     warehouseCode: json.optionalString('warehouse_code'),
     warehouseName: json.optionalString('warehouse_name'),
     uoi: json.optionalString('uoi'),

@@ -256,6 +256,7 @@ async function importInventory(admin: SupabaseClient, bytes: Uint8Array, batch: 
       last_received_on: compactDate(row[lastReceived]),
       last_issued_on: compactDate(row[col("LAST ISSUED")]),
       source_updated_on: reportDay,
+      stock_from: "ellipse",
       stock_source: "inventory",
       source_batch: batch,
       synced_at: now,
@@ -263,6 +264,25 @@ async function importInventory(admin: SupabaseClient, bytes: Uint8Array, batch: 
   }
   if (stock.size < 100) throw new Error("Warehouse Inventory berisi terlalu sedikit barang; data lama dipertahankan.");
   await guard(stock.size, "warehouse_stock", "barang", "stock_source", "inventory");
+  // The newest stock wins (owner request 2026-09-25): when the warehouse's
+  // Google Sheet already reported a later day, keep its stock on hand.
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await admin
+      .from("warehouse_stock")
+      .select("source_key,stock_on_hand,source_updated_on,stock_from")
+      .gt("source_updated_on", reportDay)
+      .order("source_key", { ascending: true })
+      .range(from, from + 999);
+    if (error) throw error;
+    for (const newer of data ?? []) {
+      const row = stock.get(newer.source_key as string);
+      if (!row) continue;
+      row.stock_on_hand = newer.stock_on_hand;
+      row.source_updated_on = newer.source_updated_on;
+      row.stock_from = newer.stock_from ?? "sheet";
+    }
+    if (!data || data.length < 1000) break;
+  }
   await upsertInBatches(admin, "warehouse_stock", [...stock.values()]);
   // Items that left the report disappear, but only for warehouses it covers
   // and only rows an earlier inventory import wrote.
