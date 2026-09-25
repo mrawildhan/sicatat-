@@ -154,6 +154,8 @@ class _ChartCard extends StatelessWidget {
                               style: AppTextStyles.supporting.copyWith(
                                 fontSize: 11,
                                 height: 1.2,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink,
                               ),
                             ),
                           );

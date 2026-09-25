@@ -343,7 +343,10 @@ pw.Widget _barChart({
                     pw.Text(
                       groups[g],
                       textAlign: pw.TextAlign.center,
-                      style: const pw.TextStyle(fontSize: 7.5),
+                      style: const pw.TextStyle(
+                        fontSize: 7.5,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -404,18 +407,20 @@ pw.Widget _table({
 
   /// Columns centred in both the header and the cells; the rest are left.
   Set<int> centered = const <int>{},
+  Set<int> bold = const <int>{},
+  double fontSize = 7.5,
 }) => pw.TableHelper.fromTextArray(
   headers: headers,
   data: rows,
   columnWidths: widths,
-  headerStyle: const pw.TextStyle(
-    fontSize: 7.5,
+  headerStyle: pw.TextStyle(
+    fontSize: fontSize,
     fontWeight: pw.FontWeight.bold,
     color: PdfColors.white,
   ),
   headerDecoration: pw.BoxDecoration(color: _green),
-  cellStyle: const pw.TextStyle(fontSize: 7.5),
-  cellPadding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+  cellStyle: pw.TextStyle(fontSize: fontSize),
+  cellPadding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 3),
   oddRowDecoration: pw.BoxDecoration(color: _mint),
   border: pw.TableBorder(
     horizontalInside: pw.BorderSide(color: _line, width: 0.5),
@@ -438,22 +443,148 @@ pw.Widget _table({
       final int? days = int.tryParse('$value');
       if (days != null && days > 30) {
         return pw.TextStyle(
-          fontSize: 7.5,
+          fontSize: fontSize,
           color: _danger,
           fontWeight: pw.FontWeight.bold,
         );
       }
     }
+    if (row > 0 && bold.contains(column)) {
+      return pw.TextStyle(fontSize: fontSize, fontWeight: pw.FontWeight.bold);
+    }
     return null;
   },
 );
 
+// Two-column PM lists (owner request 2026-09-25): each page holds a left
+// and a right table. A table row cannot move between columns by itself, so
+// rows are packed by an estimate of their height (the job description may
+// wrap); the budgets stay below what really fits so a block never outgrows
+// its page.
+const double _pmFont = 7;
+const double _pmRowBase = 6.5; // cell padding and rule
+const double _pmLine = 8.6; // one text line at 7 pt
+const int _pmCharsPerLine = 42; // job column in a half-width table
+
+/// Room for rows under the header row: first block of CPP shares page 1
+/// with the title and chart, PORT starts on a fresh page, later blocks fill
+/// whole pages.
+const double _pmFirstBudget = 190;
+const double _pmSectionBudget = 420;
+const double _pmPageBudget = 450;
+
+double _pmRowHeight(PreventiveMaintenanceWorkOrder item) {
+  final int lines = (item.description.length / _pmCharsPerLine).ceil();
+  return _pmRowBase + (lines < 1 ? 1 : lines) * _pmLine;
+}
+
+/// Splits [items] into page blocks of (left, right) columns.
+List<(List<int>, List<int>)> _pmBlocks(
+  List<PreventiveMaintenanceWorkOrder> items,
+  double firstBudget,
+) {
+  final List<(List<int>, List<int>)> blocks = <(List<int>, List<int>)>[];
+  int next = 0;
+  double budget = firstBudget;
+  List<int> column() {
+    final List<int> rows = <int>[];
+    double used = 0;
+    while (next < items.length) {
+      final double height = _pmRowHeight(items[next]);
+      if (rows.isNotEmpty && used + height > budget) break;
+      rows.add(next++);
+      used += height;
+    }
+    return rows;
+  }
+
+  while (next < items.length) {
+    // When the rest fits on this page, share it evenly between the columns.
+    final List<int> rest = <int>[for (int i = next; i < items.length; i++) i];
+    final double restHeight = rest.fold(
+      0,
+      (double sum, int i) => sum + _pmRowHeight(items[i]),
+    );
+    if (restHeight <= budget * 2) {
+      final int half = (rest.length + 1) ~/ 2;
+      final List<int> left = rest.sublist(0, half);
+      final double leftHeight = left.fold(
+        0,
+        (double sum, int i) => sum + _pmRowHeight(items[i]),
+      );
+      if (leftHeight <= budget && restHeight - leftHeight <= budget) {
+        blocks.add((left, rest.sublist(half)));
+        break;
+      }
+    }
+    final List<int> left = column();
+    final List<int> right = column();
+    blocks.add((left, right));
+    budget = _pmPageBudget;
+  }
+  return blocks;
+}
+
+pw.Widget _pmTable(
+  MaintenanceReport report,
+  List<PreventiveMaintenanceWorkOrder> items,
+  List<int> indexes,
+) {
+  final bool allCrews = report.crew == null;
+  return _table(
+    fontSize: _pmFont,
+    headers: <String>[
+      'No',
+      if (allCrews) 'Crew',
+      'Work order',
+      'Pekerjaan',
+      'Aset',
+      'Rencana mulai',
+      'Umur (hari)',
+    ],
+    widths: allCrews
+        ? const <int, pw.TableColumnWidth>{
+            0: pw.FixedColumnWidth(20),
+            1: pw.FixedColumnWidth(24),
+            2: pw.FixedColumnWidth(50),
+            3: pw.FlexColumnWidth(),
+            4: pw.FixedColumnWidth(42),
+            5: pw.FixedColumnWidth(50),
+            6: pw.FixedColumnWidth(28),
+          }
+        : const <int, pw.TableColumnWidth>{
+            0: pw.FixedColumnWidth(20),
+            1: pw.FixedColumnWidth(50),
+            2: pw.FlexColumnWidth(),
+            3: pw.FixedColumnWidth(42),
+            4: pw.FixedColumnWidth(50),
+            5: pw.FixedColumnWidth(28),
+          },
+    ageColumns: <int>{allCrews ? 6 : 5},
+    centered: allCrews ? const <int>{0, 1, 4, 5, 6} : const <int>{0, 3, 4, 5},
+    bold: allCrews ? const <int>{1} : const <int>{},
+    rows: <List<String>>[
+      for (final int i in indexes)
+        <String>[
+          '${i + 1}',
+          if (allCrews) items[i].crew,
+          items[i].workOrder,
+          items[i].description,
+          items[i].equipmentReference,
+          _date(items[i].plannedStartOn),
+          '${maintenanceAgeDays(items[i].raisedOn, report.today) ?? '-'}',
+        ],
+    ],
+  );
+}
+
 List<pw.Widget> _pmSection(MaintenanceReport report, String site) {
   final List<PreventiveMaintenanceWorkOrder> items = report.pmAt(site);
   final String who = report.crewLabel;
+  final bool first = site == maintenanceSites.first;
   if (items.isEmpty) {
     return <pw.Widget>[
-      if (site != maintenanceSites.first) pw.NewPage(),
+      if (!first) pw.NewPage(),
       _sectionTitle('PM $site · $who', 0),
       pw.Text(
         'Tidak ada PM outstanding.',
@@ -461,59 +592,29 @@ List<pw.Widget> _pmSection(MaintenanceReport report, String site) {
       ),
     ];
   }
+  final List<(List<int>, List<int>)> blocks = _pmBlocks(
+    items,
+    first ? _pmFirstBudget : _pmSectionBudget,
+  );
   return <pw.Widget>[
     // PORT starts on a fresh page instead of under the CPP list.
-    if (site != maintenanceSites.first) pw.NewPage(),
+    if (!first) pw.NewPage(),
     _sectionTitle('PM $site · $who', items.length),
-    _table(
-      headers: <String>[
-        'No',
-        if (report.crew == null) 'Crew',
-        'Work order',
-        'Pekerjaan',
-        'Aset',
-        'Dibuat',
-        'Rencana mulai',
-        'Umur (hari)',
-      ],
-      widths: report.crew == null
-          ? const <int, pw.TableColumnWidth>{
-              0: pw.FixedColumnWidth(22),
-              1: pw.FixedColumnWidth(30),
-              2: pw.FixedColumnWidth(62),
-              3: pw.FlexColumnWidth(),
-              4: pw.FixedColumnWidth(90),
-              5: pw.FixedColumnWidth(58),
-              6: pw.FixedColumnWidth(62),
-              7: pw.FixedColumnWidth(44),
-            }
-          : const <int, pw.TableColumnWidth>{
-              0: pw.FixedColumnWidth(22),
-              1: pw.FixedColumnWidth(62),
-              2: pw.FlexColumnWidth(),
-              3: pw.FixedColumnWidth(90),
-              4: pw.FixedColumnWidth(58),
-              5: pw.FixedColumnWidth(62),
-              6: pw.FixedColumnWidth(44),
-            },
-      ageColumns: <int>{report.crew == null ? 7 : 6},
-      centered: report.crew == null
-          ? const <int>{0, 1, 4, 5, 6, 7}
-          : const <int>{0, 3, 4, 5, 6},
-      rows: <List<String>>[
-        for (int i = 0; i < items.length; i++)
-          <String>[
-            '${i + 1}',
-            if (report.crew == null) items[i].crew,
-            items[i].workOrder,
-            items[i].description,
-            items[i].equipmentReference,
-            _date(items[i].raisedOn),
-            _date(items[i].plannedStartOn),
-            '${maintenanceAgeDays(items[i].raisedOn, report.today) ?? '-'}',
-          ],
-      ],
-    ),
+    for (int b = 0; b < blocks.length; b++) ...<pw.Widget>[
+      if (b > 0) pw.NewPage(),
+      pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: <pw.Widget>[
+          pw.Expanded(child: _pmTable(report, items, blocks[b].$1)),
+          pw.SizedBox(width: 10),
+          pw.Expanded(
+            child: blocks[b].$2.isEmpty
+                ? pw.SizedBox()
+                : _pmTable(report, items, blocks[b].$2),
+          ),
+        ],
+      ),
+    ],
   ];
 }
 
