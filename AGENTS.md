@@ -2,6 +2,13 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Rilis Android 2.8.42 — 2026-09-25
+
+- Pemilik meminta update Android. Versi `2.8.42+12322`, `AppConfig.appVersion` `2.8.42`, cache suffix web `2.8.42-android-release`. Hanya `arm64-v8a` (version code 14322, 28.675.868 byte) diunggah ke `app-releases` dan diaktifkan lewat `20260925110000_publish_sicatat_2_8_42_gudang_upload.sql`; `aapt2` menunjukkan 2.8.42/14322 dan sertifikat SHA-256 `b1d69e78…dc574584` (keystore debug mesin ini, sama dengan rilis sebelumnya).
+- CLI Supabase 2.117 menolak `storage cp` dengan path sumber absolut Windows ("LegacyStorageUnsupportedOperationError … copy between local directories"). Jalankan dari folder APK dengan nama file relatif, plus `--experimental --linked --content-type application/vnd.android.package-archive --workdir <repo>`.
+- APK 2.8.40 dan 2.8.41 masih di bucket; 2.8.40 belum dihapus (hapus data produksi hanya setelah pemilik setuju).
+- Isi rilis: Gudang di Operasional (Cari barang, Barang dipesan + filter pemesan, Pengambilan, Peminjaman Alat), kartu "Terakhir diperbarui", Anggaran setahun penuh, Cost Code lengkap, MOM beberapa rencana per temuan, Unggah data dan Data master yang dirapikan. Belum diuji di HP fisik.
+
 ## Unggah data: file Excel langsung ke SICATAT, Anggaran setahun penuh — 2026-09-25
 
 - Pemilik (satu-satunya yang meng-update spreadsheet) memilih **upload langsung** daripada OneDrive (akun kantor arutmin.com biasanya melarang link "siapa saja", Graph API butuh admin IT) dan daripada link publik Google Drive (data PR/anggaran/PO terbuka untuk siapa pun yang punya link).
