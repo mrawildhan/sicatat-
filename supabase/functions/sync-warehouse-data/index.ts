@@ -22,6 +22,8 @@ const source = {
     "https://docs.google.com/spreadsheets/d/1nzKdmxZFdq47ukSONUjHGo8JGHBSZRFidDlzorVjk-8/gviz/tq?tqx=out:csv&gid=0",
 };
 
+const importVersion = "receipts-iso-dates-2026-09-25";
+
 // Same labels as sync-warehouse-drive (Ellipse MAIN is the NPLCT warehouse).
 const siteLabels: Record<string, string> = {
   AMWH: "Asamasam",
@@ -106,6 +108,12 @@ function numberValue(value: string) {
 
 function dateValue(value: string) {
   const compact = value.trim();
+  // Newer PO PR rows are typed as 2026-09-23 (seen 2026-09-25); they used to
+  // be stored without a date.
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(compact);
+  if (iso) {
+    return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  }
   if (/^\d{8}$/.test(compact)) {
     return `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}`;
   }
@@ -241,6 +249,8 @@ Deno.serve(async (req) => {
       "WAREHOUSE ID", "STOCK CODE", "STOCK CODE DESCRIPTION", "BIN CODE", "UOI", "SOH", "ITEM PRICE",
     ]);
     const sourceFingerprint = await fingerprint([
+      // Bump when the parsing changes so unchanged sheets are read again.
+      importVersion,
       master.fingerprint,
       stock.fingerprint,
       receipts.fingerprint,
@@ -355,6 +365,9 @@ Deno.serve(async (req) => {
       if (error) throw error;
     }
 
+    // Every receipt row of this run gets the same stamp, so rows the sheet no
+    // longer has (keys contain the row position) can be removed afterwards.
+    const receiptStamp = new Date().toISOString();
     const receiptRows = receipts.rows
       .map((row, index) => ({
         source_key: "po-pr|" + [
@@ -375,11 +388,18 @@ Deno.serve(async (req) => {
         delivery_note: valueAt(row, receipts.headers, "NO DO") || null,
         supplier: valueAt(row, receipts.headers, "SUPPLYER") || valueAt(row, receipts.headers, "SUPLYER") || null,
         requested_by: valueAt(row, receipts.headers, "USER") || null,
-        synced_at: new Date().toISOString(),
+        synced_at: receiptStamp,
       }))
       .filter((row) => row.po_number || row.description);
     for (const batch of chunks(receiptRows)) {
       const { error } = await admin.from("warehouse_receipt").upsert(batch, { onConflict: "source_key" });
+      if (error) throw error;
+    }
+    // Rows that moved or left the sheet stayed behind as duplicates (4 419
+    // rows for a 2 301-row sheet on 2026-09-25). A near-empty read never
+    // clears the table.
+    if (receiptRows.length >= 100) {
+      const { error } = await admin.from("warehouse_receipt").delete().lt("synced_at", receiptStamp);
       if (error) throw error;
     }
 

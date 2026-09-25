@@ -2,6 +2,12 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Gudang: dua sumber data, perbaikan sheet PO PR — 2026-09-25
+
+- Gudang punya dua sumber. (1) Google Sheet yang diisi warehouse Kintap: SCALLSITE/"Warehouse Inventory", SCMASTER, PENERIMAAN/"PO PR", DST Kintap, dan PEMINJAMAN. Semuanya dibaca `sync-warehouse-data` lewat cron setiap hari pukul 06.00 WITA dan **tidak terpengaruh Unggah data**. (2) File yang dipegang pemilik (laporan Ellipse Warehouse Inventory, LIST ORDER, Outstanding PO) lewat folder Drive atau Unggah data.
+- Stok memakai laporan Ellipse sebagai sumber utama; SCALLSITE hanya mengisi barang yang tidak ada di laporan itu (saat ini tidak ada). Perbandingan 2026-09-25: SCALLSITE (25/9) vs SICATAT (Ellipse 24/9) sama untuk AMWH, beda 16 barang di KMWH dan 27 di MAIN (kebanyakan SOH kosong/1 di sheet). "Tanya whs" tidak tersambung.
+- Bug diperbaiki: baris baru sheet PO PR bertanggal `2026-09-23` (ISO) tidak dikenali, sehingga 551 penerimaan tanpa tanggal. Selain itu kunci baris memuat posisi baris, jadi baris lama menumpuk (4.419 baris untuk sheet 2.301 baris). `dateValue` kini menerima ISO, dan setelah upsert baris dengan `synced_at` lama dihapus (hanya bila terbaca ≥100 baris). `importVersion` memaksa baca ulang. Sinkronisasi manual lewat `net.http_post` dengan secret Vault cron menghasilkan 2.301 baris, 0 tanpa tanggal, terbaru 23 Sep.
+
 ## PM & CM: grafik dan ekspor PDF per foreman — 2026-09-25
 
 - Halaman PM & CM Tertunda punya satu grafik (fl_chart, `presentation/maintenance_charts.dart`): "PM tertunda per crew", satu batang berlabel per crew dan lokasi (Crew A CPP, Crew A PORT, … — permintaan pemilik). Grafik umur pekerjaan sempat dibuat lalu dihapus atas permintaan pemilik.
