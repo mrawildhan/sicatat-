@@ -12,8 +12,12 @@ void main() {
     await tester.tap(find.text('Site').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('2 digit · 2 kode tersedia'), findsOneWidget);
-    expect(find.text('32'), findsOneWidget);
-    expect(find.text('Asam Asam'), findsOneWidget);
+    // Every site from the manual, smallest code first.
+    expect(find.text('2 digit · 14 kode tersedia'), findsOneWidget);
+    expect(find.text('Support Office Jakarta'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('10')).dy,
+      lessThan(tester.getTopLeft(find.text('11')).dy),
+    );
   });
 }

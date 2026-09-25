@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../data/cost_code_catalog.dart';
 
 class CostCodeReferenceScreen extends StatefulWidget {
   const CostCodeReferenceScreen({super.key});
@@ -24,13 +25,12 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
     super.dispose();
   }
 
-  List<_CostCodeEntry> get _results => _costCodeEntries
-      .where(
-        (entry) =>
-            (_segment == 'Semua' || entry.segment == _segment) &&
-            entry.matches(_query),
-      )
-      .toList(growable: false);
+  List<CostCodeEntry> get _results => <CostCodeEntry>[
+    for (final _CostCodeSegment segment in _costCodeStructure)
+      if (_segment == 'Semua' || _segment == segment.filter)
+        ..._entriesOf(segment.filter)
+            .where((CostCodeEntry entry) => entry.matches(_query)),
+  ];
 
   Future<void> _openGuide() async {
     final Uri uri = Uri.base.resolve(
@@ -45,9 +45,7 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
   }
 
   void _showSegmentCodes(_CostCodeSegment segment) {
-    final List<_CostCodeEntry> entries = _costCodeEntries
-        .where((entry) => entry.segment == segment.filter)
-        .toList(growable: false);
+    final List<CostCodeEntry> entries = _entriesOf(segment.filter);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -100,13 +98,14 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
                     itemCount: entries.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (BuildContext context, int index) {
-                      final _CostCodeEntry entry = entries[index];
+                      final CostCodeEntry entry = entries[index];
+                      final String? detail = _detail(entry);
                       return Card(
                         child: ListTile(
                           leading: CircleAvatar(
                             backgroundColor: AppColors.mint,
                             child: Icon(
-                              entry.icon,
+                              _iconFor(entry),
                               color: AppColors.green,
                               size: 19,
                             ),
@@ -119,7 +118,9 @@ class _CostCodeReferenceScreenState extends State<CostCodeReferenceScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            entry.description,
+                            detail == null || detail.isEmpty
+                                ? entry.description
+                                : '${entry.description}\n$detail',
                             style: AppTextStyles.supporting,
                           ),
                         ),
@@ -361,7 +362,7 @@ class _EmptySearchResult extends StatelessWidget {
 class _CostCodeCard extends StatelessWidget {
   const _CostCodeCard({required this.entry});
 
-  final _CostCodeEntry entry;
+  final CostCodeEntry entry;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -372,7 +373,7 @@ class _CostCodeCard extends StatelessWidget {
         children: <Widget>[
           CircleAvatar(
             backgroundColor: AppColors.mint,
-            child: Icon(entry.icon, color: AppColors.green, size: 20),
+            child: Icon(_iconFor(entry), color: AppColors.green, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -391,6 +392,11 @@ class _CostCodeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(entry.description, style: AppTextStyles.cardTitle),
+                if (_detail(entry) case final String detail
+                    when detail.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 2),
+                  Text(detail, style: AppTextStyles.supporting),
+                ],
               ],
             ),
           ),
@@ -398,21 +404,6 @@ class _CostCodeCard extends StatelessWidget {
       ),
     ),
   );
-}
-
-class _CostCodeEntry {
-  const _CostCodeEntry(this.segment, this.code, this.description, this.icon);
-
-  final String segment;
-  final String code;
-  final String description;
-  final IconData icon;
-
-  bool matches(String query) {
-    final String value = query.trim().toLowerCase();
-    return value.isEmpty ||
-        '$segment $code $description'.toLowerCase().contains(value);
-  }
 }
 
 class _CostCodeSegment {
@@ -441,311 +432,94 @@ const List<String> _segments = <String>[
   'Expense',
 ];
 
-const List<_CostCodeEntry> _costCodeEntries = <_CostCodeEntry>[
-  _CostCodeEntry('Site', '32', 'Asam Asam', Icons.location_on_outlined),
-  _CostCodeEntry('Site', '40', 'NPLCT', Icons.location_on_outlined),
-  _CostCodeEntry('Function', '70', 'Mining Operation', Icons.factory_outlined),
-  _CostCodeEntry(
-    'Function',
-    '71',
-    'OLC & CPP Operation',
-    Icons.factory_outlined,
-  ),
-  _CostCodeEntry('Function', '75', 'Port Operation', Icons.anchor_outlined),
-  _CostCodeEntry(
-    'Function',
-    '90',
-    'Repair and Maintenance',
-    Icons.build_outlined,
-  ),
-  _CostCodeEntry('Function', '56', 'Administration', Icons.business_outlined),
-  _CostCodeEntry('Function', '32', 'Engineering', Icons.engineering_outlined),
-  _CostCodeEntry('Function', '58', 'Safety', Icons.health_and_safety_outlined),
-  _CostCodeEntry('Function', '65', 'Environment', Icons.eco_outlined),
-  _CostCodeEntry(
-    'Pit/Plant',
-    'A001',
-    'Darma Henwa - Asam Asam',
-    Icons.landscape_outlined,
-  ),
-  _CostCodeEntry(
-    'Pit/Plant',
-    'A012',
-    'Pit 4-5 PPA - Asam Asam',
-    Icons.landscape_outlined,
-  ),
-  _CostCodeEntry(
-    'Pit/Plant',
-    'A013',
-    'Pit 9-11 PPA - Asam Asam',
-    Icons.landscape_outlined,
-  ),
-  _CostCodeEntry(
-    'Pit/Plant',
-    'A020',
-    'MMT - Asam Asam',
-    Icons.landscape_outlined,
-  ),
-  _CostCodeEntry(
-    'Pit/Plant',
-    'A030',
-    'RA - Asam Asam',
-    Icons.landscape_outlined,
-  ),
-  _CostCodeEntry(
-    'Pit/Plant',
-    'A040',
-    'Asam Asam East',
-    Icons.landscape_outlined,
-  ),
-  _CostCodeEntry(
-    'Pit/Plant',
-    'F020',
-    'Port Plant / Equipment',
-    Icons.anchor_outlined,
-  ),
-  _CostCodeEntry(
-    'Pit/Plant',
-    'F030',
-    'OLC & CPP Plant / Equipment',
-    Icons.factory_outlined,
-  ),
-  _CostCodeEntry(
-    'Pit/Plant',
-    'E010',
-    'Minor Equipment',
-    Icons.handyman_outlined,
-  ),
-  _CostCodeEntry(
-    'Activity',
-    '000',
-    'General Overhead',
-    Icons.account_tree_outlined,
-  ),
-  _CostCodeEntry('Activity', '100', 'Stripping', Icons.terrain_outlined),
-  _CostCodeEntry(
-    'Activity',
-    '110',
-    'Drilling',
-    Icons.precision_manufacturing_outlined,
-  ),
-  _CostCodeEntry('Activity', '115', 'Blasting', Icons.warning_amber_rounded),
-  _CostCodeEntry(
-    'Activity',
-    '130',
-    'Coal Getting / Mining',
-    Icons.landscape_outlined,
-  ),
-  _CostCodeEntry(
-    'Activity',
-    '140',
-    'Coal Hauling',
-    Icons.local_shipping_outlined,
-  ),
-  _CostCodeEntry(
-    'Activity',
-    '150',
-    'Crushing / Washing',
-    Icons.factory_outlined,
-  ),
-  _CostCodeEntry('Activity', '200', 'Port Activities', Icons.anchor_outlined),
-  _CostCodeEntry(
-    'Activity',
-    '314',
-    'Asam Asam to NPLCT',
-    Icons.directions_boat_outlined,
-  ),
-  _CostCodeEntry(
-    'Activity',
-    '334',
-    'Asam Asam to CBU',
-    Icons.directions_boat_outlined,
-  ),
-  _CostCodeEntry(
-    'Activity',
-    '354',
-    'Asam Asam to Transhipment',
-    Icons.directions_boat_outlined,
-  ),
-  _CostCodeEntry(
-    'Activity',
-    '374',
-    'Asam Asam to Direct Customer',
-    Icons.directions_boat_outlined,
-  ),
-  _CostCodeEntry(
-    'Activity',
-    '800',
-    'Repair and Maintenance',
-    Icons.build_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00340',
-    'Batteries',
-    Icons.battery_charging_full_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00341',
-    'Components / Spares',
-    Icons.settings_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00342',
-    'Conveyors & Accessories',
-    Icons.settings_outlined,
-  ),
-  _CostCodeEntry('Expense', '00345', 'Instrumentation', Icons.speed_outlined),
-  _CostCodeEntry(
-    'Expense',
-    '00346',
-    'Electrical Parts',
-    Icons.electric_bolt_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00360',
-    'Tyres and Tubes',
-    Icons.tire_repair_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00370',
-    'Workshop Consumables',
-    Icons.construction_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00380',
-    'Bearings & Accessories',
-    Icons.settings_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00381',
-    'Pipes & Fittings',
-    Icons.plumbing_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00382',
-    'PM Service Kits (Filters, O Rings Etc)',
-    Icons.build_circle_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00383',
-    'Engines & Associated',
-    Icons.settings_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00384',
-    'Transmission, Torque Converter, Gearbox',
-    Icons.settings_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00386',
-    'Steering, Hydraulics & Associated',
-    Icons.settings_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00390',
-    'Electric Motors',
-    Icons.electric_bolt_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00393',
-    'Workshop Materials',
-    Icons.construction_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00395',
-    'Welding / Heating & Accessories',
-    Icons.local_fire_department_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00396',
-    'Minor Equip / Tools Replacement Non Capital',
-    Icons.handyman_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00397',
-    'Pneumatics, Air System Components',
-    Icons.air_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00398',
-    'Lubrication Systems and Components',
-    Icons.oil_barrel_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00399',
-    'Fire Suppression Systems and Components',
-    Icons.fire_extinguisher_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00400',
-    'Steering Systems and Components',
-    Icons.settings_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00401',
-    'Cooling Systems and Components',
-    Icons.ac_unit_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00402',
-    'Land & Building Repairs',
-    Icons.home_repair_service_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00406',
-    'Sand Blasting, Paint, Consumables',
-    Icons.format_paint_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00470',
-    'Environmental Monitoring',
-    Icons.eco_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00480',
-    'Import Duty / Handling Charge Overseas',
-    Icons.public_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00481',
-    'Freight / Delivery Cost',
-    Icons.local_shipping_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00622',
-    'Office Utilities & Supplies',
-    Icons.business_outlined,
-  ),
-  _CostCodeEntry(
-    'Expense',
-    '00628',
-    'Software License Fee',
-    Icons.computer_outlined,
-  ),
-];
+/// Every code of one segment, smallest code first.
+List<CostCodeEntry> _entriesOf(String segment) =>
+    costCodeCatalog
+        .where((CostCodeEntry entry) => entry.segment == segment)
+        .toList(growable: false)
+      ..sort((CostCodeEntry a, CostCodeEntry b) => a.code.compareTo(b.code));
+
+/// Site or heading from the manual, shown under the description.
+String? _detail(CostCodeEntry entry) => switch (entry.segment) {
+  'Pit/Plant' => entry.site,
+  'Activity' => <String?>[
+    entry.group,
+    entry.site,
+  ].whereType<String>().join(' · '),
+  'Expense' => entry.group,
+  _ => null,
+};
+
+IconData _iconFor(CostCodeEntry entry) {
+  final String code = entry.code;
+  final String text = entry.description.toLowerCase();
+  switch (entry.segment) {
+    case 'Site':
+      return Icons.location_on_outlined;
+    case 'Function':
+      return switch (code) {
+        '70' || '71' => Icons.factory_outlined,
+        '75' || '80' => Icons.anchor_outlined,
+        '90' => Icons.build_outlined,
+        '32' || '30' => Icons.engineering_outlined,
+        '57' || '58' || '59' => Icons.health_and_safety_outlined,
+        '65' || '67' => Icons.eco_outlined,
+        '27' || '28' || '45' => Icons.inventory_2_outlined,
+        '48' => Icons.computer_outlined,
+        '20' ||
+        '21' ||
+        '22' ||
+        '24' ||
+        '25' ||
+        '26' ||
+        '49' => Icons.account_balance_outlined,
+        _ => Icons.business_outlined,
+      };
+    case 'Pit/Plant':
+      if (code.startsWith('W') || code == 'F020') return Icons.anchor_outlined;
+      if (code.startsWith('V')) return Icons.directions_car_outlined;
+      if (code.startsWith('E') || code.startsWith('D')) {
+        return Icons.handyman_outlined;
+      }
+      if (code.startsWith('F')) return Icons.factory_outlined;
+      return Icons.landscape_outlined;
+    case 'Activity':
+      if (code.startsWith('3')) return Icons.directions_boat_outlined;
+      if (code.startsWith('5')) return Icons.eco_outlined;
+      if (code.startsWith('9')) return Icons.account_balance_outlined;
+      if (code == '800') return Icons.build_outlined;
+      if (code == '200') return Icons.anchor_outlined;
+      if (code == '000') return Icons.account_tree_outlined;
+      return Icons.terrain_outlined;
+  }
+  final String group = (entry.group ?? '').toLowerCase();
+  if (group.contains('maintenance')) {
+    if (text.contains('electric')) return Icons.electric_bolt_outlined;
+    if (text.contains('tyre')) return Icons.tire_repair_outlined;
+    if (text.contains('weld') || text.contains('gases')) {
+      return Icons.local_fire_department_outlined;
+    }
+    return Icons.settings_outlined;
+  }
+  if (group.contains('fuel')) return Icons.local_gas_station_outlined;
+  if (group.contains('contractor')) return Icons.engineering_outlined;
+  if (group.contains('explosive') || group.contains('drilling')) {
+    return Icons.precision_manufacturing_outlined;
+  }
+  if (group.contains('environment')) return Icons.eco_outlined;
+  if (group.contains('freight') || group.contains('port')) {
+    return Icons.local_shipping_outlined;
+  }
+  if (group.contains('office') || group.contains('communication')) {
+    return Icons.business_outlined;
+  }
+  if (group.contains('allocation')) return Icons.call_split_rounded;
+  if (group.contains('staff') ||
+      group.contains('employee') ||
+      group.contains('recruitment') ||
+      group.contains('living') ||
+      group.contains('education')) {
+    return Icons.badge_outlined;
+  }
+  return Icons.receipt_long_outlined;
+}
