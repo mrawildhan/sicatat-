@@ -2,6 +2,11 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Rilis Android 2.8.43 — 2026-09-25
+
+- Versi `2.8.43+12323` (arm64 version code 14323, 28.806.940 byte, sertifikat `b1d69e78…dc574584`) aktif lewat `20260925140000_publish_sicatat_2_8_43_pmcm_report.sql`. Isinya: grafik PM & CM plus ekspor PDF PM/CM Outstanding untuk foreman, stok gudang terbaru dengan sumbernya, dan riwayat penerimaan PO PR yang sudah diperbaiki. APK 2.8.42 dihapus sehingga hanya 2.8.43 yang tersisa di `app-releases`.
+- Tanpa sesi admin di Browser pane, APK lama bisa dihapus lewat `DELETE /storage/v1/object/app-releases` memakai kunci service_role dari `npx supabase projects api-keys` yang dibaca ke variabel shell (jangan dicetak, disimpan, atau di-commit).
+
 ## Gudang: dua sumber data, perbaikan sheet PO PR — 2026-09-25
 
 - Gudang punya dua sumber. (1) Google Sheet yang diisi warehouse Kintap: SCALLSITE/"Warehouse Inventory", SCMASTER, PENERIMAAN/"PO PR", DST Kintap, dan PEMINJAMAN. Semuanya dibaca `sync-warehouse-data` lewat cron setiap hari pukul 06.00 WITA dan **tidak terpengaruh Unggah data**. (2) File yang dipegang pemilik (laporan Ellipse Warehouse Inventory, LIST ORDER, Outstanding PO) lewat folder Drive atau Unggah data.
