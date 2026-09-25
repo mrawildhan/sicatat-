@@ -244,6 +244,10 @@ pw.Widget _barChart({
   required String title,
   required List<String> groups,
   required List<(String, PdfColor, List<int>)> series,
+
+  /// Colour per group for a single-series chart.
+  List<PdfColor>? groupColors,
+  List<(String, PdfColor)>? legend,
 }) {
   const double chartHeight = 92;
   final int maxValue = series
@@ -261,13 +265,20 @@ pw.Widget _barChart({
       children: <pw.Widget>[
         pw.Text(
           title,
-          style: const pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+          style: const pw.TextStyle(
+            fontSize: 9,
+            fontWeight: pw.FontWeight.bold,
+          ),
         ),
         pw.SizedBox(height: 4),
         pw.Row(
           children: <pw.Widget>[
-            for (final (String name, PdfColor color, List<int> _)
-                in series) ...<pw.Widget>[
+            for (final (String name, PdfColor color)
+                in legend ??
+                    <(String, PdfColor)>[
+                      for (final (String n, PdfColor c, List<int> _) in series)
+                        (n, c),
+                    ]) ...<pw.Widget>[
               pw.Container(width: 7, height: 7, color: color),
               pw.SizedBox(width: 3),
               pw.Text(name, style: const pw.TextStyle(fontSize: 7.5)),
@@ -303,7 +314,7 @@ pw.Widget _barChart({
                                 pw.Container(
                                   width: 16,
                                   height: values[g] * scale,
-                                  color: color,
+                                  color: groupColors?[g] ?? color,
                                 ),
                               ],
                             ),
@@ -314,6 +325,7 @@ pw.Widget _barChart({
                     pw.SizedBox(height: 2),
                     pw.Text(
                       groups[g],
+                      textAlign: pw.TextAlign.center,
                       style: const pw.TextStyle(fontSize: 7.5),
                     ),
                   ],
@@ -330,23 +342,28 @@ pw.Widget _pmChart(MaintenanceReport report) {
   final List<String> crews = report.crew == null
       ? maintenanceCrews
       : <String>[report.crew!];
+  // One labelled bar per crew and site: Crew A CPP, Crew A PORT, ...
   return _barChart(
     title: 'PM tertunda per crew',
-    groups: <String>[for (final String crew in crews) 'Crew $crew'],
+    groups: <String>[
+      for (final String crew in crews)
+        for (final String site in maintenanceSites) 'Crew $crew\n$site',
+    ],
     series: <(String, PdfColor, List<int>)>[
       (
-        'CPP',
+        'PM',
         _green,
-        <int>[for (final String crew in crews) report.pmAt('CPP', crew).length],
-      ),
-      (
-        'PORT',
-        _orange,
         <int>[
-          for (final String crew in crews) report.pmAt('PORT', crew).length,
+          for (final String crew in crews)
+            for (final String site in maintenanceSites)
+              report.pmAt(site, crew).length,
         ],
       ),
     ],
+    groupColors: <PdfColor>[
+      for (final String _ in crews) ...<PdfColor>[_green, _orange],
+    ],
+    legend: <(String, PdfColor)>[('CPP', _green), ('PORT', _orange)],
   );
 }
 

@@ -141,10 +141,12 @@ void main() {
       await tester.pump();
 
       expect(find.text('PM per crew & lokasi'), findsOneWidget);
-      // CPP card + PORT card + the "PM tertunda per crew" chart axis.
-      expect(find.text('Crew A'), findsNWidgets(3));
-      expect(find.text('Crew B'), findsNWidgets(3));
-      expect(find.text('Crew C'), findsNWidgets(3));
+      // CPP card + PORT card; the chart labels read "Crew A\nCPP".
+      expect(find.text('Crew A'), findsNWidgets(2));
+      expect(find.text('Crew B'), findsNWidgets(2));
+      expect(find.text('Crew C'), findsNWidgets(2));
+      expect(find.text('Crew A\nCPP'), findsOneWidget);
+      expect(find.text('Crew C\nPORT'), findsOneWidget);
       // PM column header + CM card + chart legend.
       expect(find.text('CPP'), findsNWidgets(3));
       expect(find.text('PORT'), findsNWidgets(3));

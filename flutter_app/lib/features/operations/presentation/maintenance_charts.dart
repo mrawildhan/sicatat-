@@ -41,16 +41,24 @@ class MaintenanceCharts extends StatelessWidget {
             ('CPP', AppColors.green),
             ('PORT', AppColors.orange),
           ],
+          // One labelled bar per crew and site: Crew A CPP, Crew A PORT, ...
           groups: <String>[
-            for (final String crew in maintenanceCrews) 'Crew $crew',
+            for (final String crew in maintenanceCrews)
+              for (final String site in maintenanceSites) 'Crew $crew\n$site',
           ],
           series: <List<int>>[
-            <int>[for (final String crew in maintenanceCrews) _pm(crew, 'CPP')],
             <int>[
-              for (final String crew in maintenanceCrews) _pm(crew, 'PORT'),
+              for (final String crew in maintenanceCrews)
+                for (final String site in maintenanceSites) _pm(crew, site),
             ],
           ],
-          colors: const <Color>[AppColors.green, AppColors.orange],
+          colors: const <Color>[AppColors.green],
+          groupColors: <Color>[
+            for (final String _ in maintenanceCrews) ...const <Color>[
+              AppColors.green,
+              AppColors.orange,
+            ],
+          ],
         ),
         const SizedBox(height: 10),
         _ChartCard(
@@ -78,6 +86,7 @@ class _ChartCard extends StatelessWidget {
     required this.groups,
     required this.series,
     required this.colors,
+    this.groupColors,
   });
 
   final String title;
@@ -85,6 +94,9 @@ class _ChartCard extends StatelessWidget {
   final List<String> groups;
   final List<List<int>> series;
   final List<Color> colors;
+
+  /// Colour per group for a single-series chart (overrides [colors]).
+  final List<Color>? groupColors;
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +167,9 @@ class _ChartCard extends StatelessWidget {
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 24,
+                        reservedSize: groups.any((g) => g.contains('\n'))
+                            ? 38
+                            : 24,
                         getTitlesWidget: (double value, TitleMeta meta) {
                           final int index = value.toInt();
                           if (index < 0 || index >= groups.length) {
@@ -165,7 +179,11 @@ class _ChartCard extends StatelessWidget {
                             padding: const EdgeInsets.only(top: 6),
                             child: Text(
                               groups[index],
-                              style: AppTextStyles.supporting,
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.supporting.copyWith(
+                                fontSize: 11,
+                                height: 1.2,
+                              ),
                             ),
                           );
                         },
@@ -185,7 +203,7 @@ class _ChartCard extends StatelessWidget {
                           for (int s = 0; s < series.length; s++)
                             BarChartRodData(
                               toY: series[s][g].toDouble(),
-                              color: colors[s],
+                              color: groupColors?[g] ?? colors[s],
                               width: 14,
                               borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(3),
