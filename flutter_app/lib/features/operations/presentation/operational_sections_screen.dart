@@ -117,7 +117,8 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
     } on Object catch (error) {
       if (mounted) {
         setState(
-          () => _error = 'Anggaran belum dapat diperbarui. ${_budgetError(error)}',
+          () => _error =
+              'Anggaran belum dapat diperbarui. ${_budgetError(error)}',
         );
       }
     } finally {
@@ -158,7 +159,9 @@ class _BudgetOverviewScreenState extends State<BudgetOverviewScreen> {
       if (!mounted) return;
       setState(() => _checkError = _budgetError(error));
       if (announce) {
-        _toast('Spreadsheet anggaran belum dapat diperiksa. ${_budgetError(error)}');
+        _toast(
+          'Spreadsheet anggaran belum dapat diperiksa. ${_budgetError(error)}',
+        );
       }
     } finally {
       if (mounted) setState(() => _checking = false);
@@ -906,7 +909,7 @@ class _BudgetOverviewBody extends StatelessWidget {
                   Text('Asam-Asam', style: _budgetSectionTitleStyle),
                   SizedBox(height: 2),
                   Text(
-                    'Anggaran dan realisasi USD · Januari–Juni 2026',
+                    'Anggaran dan realisasi USD · Januari–Desember 2026',
                     style: _budgetLabelStyle,
                   ),
                 ],

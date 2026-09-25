@@ -21,8 +21,19 @@ const sites = [
   { site: "CPP", budgetUrl: source.cppBudget, actualUrl: source.cppActual },
   { site: "PORT", budgetUrl: source.portBudget, actualUrl: source.portActual },
 ] as const;
-const periods = ["202601", "202602", "202603", "202604", "202605", "202606"] as const;
-const budgetMonthLabels = ["JAN-26", "FEB-26", "MAR-26", "APR-26", "MAY-26", "JUN-26"] as const;
+// The full 2026 budget (owner choice 2026-09-25); actual months fill in as the
+// actual workbooks are updated.
+const periods = [
+  "202601", "202602", "202603", "202604", "202605", "202606",
+  "202607", "202608", "202609", "202610", "202611", "202612",
+] as const;
+const budgetMonthLabels = [
+  "JAN-26", "FEB-26", "MAR-26", "APR-26", "MAY-26", "JUN-26",
+  "JUL-26", "AUG-26", "SEP-26", "OCT-26", "NOV-26", "DEC-26",
+] as const;
+// Part of the fingerprint, so a change to what is imported rewrites the
+// snapshot even when the spreadsheets themselves did not change.
+const importVersion = "full-year-2026";
 type Site = (typeof sites)[number]["site"];
 type CsvRows = string[][];
 
@@ -218,7 +229,7 @@ Deno.serve(async (req) => {
       downloadCsv(source.cppBudget, "Budget CPP"), downloadCsv(source.portBudget, "Budget PORT"),
       downloadCsv(source.cppActual, "Aktual CPP"), downloadCsv(source.portActual, "Aktual PORT"),
     ]);
-    const sourceFingerprint = await fingerprint([cppBudget, portBudget, cppActual, portActual]);
+    const sourceFingerprint = await fingerprint([importVersion, cppBudget, portBudget, cppActual, portActual]);
     const now = new Date().toISOString();
     // Unchanged sheets keep the current rows, so their synced_at stays the time
     // the spreadsheets last changed (shown in Anggaran Operasional).
@@ -240,7 +251,7 @@ Deno.serve(async (req) => {
     const port = buildRows("PORT", portBudget, portActual, sourceFingerprint, now);
     const items = [...cpp.items, ...port.items];
     const months = [...cpp.months, ...port.months];
-    if (items.length === 0 || months.length !== 12) throw new Error("Snapshot anggaran Asam-Asam tidak lengkap.");
+    if (items.length === 0 || months.length !== periods.length * 2) throw new Error("Snapshot anggaran Asam-Asam tidak lengkap.");
     const { error: itemError } = await admin.from("operational_budget_item").upsert(items, { onConflict: "source_key" });
     if (itemError) throw itemError;
     const { error: monthError } = await admin.from("operational_budget_month").upsert(months, { onConflict: "source_key" });
@@ -249,11 +260,16 @@ Deno.serve(async (req) => {
     await admin.from("operational_budget_month").delete().in("site_code", ["CPP", "PORT"]).neq("source_fingerprint", sourceFingerprint);
     await admin.from("operational_budget_sync_log").insert({
       status: "completed", snapshot_rows: items.length + months.length, source_fingerprint: sourceFingerprint,
-      detail: "Ringkasan item budget dan aktual USD Asam-Asam Januari–Juni 2026 tersimpan.", triggered_by: caller.id,
+      detail: "Ringkasan item budget dan aktual USD Asam-Asam Januari–Desember 2026 tersimpan.", triggered_by: caller.id,
     });
     return json({ ok: true, changed: true, rows: items.length + months.length, synced_at: now });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    // Database errors are plain objects with a message, not Error instances.
+    const message = error instanceof Error
+      ? error.message
+      : typeof (error as { message?: unknown })?.message === "string"
+      ? (error as { message: string }).message
+      : String(error);
     await admin.from("operational_budget_sync_log").insert({ status: "failed", detail: message, triggered_by: caller.id });
     return json({ ok: false, error: message }, 500);
   } finally {

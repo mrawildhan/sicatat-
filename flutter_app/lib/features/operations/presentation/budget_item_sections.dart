@@ -587,6 +587,12 @@ const List<String> _periods = <String>[
   '202604',
   '202605',
   '202606',
+  '202607',
+  '202608',
+  '202609',
+  '202610',
+  '202611',
+  '202612',
 ];
 
 const List<String> _monthNames = <String>[
