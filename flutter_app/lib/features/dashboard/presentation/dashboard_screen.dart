@@ -438,27 +438,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
         const SizedBox(height: 22),
-        if (!kIsWeb) ...<Widget>[
-          Card(
-            child: ListTile(
-              leading: const Icon(
-                Icons.system_update_alt_rounded,
-                color: AppColors.green,
-              ),
-              title: const Text('Pembaruan aplikasi'),
-              subtitle: const Text('Periksa dan pasang SICATAT versi terbaru'),
-              trailing: _checkingForUpdate
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    )
-                  : const Icon(Icons.chevron_right_rounded),
-              onTap: _checkingForUpdate ? null : _checkForUpdates,
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
         Card(
           child: ListTile(
             leading: const Icon(Icons.password_rounded, color: AppColors.green),
@@ -484,6 +463,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        if (!kIsWeb) ...<Widget>[
+          Card(
+            child: ListTile(
+              leading: const Icon(
+                Icons.system_update_alt_rounded,
+                color: AppColors.green,
+              ),
+              title: const Text('Pembaruan aplikasi'),
+              subtitle: const Text('Periksa dan pasang SICATAT versi terbaru'),
+              trailing: _checkingForUpdate
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    )
+                  : const Icon(Icons.chevron_right_rounded),
+              onTap: _checkingForUpdate ? null : _checkForUpdates,
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         OutlinedButton.icon(
           onPressed: _signOut,
           style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),

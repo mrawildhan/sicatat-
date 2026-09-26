@@ -92,11 +92,13 @@ class TemperatureFormsScreen extends ConsumerWidget {
               style: AppTextStyles.supporting,
             ),
             const SizedBox(height: 14),
-            for (final choice in choices) _card(context, choice),
+            for (final choice in alphabetical(choices, (c) => c.title))
+              _card(context, choice),
             const SizedBox(height: 14),
             const Text('Alat bantu', style: AppTextStyles.sectionTitle),
             const SizedBox(height: 10),
-            for (final choice in tools) _card(context, choice),
+            for (final choice in alphabetical(tools, (c) => c.title))
+              _card(context, choice),
           ],
         ),
       ),

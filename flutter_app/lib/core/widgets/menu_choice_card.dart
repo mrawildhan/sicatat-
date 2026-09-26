@@ -11,8 +11,15 @@ class MenuChoiceCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.sortTitle,
     super.key,
   });
+
+  /// Title used for the A–Z order when [title] changes with state (for
+  /// example "Memeriksa…" while Sinkronisasi runs).
+  final String? sortTitle;
+
+  String get orderKey => (sortTitle ?? title).toLowerCase();
 
   final IconData icon;
   final String title;
@@ -60,7 +67,15 @@ class MenuChoiceCard extends StatelessWidget {
   );
 }
 
-/// A list of [MenuChoiceCard]s: one column on phones, two on wide screens.
+/// Sorts menu entries A–Z; every menu in SICATAT is alphabetical (owner
+/// request 2026-09-26).
+List<T> alphabetical<T>(Iterable<T> items, String Function(T item) title) =>
+    items.toList()..sort(
+      (T a, T b) => title(a).toLowerCase().compareTo(title(b).toLowerCase()),
+    );
+
+/// A list of [MenuChoiceCard]s, A–Z: one column on phones, two on wide
+/// screens.
 class MenuChoiceList extends StatelessWidget {
   const MenuChoiceList({required this.cards, super.key});
 
@@ -78,7 +93,10 @@ class MenuChoiceList extends StatelessWidget {
         spacing: gap,
         runSpacing: gap,
         children: <Widget>[
-          for (final MenuChoiceCard card in cards)
+          for (final MenuChoiceCard card in alphabetical(
+            cards,
+            (MenuChoiceCard c) => c.orderKey,
+          ))
             SizedBox(width: width, child: card),
         ],
       );

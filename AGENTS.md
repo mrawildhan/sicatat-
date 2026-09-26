@@ -2,6 +2,10 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Semua menu A–Z — 2026-09-26
+
+- Pemilik: semua menu diurutkan abjad A–Z. `MenuChoiceList` kini selalu mengurutkan kartunya (`alphabetical()` di `core/widgets/menu_choice_card.dart`). Kartu yang judulnya berubah sesuai keadaan memakai `sortTitle` (Sinkronisasi → "Memeriksa…"). Berlaku untuk Gudang, aktivitas Feeder Sizer, dan Hydraulic/Coal Valve. Menu Suhu (lembar dan alat bantu) serta menu Profil (Ganti kata sandi, Panduan pengguna, Pembaruan aplikasi) juga diurutkan. Operasional/Referensi dan Data master sudah A–Z sebelumnya. Tab bawah (Beranda, Operasional, Referensi, Profil) dan pilihan di lembar ekspor tidak diubah. Menu baru harus ikut A–Z.
+
 ## Rilis Android 2.8.44 — 2026-09-26
 
 - Versi `2.8.44+12324` (arm64 version code 14324, 29.135.008 byte, sertifikat `b1d69e78…dc574584`) aktif lewat `20260926110000_publish_sicatat_2_8_44_audit_tools.sql`. Isinya alat audit 2026-09-26: Tugas saya per peran, tindak lanjut suhu kritis, kepatuhan pengisian, Laporan Bulanan, riwayat aset, alur PR, tren backlog, grafik anggaran, ekspor Excel, dan menu Referensi yang baru. APK 2.8.43 dihapus sehingga hanya 2.8.44 yang tersisa di `app-releases`. Belum diuji di HP fisik.

@@ -363,6 +363,7 @@ class _SheetListScreenState extends ConsumerState<SheetListScreen> {
             MenuChoiceCard(
               icon: Icons.sync_rounded,
               title: _syncing ? 'Memeriksa…' : 'Sinkronisasi',
+              sortTitle: 'Sinkronisasi',
               subtitle: 'Kirim data yang masih tertahan di perangkat',
               onTap: _syncing ? null : _syncPending,
             ),
