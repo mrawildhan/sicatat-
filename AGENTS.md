@@ -7,7 +7,7 @@
 - Pembagian Tugas saya (keputusan pemilik): suhu kritis untuk **crew dan foreman crew itu**, lembar yang menunggu persetujuan untuk foreman, alat terlambat kembali hanya untuk **warehouseman** (tidak ada peran "foreman warehouse"; LIST ORDER AMWH hanya untuk warehouseman Asam-Asam). PM crew dan pesanan barang mengikuti crew/nama pengguna. Admin dan supervisor tidak diberi tugas; kartunya disembunyikan bila kosong.
 - Migrasi `20260926100000`: `can_follow_up_temperature_alert` (reviewer, atau crew untuk crew-nya sendiri). Crew bisa membaca peringatan crew-nya dan mencatat penanganan (Terbuka/Ditangani, tindakan, WO, foto), tetapi **hanya foreman ke atas yang bisa menutup atau membuka kembali**. Menu dan rute Tindak lanjut suhu kritis kini juga untuk crew.
 - Operasional maksimal 9 menu (pemilik): Data PR, Laporan Bulanan, dan Panduan Pengguna pindah ke Referensi (Data PR, Kode Biaya, Laporan Bulanan, Panduan Pengguna, Pusat Dokumen, Referensi Alat). Operasional berisi 8 menu untuk admin.
-- Beranda dipadatkan: sapaan satu baris, Tugas saya ringkas, Operasional dan Referensi berdampingan dengan deskripsi pendek, dan Panduan dihapus dari Beranda (sudah ada di Referensi dan Profil).
+- Beranda sempat dipadatkan (kartu berdampingan), tetapi pemilik menilainya aneh karena bagian bawah kosong, jadi tata letak lama dikembalikan: kartu Operasional dan Referensi bertumpuk, Pengaturan & bantuan beserta Panduan. Yang berubah hanya deskripsinya yang dipendekkan supaya tidak terpotong, dan Tugas saya yang ringkas serta disembunyikan bila kosong.
 
 ## Alat audit & kemudahan kerja (10 fitur) — 2026-09-26
 

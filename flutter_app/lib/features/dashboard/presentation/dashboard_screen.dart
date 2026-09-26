@@ -520,48 +520,60 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final bool hasWarehouse = user?.role.canUseWarehouse == true;
     final bool hasMajorJob = user?.role.canUseMajorJob == true;
 
-    // Compact so Beranda fits one phone screen with Tugas saya (owner
-    // request 2026-09-26).
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
       children: <Widget>[
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.mint,
-                child: Icon(Icons.person_rounded, color: AppColors.green),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const Text(
-                      'Selamat datang',
-                      style: TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const CircleAvatar(
+                    radius: 23,
+                    backgroundColor: AppColors.mint,
+                    child: Icon(Icons.person_rounded, color: AppColors.green),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text(
+                          'Selamat datang',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          crewName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                          softWrap: true,
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Pilih menu untuk melanjutkan pekerjaan',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      crewName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -570,53 +582,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (user != null &&
             (user.role == UserRole.crew || user.role == UserRole.foreman))
           CheckScheduleCard(user: user),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         const Text('Akses cepat', style: AppTextStyles.sectionTitle),
-        const SizedBox(height: 8),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: _homeMenuCard(
-                icon: Icons.fact_check_rounded,
-                title: 'Operasional',
-                subtitle: 'Suhu, gudang, PM & CM, anggaran, dan lainnya',
-                onTap: () => openNavigationGroup(
-                  context,
-                  operational: true,
-                  canTemperature: hasTemperature,
-                  canReminders: hasReminders,
-                  canWarehouse: hasWarehouse,
-                  canMajorJob: hasMajorJob,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _homeMenuCard(
-                icon: Icons.folder_copy_rounded,
-                title: 'Referensi',
-                subtitle: 'Dokumen, data PR, kode biaya, alat, panduan',
-                onTap: () => openNavigationGroup(
-                  context,
-                  operational: false,
-                  canTemperature: hasTemperature,
-                  canReminders: hasReminders,
-                  canWarehouse: hasWarehouse,
-                  canMajorJob: hasMajorJob,
-                ),
-              ),
-            ),
-          ],
+        const SizedBox(height: 4),
+        const Text(
+          'Pilih kelompok menu untuk melihat fitur di dalamnya.',
+          style: AppTextStyles.supporting,
         ),
-        if (user?.role.canManageMasterData == true) ...<Widget>[
-          const SizedBox(height: 8),
-          _homeUtilityCard(
-            icon: Icons.manage_accounts_outlined,
-            title: 'Data master & pengguna',
-            subtitle: 'Kelola pengguna dan data operasional',
-            onTap: () => context.go('/admin'),
+        const SizedBox(height: 8),
+        _homeMenuCard(
+          icon: Icons.fact_check_rounded,
+          title: 'Operasional',
+          subtitle: 'Suhu, gudang, PM & CM, anggaran, dan lainnya',
+          onTap: () => openNavigationGroup(
+            context,
+            operational: true,
+            canTemperature: hasTemperature,
+            canReminders: hasReminders,
+            canWarehouse: hasWarehouse,
+            canMajorJob: hasMajorJob,
           ),
-        ],
+        ),
+        const SizedBox(height: 8),
+        _homeMenuCard(
+          icon: Icons.folder_copy_rounded,
+          title: 'Referensi',
+          subtitle: 'Dokumen, data PR, kode biaya, alat, dan panduan',
+          onTap: () => openNavigationGroup(
+            context,
+            operational: false,
+            canTemperature: hasTemperature,
+            canReminders: hasReminders,
+            canWarehouse: hasWarehouse,
+            canMajorJob: hasMajorJob,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _homeMoreActions(context, user),
       ],
     );
   }
@@ -631,40 +633,69 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     clipBehavior: Clip.antiAlias,
     child: InkWell(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColors.mint,
-                  child: Icon(icon, color: AppColors.green, size: 18),
+      child: SizedBox(
+        height: 78,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.mint,
+                child: Icon(icon, color: AppColors.green, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(title, style: AppTextStyles.cardTitle),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.supporting,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.cardTitle,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.supporting.copyWith(fontSize: 12),
-            ),
-          ],
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            ],
+          ),
         ),
       ),
     ),
+  );
+
+  Widget _homeMoreActions(BuildContext context, AppUser? user) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      const Text('Pengaturan & bantuan', style: AppTextStyles.sectionTitle),
+      const SizedBox(height: 4),
+      const Text(
+        'Akses umum aplikasi di luar pekerjaan Suhu.',
+        style: AppTextStyles.supporting,
+      ),
+      if (user?.role.canManageMasterData == true) ...<Widget>[
+        const SizedBox(height: 8),
+        _homeUtilityCard(
+          icon: Icons.manage_accounts_outlined,
+          title: 'Data master & pengguna',
+          subtitle: 'Kelola pengguna dan data operasional',
+          onTap: () => context.go('/admin'),
+        ),
+      ],
+      const SizedBox(height: 8),
+      _homeUtilityCard(
+        icon: Icons.help_outline_rounded,
+        title: 'Panduan pengguna',
+        subtitle: 'Pelajari cara menggunakan aplikasi',
+        onTap: () => context.go('/guide'),
+      ),
+    ],
   );
 
   Widget _homeUtilityCard({
