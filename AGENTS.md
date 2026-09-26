@@ -2,6 +2,10 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Rilis Android 2.8.45 — 2026-09-26
+
+- Versi `2.8.45+12325` (arm64 version code 14325, 29.135.008 byte, sertifikat `b1d69e78…dc574584`) aktif lewat `20260926120000_publish_sicatat_2_8_45_menu_az.sql`. Isinya urutan menu A–Z. APK 2.8.44 dihapus sehingga hanya 2.8.45 yang tersisa. Belum diuji di HP fisik.
+
 ## Semua menu A–Z — 2026-09-26
 
 - Pemilik: semua menu diurutkan abjad A–Z. `MenuChoiceList` kini selalu mengurutkan kartunya (`alphabetical()` di `core/widgets/menu_choice_card.dart`). Kartu yang judulnya berubah sesuai keadaan memakai `sortTitle` (Sinkronisasi → "Memeriksa…"). Berlaku untuk Gudang, aktivitas Feeder Sizer, dan Hydraulic/Coal Valve. Menu Suhu (lembar dan alat bantu) serta menu Profil (Ganti kata sandi, Panduan pengguna, Pembaruan aplikasi) juga diurutkan. Operasional/Referensi dan Data master sudah A–Z sebelumnya. Tab bawah (Beranda, Operasional, Referensi, Profil) dan pilihan di lembar ekspor tidak diubah. Menu baru harus ikut A–Z.
