@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/export/xlsx_export.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../core/widgets/source_update_card.dart';
@@ -320,6 +321,46 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(value)));
 
+  /// The stock rows now shown, for Excel (owner request 2026-09-26).
+  Future<void> _exportExcel() async {
+    final DateTime today = DateTime.now();
+    await saveExportFile(
+      buildXlsx(
+        sheetName: 'Stok gudang',
+        title: 'Stok gudang · "${_search.text.trim()}"',
+        columns: const <XlsxColumn>[
+          XlsxColumn('SC', width: 11),
+          XlsxColumn('Barang', width: 44),
+          XlsxColumn('Lokasi', width: 12),
+          XlsxColumn('Gudang', width: 10),
+          XlsxColumn('Stok', width: 8),
+          XlsxColumn('UOI', width: 6),
+          XlsxColumn('Bin', width: 12),
+          XlsxColumn('Part no.', width: 18),
+          XlsxColumn('Stok per', width: 12),
+          XlsxColumn('Sumber stok', width: 16),
+        ],
+        rows: <List<Object?>>[
+          for (final _WarehouseStock item in _items)
+            <Object?>[
+              item.itemCode,
+              item.description,
+              item.siteLabel,
+              item.warehouseCode,
+              item.stockOnHand,
+              item.uoi,
+              item.binCode,
+              item.partNo,
+              DateTime.tryParse(item.sourceUpdatedOn ?? ''),
+              item.stockFromSheet ? 'Lembar gudang' : 'Laporan Ellipse',
+            ],
+        ],
+      ),
+      fileName:
+          'Stok gudang ${today.day.toString().padLeft(2, '0')}-${today.month.toString().padLeft(2, '0')}-${today.year}.xlsx',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppUser? user = ref.watch(currentUserProvider);
@@ -351,6 +392,11 @@ class _WarehouseScreenState extends ConsumerState<WarehouseScreen> {
                           : const Icon(Icons.sync_rounded),
                       tooltip: 'Sinkronkan sekarang',
                     ),
+                  IconButton(
+                    onPressed: _items.isEmpty ? null : _exportExcel,
+                    icon: const Icon(Icons.table_view_outlined),
+                    tooltip: 'Ekspor hasil ke Excel',
+                  ),
                   IconButton(
                     onPressed: _load,
                     icon: const Icon(Icons.refresh_rounded),

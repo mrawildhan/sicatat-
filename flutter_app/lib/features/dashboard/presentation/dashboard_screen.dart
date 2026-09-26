@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/config/app_config.dart';
 import 'grouped_bottom_navigation.dart';
+import 'my_tasks_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/app_update_prompt.dart';
 import '../../../data/models/app_user.dart';
@@ -577,6 +578,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
         ),
+        if (user != null) MyTasksCard(user: user),
         if (user != null &&
             (user.role == UserRole.crew || user.role == UserRole.foreman))
           CheckScheduleCard(user: user),

@@ -30,6 +30,8 @@ import '../../../data/services/preventive_maintenance_service.dart';
 import '../../auth/application/current_user_provider.dart';
 import '../maintenance_report.dart';
 import 'budget_item_sections.dart';
+import 'budget_charts.dart';
+import 'maintenance_backlog_trend.dart';
 import 'maintenance_charts.dart';
 
 const TextStyle _budgetSectionTitleStyle = AppTextStyles.sectionTitle;
@@ -1069,6 +1071,8 @@ class _BudgetOverviewBody extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 18),
+        BudgetCharts(summary: summary, items: items, onOpenItem: onOpenItem),
       ],
     );
   }
@@ -1543,6 +1547,8 @@ class _OutstandingMaintenanceBody extends StatelessWidget {
           const Text('Grafik', style: AppTextStyles.sectionTitle),
           const SizedBox(height: 8),
           MaintenanceCharts(pm: items),
+          const SizedBox(height: 10),
+          const MaintenanceBacklogTrend(),
         ],
       ],
     );

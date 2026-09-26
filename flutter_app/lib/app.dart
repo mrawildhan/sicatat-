@@ -17,16 +17,19 @@ import 'features/admin/presentation/site_management_screen.dart';
 import 'features/admin/presentation/threshold_management_screen.dart';
 import 'features/daily_checks/critical_alert_watcher.dart';
 import 'features/daily_checks/daily_check_forms.dart';
+import 'features/daily_checks/presentation/compliance_screen.dart';
 import 'features/daily_checks/presentation/daily_check_entry_screen.dart';
 import 'features/daily_checks/presentation/daily_check_hub_screen.dart';
 import 'features/daily_checks/presentation/daily_check_new_screen.dart';
 import 'features/daily_checks/presentation/daily_check_settings_screen.dart';
 import 'features/daily_checks/presentation/daily_check_sheet_screen.dart';
 import 'features/daily_checks/presentation/temperature_forms_screen.dart';
+import 'features/daily_checks/presentation/temperature_alerts_screen.dart';
 import 'features/daily_checks/presentation/temperature_trend_screen.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
 import 'features/dashboard/presentation/main_navigation_scaffold.dart';
 import 'features/documents/presentation/document_center_screen.dart';
+import 'features/documents/presentation/asset_history_screen.dart';
 import 'features/documents/presentation/cost_code_reference_screen.dart';
 import 'features/documents/presentation/equipment_reference_screen.dart';
 import 'features/guide/presentation/crew_guide_screen.dart';
@@ -41,6 +44,7 @@ import 'features/warehouse/presentation/warehouse_po_screen.dart';
 import 'features/warehouse/presentation/warehouse_receipt_screen.dart';
 import 'features/warehouse/presentation/warehouse_screen.dart';
 import 'features/warehouse/presentation/warehouse_tool_loan_screen.dart';
+import 'features/reports/presentation/monthly_report_screen.dart';
 import 'features/reports/presentation/report_screen.dart';
 import 'features/reports/presentation/sheet_export_screen.dart';
 import 'features/reports/presentation/high_temperature_report_screen.dart';
@@ -466,8 +470,8 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/warehouse/purchase-orders',
-      builder: (_, __) => const RoleGuard(
-        allowed: <UserRole>{
+      builder: (_, state) => RoleGuard(
+        allowed: const <UserRole>{
           UserRole.crew,
           UserRole.foreman,
           UserRole.foremanLv,
@@ -478,7 +482,9 @@ final _router = GoRouter(
         },
         child: MainNavigationScaffold(
           selectedTab: MainNavigationTab.warehouse,
-          child: WarehousePurchaseOrderScreen(),
+          child: WarehousePurchaseOrderScreen(
+            initialRequestor: state.uri.queryParameters['requestor'],
+          ),
         ),
       ),
     ),
@@ -818,6 +824,71 @@ final _router = GoRouter(
         child: MainNavigationScaffold(
           selectedTab: MainNavigationTab.temperature,
           child: HighTemperatureReportScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/temperature-alerts',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.foreman,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: TemperatureAlertsScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/compliance',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.foreman,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.temperature,
+          child: ComplianceScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/monthly-report',
+      builder: (_, __) => const RoleGuard(
+        allowed: <UserRole>{
+          UserRole.foreman,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.home,
+          child: MonthlyReportScreen(),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/asset-history/:ref',
+      builder: (_, state) => RoleGuard(
+        allowed: const <UserRole>{
+          UserRole.crew,
+          UserRole.foreman,
+          UserRole.foremanLv,
+          UserRole.supervisorCop,
+          UserRole.supervisorSmg,
+          UserRole.warehouseman,
+          UserRole.admin,
+        },
+        child: MainNavigationScaffold(
+          selectedTab: MainNavigationTab.equipmentReference,
+          child: AssetHistoryScreen(
+            reference: state.pathParameters['ref'] ?? '',
+          ),
         ),
       ),
     ),

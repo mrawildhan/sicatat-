@@ -10,6 +10,7 @@ import '../../../core/widgets/app_navigation.dart';
 import '../../../core/widgets/source_update_card.dart';
 import '../../../data/models/purchase_requisition_models.dart';
 import '../../../data/services/purchase_requisition_service.dart';
+import 'pr_tracking.dart';
 
 class PurchaseRequisitionScreen extends StatefulWidget {
   const PurchaseRequisitionScreen({this.service, super.key});
@@ -244,6 +245,12 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
     _search();
   }
 
+  Future<void> _exportResults() => exportPurchaseRequisitions(
+    _items,
+    title:
+        'Data PR · ${_searchController.text.trim().isEmpty ? _releasePeriodLabel : '"${_searchController.text.trim()}"'}',
+  );
+
   String _message(Object error) =>
       error.toString().replaceFirst('FormatException: ', '');
 
@@ -259,6 +266,11 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
                 leading: const AppBackButton(fallbackRoute: '/dashboard'),
                 title: const Text('Data PR'),
                 actions: <Widget>[
+                  IconButton(
+                    tooltip: 'Ekspor hasil ke Excel',
+                    onPressed: _items.isEmpty ? null : _exportResults,
+                    icon: const Icon(Icons.table_view_outlined),
+                  ),
                   IconButton(
                     tooltip: 'Perbarui data PR',
                     onPressed: _checking
@@ -282,6 +294,7 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
                     onRefresh: _checking
                         ? null
                         : () => _checkSource(announce: true),
+                    onExport: _items.isEmpty ? null : _exportResults,
                   ),
                 SourceUpdateCard(
                   title: 'Pembaruan data PR',
@@ -364,7 +377,14 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
       );
     }
     if (!_hasSearchCriteria) {
-      return const Center(child: _SearchPrompt());
+      return ListView(
+        padding: const EdgeInsets.only(bottom: 40),
+        children: <Widget>[
+          PrAgingCard(onOpen: _showDetail),
+          const SizedBox(height: 12),
+          const _SearchPrompt(),
+        ],
+      );
     }
     if (_items.isEmpty) {
       return const Center(
@@ -401,9 +421,10 @@ class _PurchaseRequisitionScreenState extends State<PurchaseRequisitionScreen> {
 }
 
 class _DesktopHeader extends StatelessWidget {
-  const _DesktopHeader({required this.onRefresh});
+  const _DesktopHeader({required this.onRefresh, required this.onExport});
 
   final VoidCallback? onRefresh;
+  final VoidCallback? onExport;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -417,6 +438,11 @@ class _DesktopHeader extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         const Expanded(child: Text('Data PR', style: AppTextStyles.pageTitle)),
+        IconButton(
+          tooltip: 'Ekspor hasil ke Excel',
+          onPressed: onExport,
+          icon: const Icon(Icons.table_view_outlined),
+        ),
         IconButton(
           tooltip: 'Perbarui data PR',
           onPressed: onRefresh,
@@ -878,6 +904,10 @@ class _PurchaseRequisitionDetail extends StatelessWidget {
                 style: const TextStyle(color: AppColors.muted, height: 1.4),
               ),
               const SizedBox(height: 18),
+              Text('Alur PR', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              PrTimeline(item: item),
+              const SizedBox(height: 10),
               Text(
                 'Informasi PR',
                 style: Theme.of(context).textTheme.titleSmall,

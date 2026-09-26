@@ -139,6 +139,26 @@ const List<GuideGroupContent> guideGroups = <GuideGroupContent>[
         'Lembar belum lengkap',
         'Daftar lembar yang masih punya isian kosong, agar tidak ada yang tertinggal di akhir shift.',
       ),
+      GuideEntry(
+        'Tindak lanjut suhu kritis',
+        'Suhu → Tindak lanjut suhu kritis (foreman, supervisor, admin). Setiap pembacaan di atas batas kritis dicatat tindakannya: pilih Ditangani atau Ditutup, tulis tindakan, No. WO bila ada, dan foto. Peringatan tidak bisa ditutup tanpa tindakan, dan setiap perubahan tersimpan di riwayat.',
+      ),
+      GuideEntry(
+        'Kepatuhan pengisian',
+        'Suhu → Kepatuhan pengisian menampilkan kalender per bulan: hijau tepat waktu, kuning terlambat (lebih dari 2 jam setelah shift), oranye belum lengkap, merah tidak ada lembar. Ada persentase per crew dan daftar lembar yang belum disetujui. Bisa diekspor ke PDF atau Excel.',
+      ),
+      GuideEntry(
+        'Laporan Bulanan',
+        'Operasional → Laporan Bulanan membuat satu PDF berisi pemeriksaan suhu, suhu kritis, PM & CM, anggaran, PR, dan gudang untuk bulan yang dipilih.',
+      ),
+      GuideEntry(
+        'Ekspor Excel',
+        'Ikon tabel di Barang dipesan, Cari barang, Data PR, Peminjaman Alat, suhu kritis, dan kepatuhan menyimpan daftar yang sedang tampil sebagai file Excel.',
+      ),
+      GuideEntry(
+        'Tugas saya dan riwayat aset',
+        'Beranda menampilkan Tugas saya: PM crew Anda, barang pesanan Anda, suhu kritis dan lembar yang menunggu, serta alat yang terlambat kembali. Referensi Alat → pilih unit → Riwayat aset menampilkan PM, CM, PR, barang, dan suhu kritis unit itu dalam satu halaman.',
+      ),
     ],
   ),
   GuideGroupContent(

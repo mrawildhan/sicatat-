@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/export/xlsx_export.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../core/widgets/source_update_card.dart';
@@ -183,6 +184,71 @@ class _WarehouseToolLoanScreenState
   List<_SheetLoan> _sheetReturned = const <_SheetLoan>[];
   WarehouseDriveStatus? _sheetStatus;
   bool _checkingSheet = false;
+
+  /// Shows only loans older than [warehouseLoanOverdueDays] (owner request
+  /// 2026-09-26).
+  bool _lateOnly = false;
+
+  bool _late(DateTime? loanedOn) =>
+      loanedOn != null &&
+      warehouseLoanAgeDays(loanedOn) > warehouseLoanOverdueDays;
+
+  int get _lateCount =>
+      _open.where((_LoanItem i) => _late(i.loanedOn)).length +
+      _sheetOpen.where((_SheetLoan l) => _late(l.loanedOn)).length;
+
+  Future<void> _exportOpen() async {
+    final DateTime today = DateTime.now();
+    final List<List<Object?>> rows = <List<Object?>>[
+      for (final _LoanItem i in _open)
+        if (!_lateOnly || _late(i.loanedOn))
+          <Object?>[
+            'SICATAT',
+            i.toolName,
+            i.registrationCode,
+            i.quantity,
+            i.borrowerName,
+            i.workArea,
+            i.loanedOn,
+            warehouseLoanAgeDays(i.loanedOn),
+            _late(i.loanedOn),
+          ],
+      for (final _SheetLoan l in _sheetOpen)
+        if (!_lateOnly || _late(l.loanedOn))
+          <Object?>[
+            'LIST ORDER',
+            l.toolName,
+            l.numberColour,
+            l.quantity,
+            l.borrower,
+            l.location,
+            l.loanedOn,
+            l.loanedOn == null ? null : warehouseLoanAgeDays(l.loanedOn!),
+            _late(l.loanedOn),
+          ],
+    ];
+    await saveExportFile(
+      buildXlsx(
+        sheetName: 'Pinjaman alat',
+        title:
+            'Alat belum kembali${_lateOnly ? ' (terlambat > $warehouseLoanOverdueDays hari)' : ''}',
+        columns: const <XlsxColumn>[
+          XlsxColumn('Sumber', width: 12),
+          XlsxColumn('Alat', width: 30),
+          XlsxColumn('Kode / warna', width: 16),
+          XlsxColumn('Qty', width: 6),
+          XlsxColumn('Peminjam', width: 22),
+          XlsxColumn('Lokasi kerja', width: 18),
+          XlsxColumn('Tanggal pinjam', width: 13),
+          XlsxColumn('Umur (hari)', width: 10),
+          XlsxColumn('Terlambat', width: 10),
+        ],
+        rows: rows,
+      ),
+      fileName:
+          'Pinjaman alat ${today.day.toString().padLeft(2, '0')}-${today.month.toString().padLeft(2, '0')}-${today.year}.xlsx',
+    );
+  }
 
   @override
   void initState() {
@@ -386,7 +452,11 @@ class _WarehouseToolLoanScreenState
     final String query = _search.text.trim().toLowerCase();
     final Set<String> onLoan = _open.map((_LoanItem i) => i.toolId).toSet();
     final List<_LoanItem> open = _open
-        .where((_LoanItem i) => query.isEmpty || i.searchText.contains(query))
+        .where(
+          (_LoanItem i) =>
+              (query.isEmpty || i.searchText.contains(query)) &&
+              (!_lateOnly || _late(i.loanedOn)),
+        )
         .toList(growable: false);
     final List<_LoanItem> history = _history
         .where((_LoanItem i) => query.isEmpty || i.searchText.contains(query))
@@ -406,6 +476,11 @@ class _WarehouseToolLoanScreenState
             leading: const AppBackButton(fallbackRoute: '/warehouse'),
             title: const Text('Peminjaman Alat'),
             actions: <Widget>[
+              IconButton(
+                onPressed: _loading ? null : _exportOpen,
+                icon: const Icon(Icons.table_view_outlined),
+                tooltip: 'Ekspor alat belum kembali ke Excel',
+              ),
               IconButton(
                 onPressed: () => context.go('/warehouse/tools/new'),
                 icon: const Icon(Icons.app_registration_rounded),
@@ -446,6 +521,27 @@ class _WarehouseToolLoanScreenState
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.search_rounded),
                     hintText: 'Cari alat, kode registrasi, atau peminjam',
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilterChip(
+                    avatar: Icon(
+                      Icons.warning_amber_rounded,
+                      size: 18,
+                      color: _lateCount > 0
+                          ? AppColors.danger
+                          : AppColors.muted,
+                    ),
+                    label: Text(
+                      'Terlambat > $warehouseLoanOverdueDays hari ($_lateCount)',
+                    ),
+                    selected: _lateOnly,
+                    onSelected: (bool value) =>
+                        setState(() => _lateOnly = value),
                   ),
                 ),
               ),
@@ -511,9 +607,18 @@ class _WarehouseToolLoanScreenState
   Widget _listOrderTab(String query) {
     bool matches(_SheetLoan loan) =>
         query.isEmpty || loan.searchText.contains(query);
-    final List<_SheetLoan> open = _sheetOpen
-        .where(matches)
-        .toList(growable: false);
+    final List<_SheetLoan> open =
+        _sheetOpen
+            .where(
+              (_SheetLoan loan) =>
+                  matches(loan) && (!_lateOnly || _late(loan.loanedOn)),
+            )
+            .toList()
+          // Oldest first, so the longest-overdue loans lead.
+          ..sort(
+            (_SheetLoan a, _SheetLoan b) => (a.loanedOn ?? DateTime(2100))
+                .compareTo(b.loanedOn ?? DateTime(2100)),
+          );
     final List<_SheetLoan> returned = _sheetReturned
         .where(matches)
         .toList(growable: false);

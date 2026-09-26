@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -27,7 +28,7 @@ class _EquipmentReferenceScreenState extends State<EquipmentReferenceScreen> {
     super.dispose();
   }
 
-  List<_EquipmentEntry> get _results => _equipmentEntries
+  List<EquipmentEntry> get _results => equipmentEntries
       .where(
         (entry) =>
             (_site == 'Semua' || entry.siteLabel == _site) &&
@@ -49,7 +50,7 @@ class _EquipmentReferenceScreenState extends State<EquipmentReferenceScreen> {
     }
   }
 
-  void _showDetail(_EquipmentEntry entry) {
+  void _showDetail(EquipmentEntry entry) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -71,6 +72,19 @@ class _EquipmentReferenceScreenState extends State<EquipmentReferenceScreen> {
               _DetailRow(
                 label: 'Account code',
                 value: entry.accountCode.isEmpty ? '—' : entry.accountCode,
+              ),
+              const SizedBox(height: 14),
+              // PM, CM, PR, orders and critical temperatures of this unit on
+              // one page (owner request 2026-09-26).
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  context.go(
+                    '/asset-history/${Uri.encodeComponent(entry.reference)}',
+                  );
+                },
+                icon: const Icon(Icons.history_rounded),
+                label: const Text('Riwayat aset'),
               ),
             ],
           ),
@@ -232,7 +246,7 @@ class _EquipmentEmptyResult extends StatelessWidget {
 class _EquipmentCard extends StatelessWidget {
   const _EquipmentCard({required this.entry, required this.onTap});
 
-  final _EquipmentEntry entry;
+  final EquipmentEntry entry;
   final VoidCallback onTap;
 
   @override
@@ -328,8 +342,8 @@ class _DetailRow extends StatelessWidget {
   );
 }
 
-class _EquipmentEntry {
-  const _EquipmentEntry({
+class EquipmentEntry {
+  const EquipmentEntry({
     required this.site,
     required this.reference,
     required this.description,
@@ -340,9 +354,9 @@ class _EquipmentEntry {
     required this.accountCode,
   });
 
-  factory _EquipmentEntry.fromRecord(String record) {
+  factory EquipmentEntry.fromRecord(String record) {
     final List<String> fields = record.split('|');
-    return _EquipmentEntry(
+    return EquipmentEntry(
       site: fields[0],
       reference: fields[1],
       description: fields[2],
@@ -374,13 +388,22 @@ class _EquipmentEntry {
   }
 }
 
-final List<_EquipmentEntry> _equipmentEntries = utf8
+/// The Ellipse equipment register entry of [reference], if listed.
+EquipmentEntry? equipmentEntryOf(String reference) {
+  final String key = reference.trim().toUpperCase();
+  for (final EquipmentEntry entry in equipmentEntries) {
+    if (entry.reference.toUpperCase() == key) return entry;
+  }
+  return null;
+}
+
+final List<EquipmentEntry> equipmentEntries = utf8
     .decode(
       const GZipDecoder().decodeBytes(base64Decode(_compressedEquipmentData)),
     )
     .split(r'\n')
     .where((record) => record.isNotEmpty)
-    .map(_EquipmentEntry.fromRecord)
+    .map(EquipmentEntry.fromRecord)
     .toList(growable: false);
 
 const List<String> _sites = <String>['Semua', 'Asamasam', 'Kintap'];

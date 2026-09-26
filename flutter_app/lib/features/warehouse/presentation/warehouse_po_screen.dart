@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/export/xlsx_export.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../core/widgets/source_update_card.dart';
@@ -15,7 +16,10 @@ import '../warehouse_data.dart';
 /// yet, from the Ellipse "Outstanding Purchase Order" report in Drive.
 /// Warehouse managers also record goods receipts from here.
 class WarehousePurchaseOrderScreen extends ConsumerStatefulWidget {
-  const WarehousePurchaseOrderScreen({super.key});
+  const WarehousePurchaseOrderScreen({this.initialRequestor, super.key});
+
+  /// Opens filtered on one requestor (Beranda → Tugas saya).
+  final String? initialRequestor;
 
   @override
   ConsumerState<WarehousePurchaseOrderScreen> createState() =>
@@ -34,6 +38,7 @@ class _WarehousePurchaseOrderScreenState
 
   /// Selected "ordered for" name; empty means every requestor.
   String _requestor = '';
+  bool _appliedInitial = false;
   String? _error;
 
   @override
@@ -74,6 +79,23 @@ class _WarehousePurchaseOrderScreenState
           responses[1]! as Map<WarehouseDriveSource, WarehouseDriveStatus>;
       if (rows is! List) throw const FormatException('Data PO tidak valid.');
       if (!mounted) return;
+      final List<WarehouseOutstandingPo> lines = rows
+          .map(
+            (Object? row) =>
+                WarehouseOutstandingPo.fromJson(requireJsonMap(row)),
+          )
+          .toList(growable: false);
+      // The requestor from a link may differ in case from the report.
+      final String wanted = widget.initialRequestor?.trim().toLowerCase() ?? '';
+      if (wanted.isNotEmpty && _requestor.isEmpty && !_appliedInitial) {
+        _appliedInitial = true;
+        for (final WarehouseOutstandingPo line in lines) {
+          if (line.orderedFor.toLowerCase() == wanted) {
+            _requestor = line.orderedFor;
+            break;
+          }
+        }
+      }
       setState(() {
         _lines = rows
             .map(
@@ -117,6 +139,52 @@ class _WarehousePurchaseOrderScreenState
     } finally {
       if (mounted) setState(() => _checking = false);
     }
+  }
+
+  Future<void> _exportExcel(List<WarehouseOutstandingPo> lines) async {
+    final DateTime today = DateTime.now();
+    await saveExportFile(
+      buildXlsx(
+        sheetName: 'Barang dipesan',
+        title:
+            'Barang dipesan belum datang${_requestor.isEmpty ? '' : ' · $_requestor'}'
+            '${_overdueOnly ? ' · lewat jatuh tempo' : ''}',
+        columns: const <XlsxColumn>[
+          XlsxColumn('No. PO', width: 11),
+          XlsxColumn('Item', width: 6),
+          XlsxColumn('Barang', width: 44),
+          XlsxColumn('SC', width: 11),
+          XlsxColumn('Part no.', width: 18),
+          XlsxColumn('Pemesan', width: 24),
+          XlsxColumn('Supplier', width: 28),
+          XlsxColumn('Qty pesan', width: 9),
+          XlsxColumn('Qty belum datang', width: 11),
+          XlsxColumn('Tanggal pesan', width: 12),
+          XlsxColumn('Jatuh tempo', width: 12),
+          XlsxColumn('Lewat jatuh tempo', width: 10),
+        ],
+        rows: <List<Object?>>[
+          for (final WarehouseOutstandingPo line in lines)
+            <Object?>[
+              line.poNo,
+              line.poItemNo,
+              line.description,
+              line.itemCode,
+              line.partNo,
+              line.orderedFor,
+              line.supplierName,
+              line.qtyOrder,
+              line.qtyOutstanding,
+              line.orderDate,
+              line.dueDate,
+              line.isOverdue(today),
+            ],
+        ],
+      ),
+      fileName:
+          'Barang dipesan ${_requestor.isEmpty ? '' : '$_requestor '}'
+          '${today.day.toString().padLeft(2, '0')}-${today.month.toString().padLeft(2, '0')}-${today.year}.xlsx',
+    );
   }
 
   @override
@@ -165,6 +233,11 @@ class _WarehousePurchaseOrderScreenState
           leading: const AppBackButton(fallbackRoute: '/warehouse'),
           title: const Text('Barang dipesan'),
           actions: <Widget>[
+            IconButton(
+              onPressed: visible.isEmpty ? null : () => _exportExcel(visible),
+              icon: const Icon(Icons.table_view_outlined),
+              tooltip: 'Ekspor Excel',
+            ),
             if (canManage)
               IconButton(
                 onPressed: () => context.go('/warehouse/receipts'),

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../data/models/app_user.dart';
+import '../../auth/application/current_user_provider.dart';
 
 /// Opens the same operational/reference picker on every screen size.
 /// Desktop presents its groups in the sidebar; mobile presents them in the
@@ -15,6 +18,20 @@ Future<void> openNavigationGroup(
   required bool canWarehouse,
   bool canMajorJob = false,
 }) async {
+  // Laporan Bulanan is for reviewers (foreman, supervisors, admin); read the
+  // role here so every caller of this picker shows the same menu. Widget
+  // tests that pump the bar alone have no ProviderScope.
+  bool canReports = false;
+  try {
+    canReports =
+        ProviderScope.containerOf(
+          context,
+          listen: false,
+        ).read(currentUserProvider)?.role.canReviewTemperature ==
+        true;
+  } on StateError {
+    canReports = false;
+  }
   final List<_NavigationGroupOption> options = <_NavigationGroupOption>[
     if (operational && canTemperature)
       const _NavigationGroupOption(
@@ -71,6 +88,13 @@ Future<void> openNavigationGroup(
         title: 'Notulen Rapat',
         subtitle: 'Buat dan lanjutkan draf notulen',
         route: '/meeting-minutes',
+      ),
+    if (operational && canReports)
+      const _NavigationGroupOption(
+        icon: Icons.summarize_outlined,
+        title: 'Laporan Bulanan',
+        subtitle: 'Satu PDF: suhu, kepatuhan, PM & CM, anggaran, PR, gudang',
+        route: '/monthly-report',
       ),
     if (operational && canMajorJob)
       const _NavigationGroupOption(
