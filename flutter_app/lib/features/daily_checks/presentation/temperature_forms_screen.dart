@@ -39,13 +39,13 @@ class TemperatureFormsScreen extends ConsumerWidget {
           subtitle: 'Pembacaan 60 °C ke atas dari ketiga lembar',
           route: '/high-temperature',
         ),
-      if (canReview)
-        const _FormChoice(
-          icon: Icons.assignment_turned_in_outlined,
-          title: 'Tindak lanjut suhu kritis',
-          subtitle: 'Tindakan, WO, dan foto sampai peringatan ditutup',
-          route: '/temperature-alerts',
-        ),
+      // Crew record the handling of their own crew's critical temperatures.
+      const _FormChoice(
+        icon: Icons.assignment_turned_in_outlined,
+        title: 'Tindak lanjut suhu kritis',
+        subtitle: 'Tindakan, WO, dan foto sampai peringatan ditutup',
+        route: '/temperature-alerts',
+      ),
       if (canReview)
         const _FormChoice(
           icon: Icons.event_available_outlined,

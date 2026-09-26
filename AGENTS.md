@@ -2,6 +2,13 @@
 
 **How to read this file:** sections below dated `— 2026-MM-DD` are a historical changelog, accurate only as of that date — don't treat an old dated entry (e.g. "Canonical source remains worktree `42e3`") as still true just because it isn't explicitly retracted. Only "Current continuation baseline" and "Current product and non-negotiable rules" are meant to describe *today's* state, and even those can drift between edits — re-verify against `git log -1` and `flutter_app/pubspec.yaml` before trusting a version/commit claim here.
 
+## Tugas saya per peran, menu Referensi, Beranda satu layar — 2026-09-26
+
+- Pembagian Tugas saya (keputusan pemilik): suhu kritis untuk **crew dan foreman crew itu**, lembar yang menunggu persetujuan untuk foreman, alat terlambat kembali hanya untuk **warehouseman** (tidak ada peran "foreman warehouse"; LIST ORDER AMWH hanya untuk warehouseman Asam-Asam). PM crew dan pesanan barang mengikuti crew/nama pengguna. Admin dan supervisor tidak diberi tugas; kartunya disembunyikan bila kosong.
+- Migrasi `20260926100000`: `can_follow_up_temperature_alert` (reviewer, atau crew untuk crew-nya sendiri). Crew bisa membaca peringatan crew-nya dan mencatat penanganan (Terbuka/Ditangani, tindakan, WO, foto), tetapi **hanya foreman ke atas yang bisa menutup atau membuka kembali**. Menu dan rute Tindak lanjut suhu kritis kini juga untuk crew.
+- Operasional maksimal 9 menu (pemilik): Data PR, Laporan Bulanan, dan Panduan Pengguna pindah ke Referensi (Data PR, Kode Biaya, Laporan Bulanan, Panduan Pengguna, Pusat Dokumen, Referensi Alat). Operasional berisi 8 menu untuk admin.
+- Beranda dipadatkan: sapaan satu baris, Tugas saya ringkas, Operasional dan Referensi berdampingan dengan deskripsi pendek, dan Panduan dihapus dari Beranda (sudah ada di Referensi dan Profil).
+
 ## Alat audit & kemudahan kerja (10 fitur) — 2026-09-26
 
 Pemilik bertanya apa yang akan dikembangkan oleh seorang auditor/pengguna, lalu meminta semuanya dikerjakan. Semua data sudah ada di SICATAT; yang baru di database hanya migrasi `20260926090000` dan `20260926091000`.

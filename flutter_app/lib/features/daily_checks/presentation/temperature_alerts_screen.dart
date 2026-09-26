@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -14,6 +15,8 @@ import '../../../core/pdf/report_pdf.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_navigation.dart';
 import '../../../core/widgets/info_tag.dart';
+import '../../../data/models/app_user.dart';
+import '../../auth/application/current_user_provider.dart';
 import '../alert_follow_up.dart';
 
 enum _AlertRange {
@@ -28,15 +31,16 @@ enum _AlertRange {
 
 /// Suhu → Tindak lanjut suhu kritis: every critical reading with what was
 /// done about it, for reviewers and auditors (owner request 2026-09-26).
-class TemperatureAlertsScreen extends StatefulWidget {
+class TemperatureAlertsScreen extends ConsumerStatefulWidget {
   const TemperatureAlertsScreen({super.key});
 
   @override
-  State<TemperatureAlertsScreen> createState() =>
+  ConsumerState<TemperatureAlertsScreen> createState() =>
       _TemperatureAlertsScreenState();
 }
 
-class _TemperatureAlertsScreenState extends State<TemperatureAlertsScreen> {
+class _TemperatureAlertsScreenState
+    extends ConsumerState<TemperatureAlertsScreen> {
   final AlertFollowUpService _service = AlertFollowUpService(
     Supabase.instance.client,
   );
@@ -86,7 +90,13 @@ class _TemperatureAlertsScreenState extends State<TemperatureAlertsScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _FollowUpSheet(alert: alert, service: _service),
+      builder: (_) => _FollowUpSheet(
+        alert: alert,
+        service: _service,
+        // Crew record the handling; the foreman (or above) closes it.
+        canClose:
+            ref.read(currentUserProvider)?.role.canReviewTemperature == true,
+      ),
     );
     if (saved == true) {
       _toast('Tindak lanjut disimpan.');
@@ -410,10 +420,15 @@ class _AlertCard extends StatelessWidget {
 }
 
 class _FollowUpSheet extends StatefulWidget {
-  const _FollowUpSheet({required this.alert, required this.service});
+  const _FollowUpSheet({
+    required this.alert,
+    required this.service,
+    required this.canClose,
+  });
 
   final TemperatureAlertRecord alert;
   final AlertFollowUpService service;
+  final bool canClose;
 
   @override
   State<_FollowUpSheet> createState() => _FollowUpSheetState();
@@ -540,6 +555,8 @@ class _FollowUpSheetState extends State<_FollowUpSheet> {
   @override
   Widget build(BuildContext context) {
     final TemperatureAlertRecord alert = widget.alert;
+    // A closed alert is reopened only by the foreman or above.
+    final bool locked = alert.isClosed && !widget.canClose;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
@@ -577,17 +594,30 @@ class _FollowUpSheetState extends State<_FollowUpSheet> {
                     ButtonSegment<AlertFollowUpStatus>(
                       value: status,
                       label: Text(status.label),
+                      enabled:
+                          status != AlertFollowUpStatus.closed ||
+                          widget.canClose,
                     ),
                 ],
                 selected: <AlertFollowUpStatus>{_status},
-                onSelectionChanged: _busy
+                onSelectionChanged: _busy || locked
                     ? null
                     : (Set<AlertFollowUpStatus> value) =>
                           setState(() => _status = value.first),
               ),
+              if (!widget.canClose) ...<Widget>[
+                const SizedBox(height: 6),
+                Text(
+                  locked
+                      ? 'Sudah ditutup. Hanya foreman yang dapat membukanya kembali.'
+                      : 'Catat penanganan Anda; foreman yang menutup peringatan.',
+                  style: AppTextStyles.supporting,
+                ),
+              ],
               const SizedBox(height: 12),
               TextField(
                 controller: _action,
+                readOnly: locked,
                 minLines: 3,
                 maxLines: 6,
                 maxLength: 2000,
@@ -615,7 +645,7 @@ class _FollowUpSheetState extends State<_FollowUpSheet> {
               Row(
                 children: <Widget>[
                   TextButton.icon(
-                    onPressed: _busy ? null : _pickPhoto,
+                    onPressed: _busy || locked ? null : _pickPhoto,
                     icon: const Icon(Icons.add_a_photo_outlined),
                     label: Text(
                       _photoPath == null ? 'Tambah foto' : 'Ganti foto',
@@ -636,7 +666,7 @@ class _FollowUpSheetState extends State<_FollowUpSheet> {
               ),
               const SizedBox(height: 8),
               FilledButton.icon(
-                onPressed: _busy ? null : _save,
+                onPressed: _busy || locked ? null : _save,
                 icon: _busy
                     ? const SizedBox(
                         width: 18,

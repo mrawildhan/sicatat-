@@ -83,14 +83,14 @@ class MainNavigationScaffold extends ConsumerWidget {
           MainNavigationTab.reminders ||
           MainNavigationTab.budget ||
           MainNavigationTab.materialRequests ||
-          MainNavigationTab.purchaseRequisitions ||
           MainNavigationTab.outstandingMaintenance ||
           MainNavigationTab.meetingMinutes ||
           MainNavigationTab.majorJob ||
           MainNavigationTab.warehouse => MainNavigationTab.operational,
           MainNavigationTab.documents ||
           MainNavigationTab.costCodes ||
-          MainNavigationTab.equipmentReference => MainNavigationTab.reference,
+          MainNavigationTab.equipmentReference ||
+          MainNavigationTab.purchaseRequisitions => MainNavigationTab.reference,
           _ => selectedTab,
         };
         final items = desktopItems;

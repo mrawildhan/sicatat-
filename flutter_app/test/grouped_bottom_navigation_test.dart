@@ -30,6 +30,8 @@ void main() {
       expect(find.text('Gudang'), findsNothing);
       expect(find.text('Pusat Dokumen'), findsOneWidget);
       expect(find.text('Referensi Alat'), findsOneWidget);
+      expect(find.text('Data PR'), findsOneWidget);
+      expect(find.text('Panduan Pengguna'), findsOneWidget);
       expect(find.byType(GridView), findsOneWidget);
       expect(find.byType(ListTile), findsNothing);
     },
@@ -80,7 +82,6 @@ void main() {
     await tester.pumpAndSettle();
     final List<String> titles = <String>[
       'Anggaran Operasional',
-      'Data PR',
       'Gudang',
       'Notulen Rapat',
       'Pengingat',
@@ -97,5 +98,7 @@ void main() {
         .map((Offset o) => o.dy * 10000 + o.dx)
         .toList();
     expect(tops, List<double>.of(tops)..sort());
+    // Look-up menus moved to Referensi so Operasional stays at 9 or fewer.
+    expect(find.text('Data PR'), findsNothing);
   });
 }

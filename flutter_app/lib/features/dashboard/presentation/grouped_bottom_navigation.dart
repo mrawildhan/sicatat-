@@ -68,7 +68,9 @@ Future<void> openNavigationGroup(
         subtitle: 'Ajukan kebutuhan LV, COP, dan Drilling',
         route: '/material-requests',
       ),
-    if (operational)
+    // Operasional holds at most 9 menus (owner request 2026-09-26); look-up
+    // menus (Data PR, Laporan Bulanan, Panduan) live in Referensi.
+    if (!operational)
       const _NavigationGroupOption(
         icon: Icons.request_quote_outlined,
         title: 'Data PR',
@@ -89,7 +91,7 @@ Future<void> openNavigationGroup(
         subtitle: 'Buat dan lanjutkan draf notulen',
         route: '/meeting-minutes',
       ),
-    if (operational && canReports)
+    if (!operational && canReports)
       const _NavigationGroupOption(
         icon: Icons.summarize_outlined,
         title: 'Laporan Bulanan',
@@ -116,6 +118,13 @@ Future<void> openNavigationGroup(
         title: 'Kode Biaya',
         subtitle: 'Cari struktur dan elemen biaya',
         route: '/cost-codes',
+      ),
+    if (!operational)
+      const _NavigationGroupOption(
+        icon: Icons.help_outline_rounded,
+        title: 'Panduan Pengguna',
+        subtitle: 'Cara memakai setiap menu',
+        route: '/guide',
       ),
     if (!operational)
       const _NavigationGroupOption(
@@ -284,12 +293,14 @@ class GroupedBottomNavigation extends StatelessWidget {
       'reminders' ||
       'budget' ||
       'materialRequests' ||
-      'purchaseRequisitions' ||
       'outstandingMaintenance' ||
       'meetingMinutes' ||
       'majorJob' ||
       'warehouse' => 'operational',
-      'documents' || 'costCodes' || 'equipmentReference' => 'reference',
+      'documents' ||
+      'costCodes' ||
+      'equipmentReference' ||
+      'purchaseRequisitions' => 'reference',
       _ => selected,
     };
     final index = groups.indexOf(current);

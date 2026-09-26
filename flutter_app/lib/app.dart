@@ -413,7 +413,7 @@ final _router = GoRouter(
           UserRole.admin,
         },
         child: MainNavigationScaffold(
-          selectedTab: MainNavigationTab.home,
+          selectedTab: MainNavigationTab.reference,
           child: CrewGuideScreen(),
         ),
       ),
@@ -831,6 +831,7 @@ final _router = GoRouter(
       path: '/temperature-alerts',
       builder: (_, __) => const RoleGuard(
         allowed: <UserRole>{
+          UserRole.crew,
           UserRole.foreman,
           UserRole.supervisorCop,
           UserRole.supervisorSmg,
@@ -867,7 +868,7 @@ final _router = GoRouter(
           UserRole.admin,
         },
         child: MainNavigationScaffold(
-          selectedTab: MainNavigationTab.home,
+          selectedTab: MainNavigationTab.reference,
           child: MonthlyReportScreen(),
         ),
       ),

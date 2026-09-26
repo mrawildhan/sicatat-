@@ -27,6 +27,11 @@ class MyTask {
 /// Beranda → Tugas saya (owner request 2026-09-26): what is waiting for this
 /// user across the menus, so nobody has to open each menu to find out.
 /// Every source is optional; one that the role may not read is skipped.
+///
+/// Who gets what (owner decision 2026-09-26): critical temperatures go to the
+/// crew of that sheet and their foreman, sheets to approve to the foreman,
+/// late tool loans to the warehouseman. Admins and supervisors use the menus
+/// themselves. PM and ordered goods follow the user's own crew and name.
 Future<List<MyTask>> loadMyTasks(SupabaseClient client, AppUser user) async {
   final DateTime now = DateTime.now();
   final DateTime today = DateTime(now.year, now.month, now.day);
@@ -92,8 +97,9 @@ Future<List<MyTask>> loadMyTasks(SupabaseClient client, AppUser user) async {
                 )
                 .limit(500),
           ),
-    // Reviewers: critical temperatures not closed, sheets to approve.
-    user.role.canReviewTemperature
+    // Crew and foreman: their crew's critical temperatures not closed
+    // (row-level security limits the rows to their own crew).
+    _crewOrForeman(user.role)
         ? rows(
             client
                 .from('temperature_alert')
@@ -102,7 +108,7 @@ Future<List<MyTask>> loadMyTasks(SupabaseClient client, AppUser user) async {
                 .limit(1000),
           )
         : Future<List<Object?>>.value(const <Object?>[]),
-    user.role.canReviewTemperature
+    user.role == UserRole.foreman
         ? rows(
             client
                 .from('daily_check_sheet')
@@ -112,8 +118,8 @@ Future<List<MyTask>> loadMyTasks(SupabaseClient client, AppUser user) async {
                 .limit(1000),
           )
         : Future<List<Object?>>.value(const <Object?>[]),
-    // Warehouse roles: tools not returned after the allowed days.
-    user.role.canManageWarehouse
+    // Warehouseman: tools not returned after the allowed days.
+    user.role == UserRole.warehouseman
         ? rows(
             client
                 .from('warehouse_tool_loan_item')
@@ -122,7 +128,10 @@ Future<List<MyTask>> loadMyTasks(SupabaseClient client, AppUser user) async {
                 .limit(1000),
           )
         : Future<List<Object?>>.value(const <Object?>[]),
-    user.role.canManageWarehouse
+    // LIST ORDER is the Asam-Asam (AMWH) workbook.
+    user.role == UserRole.warehouseman &&
+            (user.siteName == null ||
+                user.siteName!.toLowerCase().contains('asam'))
         ? rows(
             client
                 .from('warehouse_list_order_loan')
@@ -145,7 +154,7 @@ Future<List<MyTask>> loadMyTasks(SupabaseClient client, AppUser user) async {
       MyTask(
         icon: Icons.pending_actions_outlined,
         text:
-            'PM crew Anda jatuh tempo ≤ 7 hari'
+            'PM crew Anda ≤ 7 hari'
             '${overdue > 0 ? ' ($overdue lewat rencana)' : ''}',
         count: pm.length,
         route: '/outstanding-maintenance',
@@ -178,7 +187,7 @@ Future<List<MyTask>> loadMyTasks(SupabaseClient client, AppUser user) async {
     tasks.add(
       MyTask(
         icon: Icons.local_shipping_outlined,
-        text: 'Barang pesanan Anda datang (7 hari terakhir)',
+        text: 'Pesanan Anda datang (7 hari)',
         count: results[2].length,
         route: '/warehouse/receipts',
       ),
@@ -188,7 +197,7 @@ Future<List<MyTask>> loadMyTasks(SupabaseClient client, AppUser user) async {
     tasks.add(
       MyTask(
         icon: Icons.shopping_cart_outlined,
-        text: 'Barang pesanan Anda belum datang',
+        text: 'Pesanan Anda belum datang',
         count: results[1].length,
         route:
             '/warehouse/purchase-orders?requestor=${Uri.encodeQueryComponent(name)}',
@@ -217,7 +226,7 @@ Future<List<MyTask>> loadMyTasks(SupabaseClient client, AppUser user) async {
     tasks.add(
       MyTask(
         icon: Icons.handyman_outlined,
-        text: 'Alat terlambat kembali (> $warehouseLoanOverdueDays hari)',
+        text: 'Alat terlambat kembali (> $warehouseLoanOverdueDays hr)',
         count: lateLoans,
         route: '/warehouse/tool-loans',
         urgent: true,
@@ -226,6 +235,9 @@ Future<List<MyTask>> loadMyTasks(SupabaseClient client, AppUser user) async {
   }
   return tasks;
 }
+
+bool _crewOrForeman(UserRole role) =>
+    role == UserRole.crew || role == UserRole.foreman;
 
 class MyTasksCard extends StatefulWidget {
   const MyTasksCard({required this.user, super.key});
@@ -266,92 +278,79 @@ class _MyTasksCardState extends State<MyTasksCard> {
   @override
   Widget build(BuildContext context) {
     final List<MyTask>? tasks = _tasks;
+    // Nothing waiting (or still loading): no card, so Beranda stays one
+    // screen.
+    if (tasks == null || tasks.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.only(top: 10),
       child: Card(
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
-              child: Row(
-                children: <Widget>[
-                  const Icon(Icons.task_alt_rounded, color: AppColors.green),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text('Tugas saya', style: AppTextStyles.cardTitle),
-                  ),
-                  IconButton(
-                    tooltip: 'Muat ulang',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: tasks == null
-                        ? null
-                        : () {
-                            setState(() => _tasks = null);
-                            _load();
-                          },
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
-                  ),
-                ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsets.fromLTRB(14, 6, 14, 2),
+                child: Text('Tugas saya', style: AppTextStyles.cardTitle),
               ),
-            ),
-            if (tasks == null)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 4, 16, 14),
-                child: LinearProgressIndicator(),
-              )
-            else if (tasks.isEmpty)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
-                child: Text(
-                  'Tidak ada tugas yang menunggu Anda.',
-                  style: AppTextStyles.supporting,
-                ),
-              )
-            else
               for (final MyTask task in tasks)
-                ListTile(
-                  dense: true,
-                  leading: Icon(
-                    task.icon,
-                    color: task.urgent ? AppColors.danger : AppColors.green,
-                  ),
-                  title: Text(task.text),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
+                InkWell(
+                  onTap: () => context.go(task.route),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 7, 8, 7),
+                    child: Row(
+                      children: <Widget>[
+                        Icon(
+                          task.icon,
+                          size: 20,
+                          color: task.urgent
+                              ? AppColors.danger
+                              : AppColors.green,
                         ),
-                        decoration: BoxDecoration(
-                          color:
-                              (task.urgent ? AppColors.danger : AppColors.green)
-                                  .withValues(alpha: .12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${task.count}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            color: task.urgent
-                                ? AppColors.danger
-                                : AppColors.green,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            task.text,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13),
                           ),
                         ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.muted,
-                      ),
-                    ],
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                (task.urgent
+                                        ? AppColors.danger
+                                        : AppColors.green)
+                                    .withValues(alpha: .12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${task.count}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: task.urgent
+                                  ? AppColors.danger
+                                  : AppColors.green,
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppColors.muted,
+                        ),
+                      ],
+                    ),
                   ),
-                  onTap: () => context.go(task.route),
                 ),
-          ],
+            ],
+          ),
         ),
       ),
     );
